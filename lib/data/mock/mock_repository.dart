@@ -1,0 +1,41 @@
+import '../models/judge_result.dart';
+import '../models/notification_item.dart';
+import '../models/user_role.dart';
+
+/// 서버 연결 전 화면 흐름 확인용 가짜 데이터
+/// 나중에 같은 메서드 이름으로 API 버전 repository 를 만들어 교체
+class MockRepository {
+  MockRepository._();
+  static final MockRepository instance = MockRepository._();
+
+  int boardingCount = 0;
+
+  /// 이메일에 'parent' 가 들어가면 학부모, 아니면 관리자(기사)
+  Future<UserRole> login(String email, String password) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    return email.contains('parent') ? UserRole.parent : UserRole.driver;
+  }
+
+  /// 승차 사진 → YOLO 카운트 (mock: 5명)
+  Future<int> uploadBoardingPhoto() async {
+    await Future.delayed(const Duration(seconds: 1));
+    boardingCount = 5;
+    return boardingCount;
+  }
+
+  /// 종점 사진 → 잔류 카운트 → 판정
+  /// oneRemaining=true 이면 '한 명 남음' 시나리오
+  Future<JudgeResult> uploadDropoffPhoto({required bool oneRemaining}) async {
+    await Future.delayed(const Duration(seconds: 1));
+    return JudgeResult(
+      boardingCount: boardingCount,
+      remainingCount: oneRemaining ? 1 : 0,
+    );
+  }
+
+  final List<NotificationItem> notifications = [
+    NotificationItem(id: 3, title: '🚨 미하차 의심', busName: '1호차', time: '10.12 08:41', isAlert: true),
+    NotificationItem(id: 2, title: '✅ 하차 확인 완료', busName: '1호차', time: '10.11 08:39', isAlert: false, read: true),
+    NotificationItem(id: 1, title: '✅ 하차 확인 완료', busName: '1호차', time: '10.10 08:40', isAlert: false, read: true),
+  ];
+}
