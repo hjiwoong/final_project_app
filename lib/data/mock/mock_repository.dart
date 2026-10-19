@@ -9,6 +9,28 @@ class MockRepository {
   static final MockRepository instance = MockRepository._();
 
   int boardingCount = 0;
+  int _nextSignupRequestId = 1;
+  final List<MockSignupRequest> signupRequests = [];
+
+  /// 회원가입과 자녀 연결 요청을 메모리에만 접수하는 실험용 목업
+  Future<MockSignupRequest> signup({
+    required String name,
+    required String email,
+    required List<MockChildLinkRequest> children,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    final request = MockSignupRequest(
+      id: _nextSignupRequestId++,
+      name: name,
+      email: email,
+      children: List.unmodifiable(children),
+      status: 'pending',
+      createdAt: DateTime.now(),
+    );
+    signupRequests.add(request);
+    return request;
+  }
 
   /// 이메일에 'parent' 가 들어가면 학부모, 아니면 관리자(기사)
   Future<UserRole> login(String email, String password) async {
@@ -34,8 +56,58 @@ class MockRepository {
   }
 
   final List<NotificationItem> notifications = [
-    NotificationItem(id: 3, title: '🚨 미하차 의심', busName: '1호차', time: '10.12 08:41', isAlert: true),
-    NotificationItem(id: 2, title: '✅ 하차 확인 완료', busName: '1호차', time: '10.11 08:39', isAlert: false, read: true),
-    NotificationItem(id: 1, title: '✅ 하차 확인 완료', busName: '1호차', time: '10.10 08:40', isAlert: false, read: true),
+    NotificationItem(
+      id: 3,
+      title: '🚨 미하차 의심',
+      busName: '1호차',
+      time: '10.12 08:41',
+      isAlert: true,
+    ),
+    NotificationItem(
+      id: 2,
+      title: '✅ 하차 확인 완료',
+      busName: '1호차',
+      time: '10.11 08:39',
+      isAlert: false,
+      read: true,
+    ),
+    NotificationItem(
+      id: 1,
+      title: '✅ 하차 확인 완료',
+      busName: '1호차',
+      time: '10.10 08:40',
+      isAlert: false,
+      read: true,
+    ),
   ];
+}
+
+class MockSignupRequest {
+  const MockSignupRequest({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.children,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final int id;
+  final String name;
+  final String email;
+  final List<MockChildLinkRequest> children;
+  final String status;
+  final DateTime createdAt;
+}
+
+class MockChildLinkRequest {
+  const MockChildLinkRequest({
+    required this.name,
+    required this.className,
+    required this.relation,
+  });
+
+  final String name;
+  final String className;
+  final String relation;
 }

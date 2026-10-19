@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../data/mock/mock_repository.dart';
+import '../../data/api/api_repository.dart';
+import '../../data/models/notification_item.dart';
 import 'alert_detail_screen.dart';
 
 /// 알림 목록: GET /me/notifications · 읽음 처리
@@ -12,33 +13,57 @@ class NotificationListScreen extends StatefulWidget {
 }
 
 class _NotificationListScreenState extends State<NotificationListScreen> {
+  bool _loading = true;
+  List<NotificationItem> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
+  }
+
+  Future<void> _fetchNotifications() async {
+    setState(() => _loading = true);
+    final items = await ApiRepository.instance.getNotifications();
+    if (!mounted) return;
+    setState(() {
+      _items = items;
+      _loading = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = MockRepository.instance.notifications;
     return Scaffold(
       appBar: AppBar(title: const Text('알림')),
-      body: ListView.separated(
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, i) {
-          final n = items[i];
-          return ListTile(
-            title: Text(
-              n.title,
-              style: TextStyle(fontWeight: n.read ? FontWeight.normal : FontWeight.bold),
-            ),
-            subtitle: Text('${n.busName} · ${n.time}'),
-            onTap: () {
-              setState(() => n.read = true);
-              if (n.isAlert) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AlertDetailScreen()),
-                );
-              }
-            },
-          );
-        },
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _items.isEmpty
+              ? const Center(child: Text('알림이 없습니다.'))
+              : ListView.separated(
+                  itemCount: _items.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1),
+                  itemBuilder: (context, i) {
+                    final n = _items[i];
+                    return ListTile(
+                      title: Text(
+                        n.title,
+                        style: TextStyle(fontWeight: n.read ? FontWeight.normal : FontWeight.bold),
+                      ),
+                      subtitle: Text('${n.busName} · ${n.time}'),
+                      onTap: () async {
+                        setState(() => n.read = true);
+                        await ApiRepository.instance.readNotification(n.id);
+                        if (!mounted) return;
+                        if (n.isAlert) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AlertDetailScreen()),
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
     );
   }
 }

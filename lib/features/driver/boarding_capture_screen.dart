@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../data/mock/mock_repository.dart';
+import '../../core/auth/session.dart';
+import '../../data/api/api_repository.dart';
 import '../../widgets/primary_button.dart';
 import 'dropoff_capture_screen.dart';
 
@@ -18,7 +19,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
 
   Future<void> _capture() async {
     setState(() => _loading = true);
-    final count = await MockRepository.instance.uploadBoardingPhoto();
+    final count = await ApiRepository.instance.uploadBoardingPhoto(Session.currentTripId ?? 1);
     if (!mounted) return;
     setState(() {
       _loading = false;

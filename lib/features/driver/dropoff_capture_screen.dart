@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/auth/session.dart';
 import '../../core/theme/app_theme.dart';
-import '../../data/mock/mock_repository.dart';
+import '../../data/api/api_repository.dart';
 import '../../widgets/primary_button.dart';
 import 'judge_result_screen.dart';
 
@@ -19,7 +20,9 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
 
   Future<void> _capture({required bool oneRemaining}) async {
     setState(() => _loading = true);
-    final result = await MockRepository.instance.uploadDropoffPhoto(oneRemaining: oneRemaining);
+    final tripId = Session.currentTripId ?? 1;
+    final result = await ApiRepository.instance.uploadDropoffPhoto(tripId, oneRemaining: oneRemaining);
+    await ApiRepository.instance.confirmTrip(tripId);
     if (!mounted) return;
     setState(() => _loading = false);
     Navigator.of(context).push(

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/judge_result.dart';
 import '../../widgets/primary_button.dart';
-import 'trip_start_screen.dart';
+import 'driver_shell.dart';
 
 /// ⑥ 운행 종료: POST /trips/{id}/confirm · 결과 OK 아니면 409(종료 불가)
 class TripEndScreen extends StatelessWidget {
@@ -38,10 +38,10 @@ class TripEndScreen extends StatelessWidget {
               onPressed: result.isOk
                   ? () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('운행이 종료되었습니다 (CLOSED)')),
+                        const SnackBar(content: Text('운행이 종료되었습니다')),
                       );
                       Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const TripStartScreen()),
+                        MaterialPageRoute(builder: (_) => const DriverShell()),
                         (route) => false,
                       );
                     }
