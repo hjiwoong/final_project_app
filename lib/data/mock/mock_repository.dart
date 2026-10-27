@@ -32,6 +32,26 @@ class MockRepository {
     return request;
   }
 
+  /// Adds child-link requests to an existing mock signup.
+  Future<void> addChildLinks({
+    required String email,
+    required List<MockChildLinkRequest> children,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+
+    final requestIndex = signupRequests.lastIndexWhere(
+      (request) => request.email.toLowerCase() == email.toLowerCase(),
+    );
+    if (requestIndex == -1) {
+      throw StateError('해당 이메일의 가입 정보를 찾을 수 없습니다.');
+    }
+
+    final request = signupRequests[requestIndex];
+    signupRequests[requestIndex] = request.copyWith(
+      children: [...request.children, ...children],
+    );
+  }
+
   /// 이메일에 'parent' 가 들어가면 학부모, 아니면 관리자(기사)
   Future<UserRole> login(String email, String password) async {
     await Future.delayed(const Duration(milliseconds: 400));
@@ -98,6 +118,16 @@ class MockSignupRequest {
   final List<MockChildLinkRequest> children;
   final String status;
   final DateTime createdAt;
+
+  MockSignupRequest copyWith({List<MockChildLinkRequest>? children}) =>
+      MockSignupRequest(
+        id: id,
+        name: name,
+        email: email,
+        children: children ?? this.children,
+        status: status,
+        createdAt: createdAt,
+      );
 }
 
 class MockChildLinkRequest {

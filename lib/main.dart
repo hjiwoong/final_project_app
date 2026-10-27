@@ -14,7 +14,7 @@ void main() async {
   // 네이버 지도 SDK 초기화
   try {
     await FlutterNaverMap().init(
-      clientId: '입력란',
+      clientId: 'o9i3kd3g9k',
       onAuthFailed: (ex) {
         debugPrint('네이버맵 인증 실패: $ex');
       },
