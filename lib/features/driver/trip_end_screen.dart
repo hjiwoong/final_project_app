@@ -81,7 +81,7 @@ class _TripEndScreenState extends State<TripEndScreen> {
             if (!result.isOk)
               const Padding(
                 padding: EdgeInsets.all(12),
-                child: Text('🔒 미하차가 있어 운행을 종료할 수 없습니다. 차량 내부를 확인하세요.'),
+                child: Text('미하차 인원이 있어 운행을 종료할 수 없습니다. 차량 내부를 확인하세요.'),
               ),
             const Spacer(),
             PrimaryButton(

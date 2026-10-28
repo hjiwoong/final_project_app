@@ -46,7 +46,7 @@ class JudgeResultScreen extends StatelessWidget {
               const SizedBox(height: 12),
             ],
             PrimaryButton(
-              label: '운행 종료로',
+              label: '운행 결과 확인',
               color: ok ? null : Colors.grey,
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => TripEndScreen(result: result)),

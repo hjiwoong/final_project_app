@@ -553,19 +553,14 @@ class ApiRepository {
     required bool safetyChecked,
   }) async {
     if (Env.useMock || Session.currentTripIsMock) return;
-    try {
-      await _dio.post(
-        '/trips/$tripId/confirm',
-        data: {
-          'method': 'button',
-          'simulation_mode': simulationMode,
-          'safety_checked': safetyChecked,
-        },
-      );
-    } on DioException catch (e) {
-      if (e.response != null) rethrow;
-      debugPrint('운행 종료 서버에 연결할 수 없습니다: $e');
-    }
+    await _dio.post(
+      '/trips/$tripId/confirm',
+      data: {
+        'method': 'button',
+        'simulation_mode': simulationMode,
+        'safety_checked': safetyChecked,
+      },
+    );
   }
 
   // 7. 알림 목록 조회 (GET /me/notifications)
