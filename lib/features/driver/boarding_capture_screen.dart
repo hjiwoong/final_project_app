@@ -47,10 +47,32 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
             Expanded(
               child: Center(
                 child: _count == null
-                    ? const Icon(
-                        Icons.photo_camera,
-                        size: 96,
-                        color: Colors.grey,
+                    ? const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.photo_camera,
+                            size: 96,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 1),
+                          Text(
+                            '승차 인원 촬영',
+                            style: TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '탑승객이 모두 보이도록 촬영해 주세요.\n 차량 내부의 카메라가 필요합니다.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
                       )
                     : Text(
                         'YOLO 승차 인원: $_count명',

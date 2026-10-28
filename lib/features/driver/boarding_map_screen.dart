@@ -37,6 +37,12 @@ class BoardingMapScreen extends StatefulWidget {
 }
 
 class _BoardingMapScreenState extends State<BoardingMapScreen> {
+  static const List<NLatLng> _mockStopPositions = [
+    NLatLng(37.5682, 126.9768),
+    NLatLng(37.5701, 126.9822),
+    NLatLng(37.5666, 126.9784),
+  ];
+
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
   late int _currentStopIndex;
@@ -47,6 +53,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
   String? _loadError;
   double _collapsedSheetSize = 0.12;
   List<Map<String, dynamic>> _stops = [];
+  final List<NMarker> _stopMarkers = [];
 
   @override
   void initState() {
@@ -99,27 +106,76 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _makeStops(List<ChildStudent> students) => [
-    for (final (index, student) in students.indexed)
+  List<Map<String, dynamic>> _makeStops(List<ChildStudent> students) {
+    final useMockPositions =
+        students.isNotEmpty && students.every((student) => student.isMock);
+    return [
+      for (final (index, student) in students.indexed)
+        {
+          'title': '📍 ${index + 1}번 정류장 도착',
+          'student': '${student.name} · ${student.className ?? '학급 정보 없음'}',
+          'status': '승차 대기',
+          'statusColor': Colors.green,
+          if (useMockPositions)
+            'position':
+                _mockStopPositions[index % (_mockStopPositions.length - 1)],
+        },
       {
-        'title': '📍 ${index + 1}번 정류장 도착',
-        'student': '${student.name} · ${student.className ?? '학급 정보 없음'}',
-        'status': '승차 대기',
-        'statusColor': Colors.green,
+        'title': '🏫 종점 도착 · 마지막 정류장',
+        'student': '탑승 예정 ${students.length}명',
+        'status': '종점',
+        'statusColor': Colors.blue,
+        if (useMockPositions) 'position': _mockStopPositions.last,
       },
-    {
-      'title': '🏫 종점 도착 · 마지막 정류장',
-      'student': '탑승 예정 ${students.length}명',
-      'status': '종점',
-      'statusColor': Colors.blue,
-    },
-  ];
+    ];
+  }
+
+  Color _markerColor(int index) {
+    if (index == _stops.length - 1) return Colors.blue;
+    return index < _currentStopIndex ? Colors.green : Colors.red;
+  }
+
+  Future<void> _addMapOverlays(NaverMapController controller) async {
+    final positions = _stops
+        .map((stop) => stop['position'])
+        .whereType<NLatLng>()
+        .toList();
+    if (positions.length < 2) return;
+
+    _stopMarkers
+      ..clear()
+      ..addAll([
+        for (final (index, stop) in _stops.indexed)
+          if (stop['position'] case final NLatLng position)
+            NMarker(
+              id: 'boarding_stop_$index',
+              position: position,
+              iconTintColor: _markerColor(index),
+              caption: NOverlayCaption(
+                text: index == _stops.length - 1 ? '종점' : '${index + 1}번 탑승 위치',
+              ),
+            ),
+      ]);
+
+    await controller.addOverlayAll({
+      ..._stopMarkers,
+      NPolylineOverlay(
+        id: 'mock_boarding_route',
+        coords: positions,
+        color: Colors.blue,
+        width: 5,
+      ),
+    });
+  }
 
   Future<void> _nextStop() async {
     if (_currentStopIndex < _stops.length - 1) {
       setState(() {
         _currentStopIndex++;
       });
+      for (final (index, marker) in _stopMarkers.indexed) {
+        marker.setIconTintColor(_markerColor(index));
+      }
       await widget.onStopChanged?.call(_currentStopIndex);
     } else {
       Navigator.of(
@@ -213,10 +269,12 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       appBar: _buildAppBar(),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final collapsedSheetSize = (88 / constraints.maxHeight)
+          //상한 설정값 - 접었을 때
+          final collapsedSheetSize = (107 / constraints.maxHeight)
               .clamp(0.1, 0.3)
               .toDouble();
-          final expandedSheetSize = (196 / constraints.maxHeight)
+          //올렸을 때
+          final expandedSheetSize = (172 / constraints.maxHeight)
               .clamp(collapsedSheetSize + 0.05, 0.5)
               .toDouble();
           _collapsedSheetSize = collapsedSheetSize;
@@ -226,13 +284,14 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
               NaverMap(
                 options: const NaverMapViewOptions(
                   initialCameraPosition: NCameraPosition(
-                    target: NLatLng(37.5666102, 126.9783881),
-                    zoom: 15,
+                    target: NLatLng(37.5683, 126.9795),
+                    zoom: 14.5,
                   ),
                   locationButtonEnable: true,
                 ),
-                onMapReady: (controller) {
+                onMapReady: (controller) async {
                   debugPrint('네이버 지도 로딩 완료');
+                  await _addMapOverlays(controller);
                 },
               ),
               Positioned(
@@ -256,14 +315,30 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                         ),
                       ],
                     ),
-                    child: Row(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildLegendDot(Colors.red, '출석 대기'),
-                        const SizedBox(width: 14),
-                        _buildLegendDot(Colors.green, '승차 완료'),
-                        const SizedBox(width: 14),
-                        _buildLegendDot(Colors.grey, '결석'),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildLegendDot(Colors.red, '출석 대기'),
+                            const SizedBox(width: 14),
+                            _buildLegendDot(Colors.green, '승차 완료'),
+                            const SizedBox(width: 14),
+                            _buildLegendDot(Colors.grey, '결석'),
+                          ],
+                        ),
+                        if (_stops.any((stop) => stop.containsKey('position')))
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Text(
+                              '테스트용 목업 좌표 · 실제 위치 아님',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),

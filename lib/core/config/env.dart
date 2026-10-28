@@ -8,6 +8,12 @@ class Env {
     defaultValue: 'http://10.0.2.2:8000',
   );
 
+  /// Google OAuth 웹 클라이언트 ID. API의 GOOGLE_CLIENT_ID와 같아야 한다.
+  /// 실행 시 --dart-define=GOOGLE_SERVER_CLIENT_ID=<웹 클라이언트 ID> 로 지정한다.
+  static const String googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+  );
+
   /// true 이면 API를 호출하지 않고 명시적으로 mock 모드로 동작
   static const bool useMock = bool.fromEnvironment(
     'USE_MOCK',

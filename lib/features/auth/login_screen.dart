@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../core/auth/session.dart';
+import '../../core/config/env.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/user_role.dart';
 import '../driver/driver_shell.dart';
@@ -20,40 +20,33 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
 
-  Future<UserRole?> _signIn(String email, String password) async {
+
+
+  Future<UserRole?> _loginWithGoogle() async {
     setState(() => _loading = true);
     try {
-      final role = await ApiRepository.instance.login(email, password);
-      Session.role = role;
-      Session.email = email;
-      return role;
+      if (Env.googleServerClientId.isEmpty) {
+        throw StateError('Google 웹 클라이언트 ID를 GOOGLE_SERVER_CLIENT_ID로 설정하세요.');
+      }
+
+      final googleSignIn = GoogleSignIn(
+        serverClientId: Env.googleServerClientId,
+      );
+      final account = await googleSignIn.signIn();
+      if (account == null) return null;
+
+      final idToken = (await account.authentication).idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw StateError('Google ID 토큰을 받지 못했습니다. OAuth 설정을 확인하세요.');
+      }
+
+      return await ApiRepository.instance.loginWithGoogle(idToken);
     } catch (e) {
       if (!mounted) return null;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('로그인 실패: $e')));
-      return null;
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<bool> _loginWithGoogle() async {
-    setState(() => _loading = true);
-    try {
-      final account = await GoogleSignIn().signIn();
-      if (account == null) return false;
-
-      Session.role = UserRole.parent;
-      Session.email = account.email;
-      Session.name = account.displayName;
-      return true;
-    } catch (e) {
-      if (!mounted) return false;
-      ScaffoldMessenger.of(
-        context,
       ).showSnackBar(SnackBar(content: Text('Google 로그인을 실패했습니다.: $e')));
-      return false;
+      return null;
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -63,22 +56,18 @@ class _LoginScreenState extends State<LoginScreen> {
     final result = await showModalBottomSheet<_LoginSheetResult>(
       context: context,
       isScrollControlled: true,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => _LoginOptionsSheet(
         loading: _loading,
         onGoogleLogin: () async {
-          if (await _loginWithGoogle() && sheetContext.mounted) {
-            Navigator.of(sheetContext).pop(_LoginSheetResult.parent);
-          }
-        },
-        onEmailLogin: () =>
-            Navigator.of(sheetContext).pop(_LoginSheetResult.email),
-        onTestLogin: (email) async {
-          final role = await _signIn(email, '1234');
+          final role = await _loginWithGoogle();
           if (role != null && sheetContext.mounted) {
             Navigator.of(sheetContext).pop(_resultFor(role));
           }
         },
+        onEmailLogin: () =>
+            Navigator.of(sheetContext).pop(_LoginSheetResult.email),
       ),
     );
     if (!mounted || result == null) return;
@@ -155,15 +144,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _PageDot(active: true),
-                  SizedBox(width: 7),
-                  _PageDot(),
-                  SizedBox(width: 7),
-                  _PageDot(),
-                  SizedBox(width: 7),
-                  _PageDot(),
-                ],
               ),
               const SizedBox(height: 24),
               Row(
@@ -403,25 +383,6 @@ class _Wheel extends StatelessWidget {
   }
 }
 
-class _PageDot extends StatelessWidget {
-  const _PageDot({this.active = false});
-
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      width: active ? 8 : 6,
-      height: active ? 8 : 6,
-      decoration: BoxDecoration(
-        color: active ? const Color(0xFF202329) : const Color(0xFFD1D5DB),
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-}
-
 enum _LoginSheetResult { email, driver, parent }
 
 class _LoginOptionsSheet extends StatelessWidget {
@@ -429,13 +390,11 @@ class _LoginOptionsSheet extends StatelessWidget {
     required this.loading,
     required this.onGoogleLogin,
     required this.onEmailLogin,
-    required this.onTestLogin,
   });
 
   final bool loading;
   final Future<void> Function() onGoogleLogin;
   final VoidCallback onEmailLogin;
-  final Future<void> Function(String) onTestLogin;
 
   @override
   Widget build(BuildContext context) {
@@ -444,7 +403,6 @@ class _LoginOptionsSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _SheetHandle(),
           const SizedBox(height: 20),
           const Text(
             '로그인 방법 선택',
@@ -492,97 +450,7 @@ class _LoginOptionsSheet extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              Expanded(child: Divider(color: Colors.grey.shade300)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text(
-                  '테스트 목적으로만 사용',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                ),
-              ),
-              Expanded(child: Divider(color: Colors.grey.shade300)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            '빠른 테스트 계정',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _TestAccountButton(
-                  icon: Icons.directions_bus_rounded,
-                  title: '기사(관리자) 계정',
-                  email: 'driver@school.kr',
-                  color: const Color(0xFF3B82F6),
-                  onPressed: loading
-                      ? null
-                      : () => onTestLogin('driver@school.kr'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _TestAccountButton(
-                  icon: Icons.family_restroom_rounded,
-                  title: '학부모 계정',
-                  email: 'parent@school.kr',
-                  color: const Color(0xFF22A06B),
-                  onPressed: loading
-                      ? null
-                      : () => onTestLogin('parent@school.kr'),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 18),
-        ],
-      ),
-    );
-  }
-}
-
-class _TestAccountButton extends StatelessWidget {
-  const _TestAccountButton({
-    required this.icon,
-    required this.title,
-    required this.email,
-    required this.color,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String title;
-  final String email;
-  final Color color;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFF202329),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        side: const BorderSide(color: Color(0xFFE1E3E6)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(height: 5),
-          Text(title, style: const TextStyle(fontSize: 12)),
-          const SizedBox(height: 2),
-          Text(
-            email,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
-          ),
         ],
       ),
     );
