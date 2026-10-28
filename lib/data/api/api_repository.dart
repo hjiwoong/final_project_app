@@ -23,15 +23,17 @@ class ApiRepository {
     required String name,
   }) async {
     if (Env.useMock) {
-      await MockRepository.instance.signup(
+      final mockAccount = await MockRepository.instance.signup(
         name: name,
         email: email,
         children: const [],
       );
       await TokenStorage.clear();
       Session.role = UserRole.parent;
+      Session.accountRole = 'PARENT';
       Session.email = email;
       Session.name = name;
+      Session.createdAt = mockAccount.createdAt;
       Session.isMockAccount = true;
       return;
     }
@@ -45,15 +47,17 @@ class ApiRepository {
     } on DioException catch (e) {
       if (e.response != null) rethrow;
       debugPrint('회원가입 서버에 연결할 수 없어 Mock으로 폴백: $e');
-      await MockRepository.instance.signup(
+      final mockAccount = await MockRepository.instance.signup(
         name: name,
         email: email,
         children: const [],
       );
       await TokenStorage.clear();
       Session.role = UserRole.parent;
+      Session.accountRole = 'PARENT';
       Session.email = email;
       Session.name = name;
+      Session.createdAt = mockAccount.createdAt;
       Session.isMockAccount = true;
       return;
     }
@@ -66,9 +70,16 @@ class ApiRepository {
     }
     await TokenStorage.save(accessToken);
     Session.role = UserRole.parent;
+    Session.accountRole = role;
     Session.email = email;
     final user = data['user'];
-    Session.name = user is Map ? user['name'] as String? : name;
+    if (user is Map) {
+      Session.name = user['name'] as String? ?? name;
+      Session.createdAt = _parseCreatedAt(user['created_at']);
+    } else {
+      Session.name = name;
+      Session.createdAt = null;
+    }
     Session.isMockAccount = false;
   }
 
@@ -104,7 +115,11 @@ class ApiRepository {
       await TokenStorage.clear();
       Session.isMockAccount = true;
       Session.name = email.split('@').first;
-      return MockRepository.instance.login(email, password);
+      Session.createdAt = null;
+      Session.email = email;
+      final role = await MockRepository.instance.login(email, password);
+      Session.accountRole = role == UserRole.parent ? 'PARENT' : 'DRIVER';
+      return role;
     }
 
     late final Response<dynamic> response;
@@ -119,7 +134,11 @@ class ApiRepository {
       await TokenStorage.clear();
       Session.isMockAccount = true;
       Session.name = email.split('@').first;
-      return await MockRepository.instance.login(email, password);
+      Session.createdAt = null;
+      Session.email = email;
+      final role = await MockRepository.instance.login(email, password);
+      Session.accountRole = role == UserRole.parent ? 'PARENT' : 'DRIVER';
+      return role;
     }
 
     final data = Map<String, dynamic>.from(response.data as Map);
@@ -128,7 +147,14 @@ class ApiRepository {
     await TokenStorage.save(accessToken);
     Session.isMockAccount = false;
     final user = data['user'];
-    Session.name = user is Map ? user['name'] as String? : null;
+    Session.accountRole = roleStr.toUpperCase();
+    if (user is Map) {
+      Session.name = user['name'] as String?;
+      Session.createdAt = _parseCreatedAt(user['created_at']);
+    } else {
+      Session.name = null;
+      Session.createdAt = null;
+    }
 
     switch (roleStr.toUpperCase()) {
       case 'PARENT':
@@ -138,6 +164,42 @@ class ApiRepository {
         return UserRole.driver;
     }
     throw FormatException('지원하지 않는 사용자 역할입니다: $roleStr');
+  }
+
+  Future<UserRole> loginWithGoogle(String idToken) async {
+    if (Env.useMock) {
+      throw StateError('Google 계정은 Mock 모드에서 DB에 등록할 수 없습니다.');
+    }
+
+    final response = await _dio.post(
+      '/auth/google',
+      data: {'id_token': idToken},
+    );
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final accessToken = data['access_token'] as String;
+    final roleStr = (data['role'] as String).toUpperCase();
+    final user = Map<String, dynamic>.from(data['user'] as Map);
+
+    final role = switch (roleStr) {
+      'PARENT' => UserRole.parent,
+      'ADMIN' || 'DRIVER' => UserRole.driver,
+      _ => throw FormatException('지원하지 않는 사용자 역할입니다: $roleStr'),
+    };
+
+    await TokenStorage.save(accessToken);
+    Session.role = role;
+    Session.accountRole = roleStr;
+    Session.email = user['email'] as String;
+    Session.name = user['name'] as String?;
+    Session.createdAt = _parseCreatedAt(user['created_at']);
+    Session.isMockAccount = false;
+    return role;
+  }
+
+  DateTime? _parseCreatedAt(Object? value) {
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   // 2. 버스 목록 조회 (/web/buses)
