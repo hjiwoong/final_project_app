@@ -1,14 +1,35 @@
+import '../models/child_student.dart';
 import '../models/judge_result.dart';
-import '../models/notification_item.dart';
 import '../models/user_role.dart';
 
-/// 서버 연결 전 화면 흐름 확인용 가짜 데이터
-/// 나중에 같은 메서드 이름으로 API 버전 repository 를 만들어 교체
+/// API 응답이 비어 있거나 서버를 사용할 수 없을 때 보여주는 목업 데이터.
 class MockRepository {
   MockRepository._();
   static final MockRepository instance = MockRepository._();
 
   int boardingCount = 0;
+  static const List<ChildStudent> _mockChildren = [
+    ChildStudent(id: -1, name: '김하늘', className: '1학년 2반', isMock: true),
+    ChildStudent(id: -2, name: '이도윤', className: '3학년 1반', isMock: true),
+  ];
+  final Map<int, bool> _mockAbsences = {};
+
+  List<ChildStudent> get children => _mockChildren
+      .map(
+        (child) => ChildStudent(
+          id: child.id,
+          name: child.name,
+          className: child.className,
+          isAbsent: _mockAbsences[child.id] ?? child.isAbsent,
+          isMock: true,
+        ),
+      )
+      .toList();
+
+  void setMockAttendance(int studentId, bool isAbsent) {
+    _mockAbsences[studentId] = isAbsent;
+  }
+
   int _nextSignupRequestId = 1;
   final List<MockSignupRequest> signupRequests = [];
 
@@ -74,32 +95,6 @@ class MockRepository {
       remainingCount: oneRemaining ? 1 : 0,
     );
   }
-
-  final List<NotificationItem> notifications = [
-    NotificationItem(
-      id: 3,
-      title: '🚨 미하차 의심',
-      busName: '1호차',
-      time: '10.12 08:41',
-      isAlert: true,
-    ),
-    NotificationItem(
-      id: 2,
-      title: '✅ 하차 확인 완료',
-      busName: '1호차',
-      time: '10.11 08:39',
-      isAlert: false,
-      read: true,
-    ),
-    NotificationItem(
-      id: 1,
-      title: '✅ 하차 확인 완료',
-      busName: '1호차',
-      time: '10.10 08:40',
-      isAlert: false,
-      read: true,
-    ),
-  ];
 }
 
 class MockSignupRequest {

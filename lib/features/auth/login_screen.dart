@@ -46,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Session.role = UserRole.parent;
       Session.email = account.email;
+      Session.name = account.displayName;
       return true;
     } catch (e) {
       if (!mounted) return false;
@@ -516,7 +517,7 @@ class _LoginOptionsSheet extends StatelessWidget {
               Expanded(
                 child: _TestAccountButton(
                   icon: Icons.directions_bus_rounded,
-                  title: '기사 계정',
+                  title: '기사(관리자) 계정',
                   email: 'driver@school.kr',
                   color: const Color(0xFF3B82F6),
                   onPressed: loading

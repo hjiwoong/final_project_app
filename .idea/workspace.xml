@@ -12,15 +12,31 @@
     <option name="selectedModelId" value="auto" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="73f636d5-7e97-4632-8fb5-d66af541a48e" name="Changes" comment="10/19 업데이트">
-      <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
+    <list default="true" id="73f636d5-7e97-4632-8fb5-d66af541a48e" name="Changes" comment="10/27 업데이트&#10;로그인 및 회원가입 등 ui 1차 개선">
+      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build/abc6bb1dfe4276d4158ca37094b1c000.cache.dill.track.dill" beforeDir="false" afterPath="$PROJECT_DIR$/build/abc6bb1dfe4276d4158ca37094b1c000.cache.dill.track.dill" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/final_project_app.iml" beforeDir="false" afterPath="$PROJECT_DIR$/final_project_app.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/auth/session.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/auth/session.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/config/env.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/config/env.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/network/api_client.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/network/api_client.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/theme/app_theme.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/theme/app_theme.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/api/api_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/api/api_repository.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/data/mock/mock_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/mock/mock_repository.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/models/notification_item.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/notification_item.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/auth/child_link_request_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/child_link_request_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/auth/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/login_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/auth/signup_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/signup_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/boarding_capture_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/boarding_capture_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/boarding_map_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/boarding_map_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/driver_shell.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/driver_shell.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/dropoff_capture_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/dropoff_capture_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/trip_end_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/trip_end_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/trip_start_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/trip_start_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/alert_detail_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/alert_detail_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/attendance_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/attendance_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/notification_list_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/notification_list_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_home_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_home_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_shell.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_shell.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/main.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/test/widget_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/widget_test.dart" afterDir="false" />
     </list>
@@ -45,6 +61,11 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
@@ -107,9 +128,10 @@
     "RunOnceActivity.readMode.enableVisualFormatting": "true",
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
+    "com.google.services.firebase.aqiPopupShown": "true",
     "copilot.chat.legacySessionMetadata.migrated": "true",
     "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "admin-app",
     "io.flutter.project.isFirstOpen": "true",
     "io.flutter.reload.alreadyRun": "true",
     "kotlin-language-version-configured": "true",
@@ -166,7 +188,15 @@
       <option name="project" value="LOCAL" />
       <updated>1792413001663</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="10/27 업데이트&#10;로그인 및 회원가입 등 ui 1차 개선">
+      <option name="closed" value="true" />
+      <created>1793089997194</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1793089997194</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -212,6 +242,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="10/19 업데이트" />
-    <option name="LAST_COMMIT_MESSAGE" value="10/19 업데이트" />
+    <MESSAGE value="10/27 업데이트&#10;로그인 및 회원가입 등 ui 1차 개선" />
+    <option name="LAST_COMMIT_MESSAGE" value="10/27 업데이트&#10;로그인 및 회원가입 등 ui 1차 개선" />
   </component>
 </project>

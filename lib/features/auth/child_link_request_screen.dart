@@ -1,6 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
-import '../../data/mock/mock_repository.dart';
+import '../../data/api/api_repository.dart';
 
 class ChildLinkRequestScreen extends StatefulWidget {
   const ChildLinkRequestScreen({required this.email, super.key});
@@ -36,18 +37,14 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
     try {
-      await MockRepository.instance.addChildLinks(
-        email: widget.email,
-        children: _children
-            .map(
-              (child) => MockChildLinkRequest(
-                name: child.nameController.text.trim(),
-                className: child.classController.text.trim(),
-                relation: child.relation!,
-              ),
-            )
-            .toList(),
-      );
+      for (final child in _children) {
+        await ApiRepository.instance.addChildRequest(
+          email: widget.email,
+          name: child.nameController.text.trim(),
+          className: child.classController.text.trim(),
+          relation: child.relation!,
+        );
+      }
       if (!mounted) return;
       await showDialog<void>(
         context: context,
@@ -65,12 +62,22 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('자녀 연결 요청 실패: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('자녀 연결 요청 실패: ${_errorMessage(e)}')),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _errorMessage(Object error) {
+    if (error is DioException) {
+      final response = error.response?.data;
+      if (response is Map && response['detail'] != null) {
+        return response['detail'].toString();
+      }
+    }
+    return error.toString();
   }
 
   @override

@@ -5,6 +5,7 @@ class NotificationItem {
   final String time;
   final bool isAlert;
   bool read;
+  final int? alertId;
 
   NotificationItem({
     required this.id,
@@ -13,5 +14,6 @@ class NotificationItem {
     required this.time,
     required this.isAlert,
     this.read = false,
+    this.alertId,
   });
 }

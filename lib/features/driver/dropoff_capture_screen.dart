@@ -20,14 +20,24 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
 
   Future<void> _capture({required bool oneRemaining}) async {
     setState(() => _loading = true);
-    final tripId = Session.currentTripId ?? 1;
-    final result = await ApiRepository.instance.uploadDropoffPhoto(tripId, oneRemaining: oneRemaining);
-    await ApiRepository.instance.confirmTrip(tripId);
-    if (!mounted) return;
-    setState(() => _loading = false);
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => JudgeResultScreen(result: result)),
-    );
+    try {
+      final tripId = Session.currentTripId ?? 1;
+      final result = await ApiRepository.instance.uploadDropoffPhoto(
+        tripId,
+        oneRemaining: oneRemaining,
+      );
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => JudgeResultScreen(result: result)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('종점 처리를 완료하지 못했습니다. ($e)')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -39,16 +49,18 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
         child: Column(
           children: [
             const Expanded(
-              child: Center(child: Icon(Icons.photo_camera, size: 96, color: Colors.grey)),
+              child: Center(
+                child: Icon(Icons.photo_camera, size: 96, color: Colors.grey),
+              ),
             ),
             PrimaryButton(
-              label: '📷 종점 촬영 (전원 하차)',
+              label: '종점 촬영 (전원 하차)',
               loading: _loading,
               onPressed: () => _capture(oneRemaining: false),
             ),
             const SizedBox(height: 12),
             PrimaryButton(
-              label: '📷 종점 촬영 (1명 남음)',
+              label: '종점 촬영 (1명 남음)',
               color: AppTheme.danger,
               loading: _loading,
               onPressed: () => _capture(oneRemaining: true),

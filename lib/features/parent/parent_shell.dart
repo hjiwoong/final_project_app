@@ -28,10 +28,24 @@ class _ParentShellState extends State<ParentShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
+        elevation: 0,
+        height: 68,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: '홈'),
-          NavigationDestination(icon: Icon(Icons.notifications), label: '알림'),
-          NavigationDestination(icon: Icon(Icons.settings), label: '설정'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: '홈',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.notifications_outlined),
+            selectedIcon: Icon(Icons.notifications),
+            label: '알림',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: '설정',
+          ),
         ],
       ),
     );

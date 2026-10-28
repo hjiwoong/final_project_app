@@ -1,12 +1,32 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
+import '../../data/api/api_repository.dart';
+import '../../data/models/child_student.dart';
+import '../../widgets/logout_confirmation_dialog.dart';
 import '../auth/child_link_request_screen.dart';
 import '../auth/login_screen.dart';
 
 /// 학부모 홈: 오늘 자녀 탑승·하차 상태 (내 아이 정보만)
-class ParentHomeScreen extends StatelessWidget {
+class ParentHomeScreen extends StatefulWidget {
   const ParentHomeScreen({super.key});
+
+  @override
+  State<ParentHomeScreen> createState() => _ParentHomeScreenState();
+}
+
+class _ParentHomeScreenState extends State<ParentHomeScreen> {
+  late Future<List<ChildStudent>> _children;
+
+  @override
+  void initState() {
+    super.initState();
+    _children = ApiRepository.instance.getChildren();
+  }
+
+  void _reloadChildren() {
+    setState(() => _children = ApiRepository.instance.getChildren());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,8 +36,11 @@ class ParentHomeScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              Session.clear();
+            onPressed: () async {
+              final shouldLogout = await showLogoutConfirmationDialog(context);
+              if (!shouldLogout || !context.mounted) return;
+              await Session.clear();
+              if (!context.mounted) return;
               Navigator.of(context, rootNavigator: true).pushReplacement(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
               );
@@ -58,21 +81,45 @@ class ParentHomeScreen extends StatelessWidget {
               },
             ),
           ),
-          Card(
-            child: ListTile(
-              leading: Text('👧', style: TextStyle(fontSize: 28)),
-              title: Text('김하늘'),
-              subtitle: Text('1학년 2반'),
-              trailing: Chip(label: Text('하차 완료')),
-            ),
-          ),
-          Card(
-            child: ListTile(
-              leading: Text('👦', style: TextStyle(fontSize: 28)),
-              title: Text('이도윤'),
-              subtitle: Text('3학년 1반'),
-              trailing: Chip(label: Text('탑승 중')),
-            ),
+          FutureBuilder<List<ChildStudent>>(
+            future: _children,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+              if (snapshot.hasError) {
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.error_outline),
+                    title: const Text('자녀 정보를 불러오지 못했습니다.'),
+                    trailing: IconButton(
+                      onPressed: _reloadChildren,
+                      icon: const Icon(Icons.refresh),
+                      tooltip: '다시 시도',
+                    ),
+                  ),
+                );
+              }
+
+              return Column(
+                children: snapshot.data!
+                    .map(
+                      (child) => Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.child_care),
+                          title: Text(child.name),
+                          subtitle: Text(child.className ?? '학급 정보 없음'),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
           ),
         ],
       ),

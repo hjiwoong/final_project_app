@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
+import '../../core/auth/trip_progress_storage.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
+import '../../data/models/trip_exit_action.dart';
+import '../../data/models/trip_progress.dart';
 import '../../widgets/primary_button.dart';
 import 'boarding_map_screen.dart';
 
@@ -12,6 +16,13 @@ class BusTripItem {
   final String busName;
   final String routeName;
   final int studentCount;
+  final bool isMock;
+  final bool simulationMode;
+
+  bool get isSimulationBus =>
+      simulationMode ||
+      busName == '개발용' ||
+      busNumber.toUpperCase().startsWith('TEST-');
 
   BusTripItem({
     required this.tripId,
@@ -19,6 +30,8 @@ class BusTripItem {
     required this.busName,
     required this.routeName,
     required this.studentCount,
+    this.isMock = false,
+    this.simulationMode = false,
   });
 
   factory BusTripItem.fromJson(Map<String, dynamic> json) {
@@ -28,6 +41,8 @@ class BusTripItem {
       busName: json['busName'] ?? '',
       routeName: json['routeName'] ?? '',
       studentCount: json['studentCount'] ?? 0,
+      isMock: json['is_mock'] == true,
+      simulationMode: json['simulation_mode'] == true,
     );
   }
 }
@@ -45,6 +60,8 @@ class _TripStartScreenState extends State<TripStartScreen> {
   String? _loadError;
   List<BusTripItem> _trips = [];
   BusTripItem? _selectedTrip;
+  BusTripItem? _activeTrip;
+  TripProgress? _activeProgress;
 
   @override
   void initState() {
@@ -53,16 +70,21 @@ class _TripStartScreenState extends State<TripStartScreen> {
   }
 
   /// ① 버스 목록 및 운행 정보 조회 (GET /web/buses)
-  Future<void> _fetchTodayTrips() async {
+  Future<void> _fetchTodayTrips({bool showLoading = true}) async {
     setState(() {
-      _isLoadingTrips = true;
+      if (showLoading) {
+        _isLoadingTrips = true;
+        _trips = [];
+        _selectedTrip = null;
+        _activeTrip = null;
+      }
       _loadError = null;
-      _trips = [];
-      _selectedTrip = null;
     });
 
     try {
       final buses = await ApiRepository.instance.getBuses();
+      final savedProgress = await TripProgressStorage.read();
+      final currentTrip = await ApiRepository.instance.getCurrentTrip();
       final loadedTrips = buses
           .map(
             (b) => BusTripItem(
@@ -71,14 +93,83 @@ class _TripStartScreenState extends State<TripStartScreen> {
               busName: b['name'] ?? '',
               routeName: '학교 → 종점',
               studentCount: b['student_count'] ?? 0,
+              isMock: b['is_mock'] == true,
             ),
           )
           .toList();
 
+      BusTripItem? activeTrip;
+      TripProgress? activeProgress;
+      if (currentTrip != null) {
+        final busId = currentTrip['bus_id'] as int;
+        final bus = buses.where((item) => item['id'] == busId).firstOrNull;
+        activeTrip = BusTripItem(
+          tripId: currentTrip['id'].toString(),
+          busNumber:
+              bus?['plate_no'] as String? ??
+              currentTrip['plate_no'] as String? ??
+              '',
+          busName:
+              bus?['name'] as String? ??
+              currentTrip['bus_name'] as String? ??
+              '운행 중인 버스',
+          routeName: '학교 → 종점',
+          studentCount:
+              bus?['student_count'] as int? ??
+              currentTrip['expected_count'] as int? ??
+              0,
+          simulationMode: currentTrip['simulation_mode'] as bool? ?? false,
+        );
+        final TripProgress restoredProgress;
+        final simulationMode =
+            currentTrip['simulation_mode'] as bool? ??
+            savedProgress?.simulationMode ??
+            activeTrip.isSimulationBus;
+        if (savedProgress != null &&
+            savedProgress.tripId == currentTrip['id']) {
+          restoredProgress = savedProgress.copyWith(
+            simulationMode: simulationMode,
+          );
+        } else {
+          restoredProgress = TripProgress(
+            tripId: currentTrip['id'] as int,
+            busId: busId,
+            busName: activeTrip.busName,
+            busNumber: activeTrip.busNumber,
+            isMock: false,
+            currentStopIndex: 0,
+            simulationMode: simulationMode,
+          );
+        }
+        activeProgress = restoredProgress;
+        await TripProgressStorage.save(restoredProgress);
+      } else if (savedProgress != null && savedProgress.isMock) {
+        final mockProgress = savedProgress;
+        activeProgress = mockProgress;
+        activeTrip = BusTripItem(
+          tripId: mockProgress.tripId.toString(),
+          busNumber: mockProgress.busNumber,
+          busName: mockProgress.busName,
+          routeName: '학교 → 종점',
+          studentCount: 0,
+          isMock: true,
+        );
+      } else {
+        await TripProgressStorage.clear();
+      }
+
       if (!mounted) return;
       setState(() {
+        final selectedId = _selectedTrip?.tripId;
         _trips = loadedTrips;
-        _selectedTrip = loadedTrips.isEmpty ? null : loadedTrips.first;
+        _activeTrip = activeTrip;
+        _activeProgress = activeProgress;
+        _selectedTrip = loadedTrips.isEmpty
+            ? null
+            : loadedTrips
+                      .where((trip) => trip.tripId == selectedId)
+                      .firstOrNull ??
+                  loadedTrips.first;
         _isLoadingTrips = false;
       });
     } catch (e) {
@@ -91,10 +182,64 @@ class _TripStartScreenState extends State<TripStartScreen> {
     }
   }
 
+  Future<void> _resumeTrip() async {
+    final trip = _activeTrip;
+    final progress = _activeProgress;
+    if (trip == null || progress == null || _isStartingTrip) return;
+
+    Session.currentTripId = progress.tripId;
+    Session.currentBoardingCount = null;
+    Session.currentTripIsMock = progress.isMock;
+    Session.currentTripSimulationMode = progress.simulationMode;
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BoardingMapScreen(
+          tripId: progress.tripId.toString(),
+          busId: progress.busId,
+          busName: progress.busName,
+          busNumber: progress.busNumber,
+          isMock: progress.isMock,
+          initialStopIndex: progress.currentStopIndex,
+          onStopChanged: (index) {
+            final updated = progress.copyWith(currentStopIndex: index);
+            _activeProgress = updated;
+            return TripProgressStorage.save(updated);
+          },
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _fetchTodayTrips(showLoading: false);
+    if (result == TripExitAction.cancel && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('운행을 취소했습니다.')));
+    }
+  }
+
   /// ② 운행 시작 요청 (POST /trips)
   Future<void> _startTrip() async {
     final selectedTrip = _selectedTrip;
     if (selectedTrip == null || _isStartingTrip || _isLoadingTrips) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('운행 시작'),
+        content: Text('${selectedTrip.busName} 운행을 시작하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('아니요'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('예'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
 
     final busId = int.tryParse(selectedTrip.tripId);
     if (busId == null) {
@@ -106,15 +251,49 @@ class _TripStartScreenState extends State<TripStartScreen> {
 
     setState(() => _isStartingTrip = true);
     try {
-      final tripId = await ApiRepository.instance.startTrip(busId);
+      final tripId = await ApiRepository.instance.startTrip(
+        busId,
+        isMock: selectedTrip.isMock,
+        simulationMode: selectedTrip.isSimulationBus,
+      );
       Session.currentTripId = tripId;
-
+      Session.currentBoardingCount = null;
+      Session.currentTripIsMock = selectedTrip.isMock;
+      Session.currentTripSimulationMode = selectedTrip.isSimulationBus;
+      final progress = TripProgress(
+        tripId: tripId,
+        busId: busId,
+        busName: selectedTrip.busName,
+        busNumber: selectedTrip.busNumber,
+        isMock: selectedTrip.isMock,
+        currentStopIndex: 0,
+        simulationMode: selectedTrip.isSimulationBus,
+      );
+      await TripProgressStorage.save(progress);
       if (!mounted) return;
-      Navigator.of(context).push(
+      setState(() {
+        _activeTrip = selectedTrip;
+        _activeProgress = progress;
+      });
+
+      await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => BoardingMapScreen(tripId: tripId.toString()),
+          builder: (_) => BoardingMapScreen(
+            tripId: tripId.toString(),
+            busId: busId,
+            busName: selectedTrip.busName,
+            busNumber: selectedTrip.busNumber,
+            isMock: selectedTrip.isMock,
+            initialStopIndex: 0,
+            onStopChanged: (index) {
+              final updated = progress.copyWith(currentStopIndex: index);
+              _activeProgress = updated;
+              return TripProgressStorage.save(updated);
+            },
+          ),
         ),
       );
+      if (mounted) await _fetchTodayTrips(showLoading: false);
     } catch (e) {
       debugPrint('운행 시작 실패: $e');
       if (!mounted) return;
@@ -131,148 +310,252 @@ class _TripStartScreenState extends State<TripStartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('운행 시작')),
+      appBar: AppBar(title: const Text('운행 홈')),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              '운행할 버스를 선택해 주세요',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F6FF),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Icon(
+                      Icons.directions_bus_rounded,
+                      color: AppTheme.accent,
+                      size: 29,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '안전한 운행을 시작하세요',
+                          style: TextStyle(
+                            color: AppTheme.primary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '버스를 배정받으면 아래에 목록이 표시됩니다.',
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '배정된 버스',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                ),
+                if (!_isLoadingTrips && _loadError == null)
+                  Text(
+                    '${_trips.length}대',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  ),
+              ],
             ),
             const SizedBox(height: 12),
             Expanded(
               child: _isLoadingTrips
-                  ? const Center(child: CircularProgressIndicator())
-                  : _loadError != null
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.cloud_off,
-                            size: 40,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(_loadError!, textAlign: TextAlign.center),
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: _fetchTodayTrips,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('다시 시도'),
-                          ),
-                        ],
-                      ),
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.accent),
                     )
-                  : _trips.isEmpty
-                  ? const Center(child: Text('오늘 배정된 버스가 없습니다.'))
-                  : ListView.separated(
-                      itemCount: _trips.length,
-                      separatorBuilder: (context, _) => const SizedBox(height: 10),
-                      itemBuilder: (context, index) {
-                        final trip = _trips[index];
-                        final isSelected = _selectedTrip?.tripId == trip.tripId;
-                        final colorScheme = Theme.of(context).colorScheme;
-
-                        return Material(
-                          color: isSelected
-                              ? colorScheme.primaryContainer
-                              : colorScheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => setState(() => _selectedTrip = trip),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? colorScheme.primary
-                                      : colorScheme.outlineVariant,
-                                  width: isSelected ? 2 : 1,
+                  : RefreshIndicator(
+                      onRefresh: () => _fetchTodayTrips(showLoading: false),
+                      child: _loadError != null
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                  height: 260,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.cloud_off,
+                                        size: 40,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        _loadError!,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      OutlinedButton.icon(
+                                        onPressed: _fetchTodayTrips,
+                                        icon: const Icon(Icons.refresh),
+                                        label: const Text('다시 시도'),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.directions_bus_rounded,
-                                        size: 30,
-                                        color: isSelected
-                                            ? colorScheme.primary
-                                            : colorScheme.onSurfaceVariant,
+                              ],
+                            )
+                          : _trips.isEmpty
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: const [
+                                SizedBox(
+                                  height: 260,
+                                  child: Center(
+                                    child: Text('오늘 배정된 버스가 없습니다.'),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: _trips.length,
+                              separatorBuilder: (context, _) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                final trip = _trips[index];
+                                final isSelected =
+                                    _selectedTrip?.tripId == trip.tripId;
+                                final colorScheme = Theme.of(
+                                  context,
+                                ).colorScheme;
+
+                                return Material(
+                                  color: isSelected
+                                      ? const Color(0xFFF1F6FF)
+                                      : AppTheme.surface,
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(14),
+                                    onTap: () =>
+                                        setState(() => _selectedTrip = trip),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 180,
                                       ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              trip.busName,
-                                              style: const TextStyle(
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            Text(
-                                              trip.busNumber,
-                                              style: TextStyle(
-                                                color: colorScheme
-                                                    .onSurfaceVariant,
-                                              ),
-                                            ),
-                                          ],
+                                      padding: const EdgeInsets.all(17),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? AppTheme.accent
+                                              : AppTheme.border,
+                                          width: isSelected ? 2 : 1,
                                         ),
                                       ),
-                                      if (isSelected)
-                                        Icon(
-                                          Icons.check_circle,
-                                          color: colorScheme.primary,
-                                        )
-                                      else
-                                        Icon(
-                                          Icons.radio_button_unchecked,
-                                          color: colorScheme.outline,
-                                        ),
-                                    ],
-                                  ),
-                                  const Divider(height: 24),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.route,
-                                        size: 18,
-                                        color: colorScheme.primary,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.directions_bus_rounded,
+                                                size: 30,
+                                                color: isSelected
+                                                    ? AppTheme.accent
+                                                    : colorScheme
+                                                          .onSurfaceVariant,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      trip.busName,
+                                                      style: const TextStyle(
+                                                        fontSize: 17,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: AppTheme.primary,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      trip.busNumber,
+                                                      style: TextStyle(
+                                                        color: colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              if (isSelected)
+                                                Icon(
+                                                  Icons.check_circle,
+                                                  color: AppTheme.accent,
+                                                )
+                                              else
+                                                Icon(
+                                                  Icons.radio_button_unchecked,
+                                                  color: colorScheme.outline,
+                                                ),
+                                            ],
+                                          ),
+                                          const Divider(height: 24),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.route,
+                                                size: 18,
+                                                color: AppTheme.accent,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(trip.routeName),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.people,
+                                                size: 18,
+                                                color: AppTheme.accent,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                '탑승 예정 학생 ${trip.studentCount}명',
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 8),
-                                      Expanded(child: Text(trip.routeName)),
-                                    ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.people,
-                                        size: 18,
-                                        color: colorScheme.primary,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text('탑승 예정 학생 ${trip.studentCount}명'),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                );
+                              },
                             ),
-                          ),
-                        );
-                      },
                     ),
             ),
           ],
@@ -283,23 +566,21 @@ class _TripStartScreenState extends State<TripStartScreen> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
-            ),
+            color: AppTheme.surface,
+            border: Border(top: const BorderSide(color: AppTheme.border)),
           ),
           child: PrimaryButton(
-            label: _selectedTrip == null
+            label: _activeTrip != null
+                ? '${_activeTrip!.busName} 운행 재개'
+                : _selectedTrip == null
                 ? '버스를 선택해 주세요'
                 : '${_selectedTrip!.busName} 운행 시작',
             loading: _isStartingTrip,
-            onPressed:
-                _isLoadingTrips ||
-                    _loadError != null ||
-                    _trips.isEmpty ||
-                    _isStartingTrip
+            onPressed: _isLoadingTrips || _loadError != null || _isStartingTrip
+                ? null
+                : _activeTrip != null
+                ? _resumeTrip
+                : _trips.isEmpty
                 ? null
                 : _startTrip,
           ),

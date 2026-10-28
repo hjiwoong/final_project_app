@@ -8,21 +8,23 @@ class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
 
-  final Dio dio = Dio(
-    BaseOptions(
-      baseUrl: Env.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 5),
-      receiveTimeout: const Duration(seconds: 15),
-    ),
-  )..interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) async {
-          final token = await TokenStorage.read();
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
-          }
-          handler.next(options);
-        },
-      ),
-    );
+  final Dio dio =
+      Dio(
+          BaseOptions(
+            baseUrl: Env.apiBaseUrl,
+            connectTimeout: const Duration(seconds: 5),
+            receiveTimeout: const Duration(seconds: 15),
+          ),
+        )
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) async {
+              final token = await TokenStorage.read();
+              if (token != null) {
+                options.headers['Authorization'] = 'Bearer $token';
+              }
+              handler.next(options);
+            },
+          ),
+        );
 }

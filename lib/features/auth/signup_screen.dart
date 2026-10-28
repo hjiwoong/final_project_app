@@ -1,6 +1,9 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
-import '../../data/mock/mock_repository.dart';
+import '../../data/api/api_repository.dart';
 import 'child_link_request_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -25,7 +28,21 @@ class _SignupScreenState extends State<SignupScreen> {
   bool get _validEmail => RegExp(
     r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
   ).hasMatch(_emailController.text.trim());
-  bool get _validPassword => _passwordController.text.length >= 8;
+  bool get _validPassword {
+    final password = _passwordController.text;
+    return password.length >= 4 &&
+        utf8.encode(password).length <= 72 &&
+        RegExp(r'[A-Z]').hasMatch(password) &&
+        _hasAsciiPunctuation(password);
+  }
+
+  bool _hasAsciiPunctuation(String value) => value.codeUnits.any(
+    (code) =>
+        (code >= 33 && code <= 47) ||
+        (code >= 58 && code <= 64) ||
+        (code >= 91 && code <= 96) ||
+        (code >= 123 && code <= 126),
+  );
   bool get _passwordsMatch =>
       _passwordConfirmationController.text == _passwordController.text;
 
@@ -53,10 +70,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
     setState(() => _loading = true);
     try {
-      await MockRepository.instance.signup(
-        name: _nameController.text.trim(),
+      await ApiRepository.instance.signup(
         email: _emailController.text.trim(),
-        children: const [],
+        password: _passwordController.text,
+        name: _nameController.text.trim(),
       );
       if (!mounted) return;
       setState(() => _step = 3);
@@ -64,10 +81,20 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('회원가입 실패: $e')));
+      ).showSnackBar(SnackBar(content: Text('회원가입 실패: ${_errorMessage(e)}')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _errorMessage(Object error) {
+    if (error is DioException) {
+      final response = error.response?.data;
+      if (response is Map && response['detail'] != null) {
+        return response['detail'].toString();
+      }
+    }
+    return error.toString();
   }
 
   Future<void> _addChildNow() async {
@@ -203,7 +230,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   String get _stepDescription => switch (_step) {
     0 => '계정에 사용할 이메일 주소를 입력해 주세요.',
-    1 => '비밀번호는 8자리 이상으로 설정해 주세요.',
+    1 => '4자 이상, 영문 대문자와 특수문자를 포함해 주세요.',
     _ => '마지막으로 계정에 표시할 이름을 입력해 주세요.',
   };
 
@@ -245,7 +272,7 @@ class _SignupScreenState extends State<SignupScreen> {
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.newPassword],
             onChanged: (_) => setState(() {}),
-            decoration: _inputDecoration('8자리 이상 입력').copyWith(
+            decoration: _inputDecoration('4자 이상 · 대문자 · 특수문자').copyWith(
               suffixIcon: IconButton(
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
@@ -258,7 +285,16 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) return null;
-              if (value.length < 8) return '비밀번호는 8자리 이상 입력해 주세요.';
+              if (value.length < 4) return '비밀번호는 4자리 이상 입력해 주세요.';
+              if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                return '영문 대문자를 1개 이상 포함해 주세요.';
+              }
+              if (!_hasAsciiPunctuation(value)) {
+                return '특수문자를 1개 이상 포함해 주세요.';
+              }
+              if (utf8.encode(value).length > 72) {
+                return '비밀번호가 너무 깁니다. (최대 72바이트)';
+              }
               return null;
             },
           ),
