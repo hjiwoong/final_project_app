@@ -1,13 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
+import '../../core/auth/session.dart';
+import '../../core/auth/trip_progress_storage.dart';
+import '../../data/api/api_repository.dart';
+import '../../data/models/child_student.dart';
+import '../../data/models/trip_exit_action.dart';
+import '../../data/models/trip_progress.dart';
 import '../../widgets/primary_button.dart';
+import '../../widgets/trip_exit_sheet.dart';
 import 'boarding_capture_screen.dart';
 
 /// ② 탑승 지도: 네이버 지도 + 정류장 마커 + 학부모 출결 반영 UI (스크린샷 스타일)
 class BoardingMapScreen extends StatefulWidget {
   final String tripId;
-  const BoardingMapScreen({super.key, required this.tripId});
+  final int busId;
+  final bool isMock;
+  final String busName;
+  final String busNumber;
+  final int initialStopIndex;
+  final Future<void> Function(int index)? onStopChanged;
+
+  const BoardingMapScreen({
+    super.key,
+    required this.tripId,
+    required this.busId,
+    required this.busName,
+    required this.busNumber,
+    this.isMock = false,
+    this.initialStopIndex = 0,
+    this.onStopChanged,
+  });
 
   @override
   State<BoardingMapScreen> createState() => _BoardingMapScreenState();
@@ -16,35 +39,21 @@ class BoardingMapScreen extends StatefulWidget {
 class _BoardingMapScreenState extends State<BoardingMapScreen> {
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
-  int _currentStopIndex = 1; // 0: 1번 정류장, 1: 2번 정류장(접근시), 2: 마지막 정류장(유치원)
+  late int _currentStopIndex;
   bool _isSheetCollapsed = false;
+  bool _allowPop = false;
+  bool _exitDialogOpen = false;
+  bool _loadingStops = true;
+  String? _loadError;
   double _collapsedSheetSize = 0.12;
-
-  final List<Map<String, dynamic>> _stops = [
-    {
-      'title': '📍 1번 정류장 도착',
-      'student': '박서연 · 7세 · 학부모 앱 출석 설정 ON',
-      'status': '승차 완료',
-      'statusColor': Colors.green,
-    },
-    {
-      'title': '📍 2번 정류장 도착',
-      'student': '김하늘 · 1학년 2반 · 학부모 앱 출석 설정 ON',
-      'status': '출석',
-      'statusColor': Colors.red,
-    },
-    {
-      'title': '🏫 ○○유치원 도착 · 마지막 정류장',
-      'student': '탑승 5명 · 결석 3명 제외 (탑승 예정 8명)',
-      'status': '종점',
-      'statusColor': Colors.blue,
-    },
-  ];
+  List<Map<String, dynamic>> _stops = [];
 
   @override
   void initState() {
     super.initState();
+    _currentStopIndex = widget.initialStopIndex;
     _sheetController.addListener(_updateSheetState);
+    _loadStops();
   }
 
   @override
@@ -63,11 +72,55 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     }
   }
 
-  void _nextStop() {
+  Future<void> _loadStops() async {
+    setState(() {
+      _loadingStops = true;
+      _loadError = null;
+    });
+    try {
+      final students = await ApiRepository.instance.getBusStudents(
+        widget.busId,
+        isMock: widget.isMock,
+      );
+      if (!mounted) return;
+      setState(() {
+        _stops = _makeStops(students);
+        _currentStopIndex = _currentStopIndex
+            .clamp(0, _stops.length - 1)
+            .toInt();
+        _loadingStops = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = '학생 정보를 불러오지 못했습니다. 다시 시도해 주세요.';
+        _loadingStops = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _makeStops(List<ChildStudent> students) => [
+    for (final (index, student) in students.indexed)
+      {
+        'title': '📍 ${index + 1}번 정류장 도착',
+        'student': '${student.name} · ${student.className ?? '학급 정보 없음'}',
+        'status': '승차 대기',
+        'statusColor': Colors.green,
+      },
+    {
+      'title': '🏫 종점 도착 · 마지막 정류장',
+      'student': '탑승 예정 ${students.length}명',
+      'status': '종점',
+      'statusColor': Colors.blue,
+    },
+  ];
+
+  Future<void> _nextStop() async {
     if (_currentStopIndex < _stops.length - 1) {
       setState(() {
         _currentStopIndex++;
       });
+      await widget.onStopChanged?.call(_currentStopIndex);
     } else {
       Navigator.of(
         context,
@@ -75,27 +128,95 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     }
   }
 
+  Future<void> _requestExit() async {
+    if (_exitDialogOpen) return;
+    _exitDialogOpen = true;
+    final action = await showTripExitSheet(context);
+    _exitDialogOpen = false;
+    if (!mounted || action == null) return;
+
+    if (action == TripExitAction.wait) {
+      await TripProgressStorage.save(
+        TripProgress(
+          tripId: int.parse(widget.tripId),
+          busId: widget.busId,
+          busName: widget.busName,
+          busNumber: widget.busNumber,
+          isMock: widget.isMock,
+          currentStopIndex: _currentStopIndex,
+          simulationMode: Session.currentTripSimulationMode,
+        ),
+      );
+      setState(() => _allowPop = true);
+      await WidgetsBinding.instance.endOfFrame;
+      if (mounted) Navigator.of(context).pop(TripExitAction.wait);
+      return;
+    }
+
+    try {
+      await ApiRepository.instance.cancelTrip(int.parse(widget.tripId));
+      await TripProgressStorage.clear();
+      if (!mounted) return;
+      Session.currentTripId = null;
+      Session.currentBoardingCount = null;
+      Session.currentTripIsMock = false;
+      Session.currentTripSimulationMode = false;
+      setState(() => _allowPop = true);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      Navigator.of(context).pop(TripExitAction.cancel);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('운행을 취소하지 못했습니다. ($e)')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    return PopScope<Object?>(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _requestExit();
+      },
+      child: _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_loadingStops || _loadError != null || _stops.isEmpty) {
+      return Scaffold(
+        appBar: _buildAppBar(),
+        body: Center(
+          child: _loadingStops
+              ? const CircularProgressIndicator()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_loadError ?? '학생 정보가 없습니다.'),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _loadStops,
+                      child: const Text('다시 시도'),
+                    ),
+                  ],
+                ),
+        ),
+      );
+    }
+
     final stop = _stops[_currentStopIndex];
     final isLast = _currentStopIndex == _stops.length - 1;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: '뒤로가기',
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text('탑승 지도'),
-        elevation: 0,
-      ),
+      appBar: _buildAppBar(),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final collapsedSheetSize = (88 / constraints.maxHeight)
               .clamp(0.1, 0.3)
               .toDouble();
-          final expandedSheetSize = (152 / constraints.maxHeight)
+          final expandedSheetSize = (196 / constraints.maxHeight)
               .clamp(collapsedSheetSize + 0.05, 0.5)
               .toDouble();
           _collapsedSheetSize = collapsedSheetSize;
@@ -235,6 +356,18 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
+                              if (!isLast) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  '탑승 버스 : ${widget.busName}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                               if (!_isSheetCollapsed) ...[
                                 const SizedBox(height: 10),
                                 PrimaryButton(
@@ -256,6 +389,12 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       ),
     );
   }
+
+  AppBar _buildAppBar() => AppBar(
+    leading: TextButton(onPressed: _requestExit, child: const Text('취소')),
+    title: const Text('탑승 지도'),
+    elevation: 0,
+  );
 
   Widget _buildLegendDot(Color color, String label) {
     return Row(

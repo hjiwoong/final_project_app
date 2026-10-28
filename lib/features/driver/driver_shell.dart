@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
+import '../../core/theme/app_theme.dart';
+import '../../widgets/logout_confirmation_dialog.dart';
 import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
 import 'trip_start_screen.dart';
@@ -29,6 +31,9 @@ class _DriverShellState extends State<DriverShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
+        elevation: 0,
+        height: 68,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.directions_bus_outlined),
@@ -57,26 +62,95 @@ class DriverSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('기사 설정')),
+      appBar: AppBar(title: const Text('계정 정보')),
       body: ListView(
+        padding: const EdgeInsets.all(20),
         children: [
-          UserAccountsDrawerHeader(
-            accountName: const Text('기사님'),
-            accountEmail: Text(Session.email ?? 'driver@school.com'),
-            currentAccountPicture: const CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Text('🚌', style: TextStyle(fontSize: 24)),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F6FF),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Icon(
+                    Icons.directions_bus_rounded,
+                    size: 30,
+                    color: AppTheme.accent,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        Session.name?.isNotEmpty == true
+                            ? Session.name!
+                            : '사용자',
+                        style: const TextStyle(
+                          color: AppTheme.primary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        Session.email ?? 'driver@school.com',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('로그아웃', style: TextStyle(color: Colors.red)),
-            onTap: () {
-              Session.clear();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
+          const SizedBox(height: 24),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              '계정',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primary,
+              ),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.logout_rounded, color: AppTheme.danger),
+              title: const Text(
+                '로그아웃',
+                style: TextStyle(
+                  color: AppTheme.danger,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () async {
+                final shouldLogout = await showLogoutConfirmationDialog(
+                  context,
+                );
+                if (!shouldLogout || !context.mounted) return;
+                await Session.clear();
+                if (!context.mounted) return;
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              },
+            ),
           ),
         ],
       ),

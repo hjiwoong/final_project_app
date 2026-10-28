@@ -1,2 +1,0 @@
-D:/projects/final_project_app/build/.cxx/debug/2e1m3s3z/x86_64/CMakeFiles/edit_cache.dir
-D:/projects/final_project_app/build/.cxx/debug/2e1m3s3z/x86_64/CMakeFiles/rebuild_cache.dir

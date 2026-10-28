@@ -1,18 +1,10 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
-import '../../data/mock/mock_repository.dart';
-import '../../widgets/primary_button.dart';
-
-class _ChildFormEntry {
-  final nameController = TextEditingController();
-  final classController = TextEditingController();
-  String? relation;
-
-  void dispose() {
-    nameController.dispose();
-    classController.dispose();
-  }
-}
+import '../../data/api/api_repository.dart';
+import 'child_link_request_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -23,395 +15,457 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmationController = TextEditingController();
-  final List<_ChildFormEntry> _children = [_ChildFormEntry()];
+  final _nameController = TextEditingController();
 
+  int _step = 0;
   bool _obscurePassword = true;
-  bool _obscurePasswordConfirmation = true;
+  bool _obscureConfirmation = true;
   bool _loading = false;
+
+  bool get _validEmail => RegExp(
+    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+  ).hasMatch(_emailController.text.trim());
+  bool get _validPassword {
+    final password = _passwordController.text;
+    return password.length >= 4 &&
+        utf8.encode(password).length <= 72 &&
+        RegExp(r'[A-Z]').hasMatch(password) &&
+        _hasAsciiPunctuation(password);
+  }
+
+  bool _hasAsciiPunctuation(String value) => value.codeUnits.any(
+    (code) =>
+        (code >= 33 && code <= 47) ||
+        (code >= 58 && code <= 64) ||
+        (code >= 91 && code <= 96) ||
+        (code >= 123 && code <= 126),
+  );
+  bool get _passwordsMatch =>
+      _passwordConfirmationController.text == _passwordController.text;
 
   @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _passwordConfirmationController.dispose();
-    for (final child in _children) {
-      child.dispose();
-    }
+    _nameController.dispose();
     super.dispose();
   }
 
-  void _addChild() {
-    setState(() => _children.add(_ChildFormEntry()));
+  void _nextFromEmail() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _step = 1);
   }
 
-  void _removeChild(int index) {
-    final child = _children.removeAt(index);
-    child.dispose();
-    setState(() {});
+  void _nextFromPassword() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _step = 2);
   }
 
-  Future<void> _submit() async {
+  Future<void> _createAccount() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _loading = true);
     try {
-      final request = await MockRepository.instance.signup(
-        name: _nameController.text.trim(),
+      await ApiRepository.instance.signup(
         email: _emailController.text.trim(),
-        children: _children
-            .map(
-              (child) => MockChildLinkRequest(
-                name: child.nameController.text.trim(),
-                className: child.classController.text.trim(),
-                relation: child.relation!,
-              ),
-            )
-            .toList(),
+        password: _passwordController.text,
+        name: _nameController.text.trim(),
       );
-
       if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('목업 요청 접수 완료'),
-          content: Text(
-            '회원가입 요청이 접수되었습니다.\n'
-            '자녀 ${request.children.length}명의 연결은 관리자의 승인 대기 중입니다.\n\n'
-            '실험용 목업으로, 앱을 종료하면 요청 정보가 사라집니다.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('확인'),
-            ),
-          ],
-        ),
-      );
+      setState(() => _step = 3);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('목업 회원가입 요청 실패: $e')));
+      ).showSnackBar(SnackBar(content: Text('회원가입 실패: ${_errorMessage(e)}')));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  InputDecoration _inputDecoration({
-    required String label,
-    required IconData icon,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      suffixIcon: suffixIcon,
-      filled: true,
-      fillColor: Colors.grey.shade50,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
+  String _errorMessage(Object error) {
+    if (error is DioException) {
+      final response = error.response?.data;
+      if (response is Map && response['detail'] != null) {
+        return response['detail'].toString();
+      }
+    }
+    return error.toString();
+  }
+
+  Future<void> _addChildNow() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            ChildLinkRequestScreen(email: _emailController.text.trim()),
       ),
     );
+    if (added == true && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('자녀 연결 요청을 추가했습니다.')));
+    }
+  }
+
+  void _finishSignup() => Navigator.of(context).pop();
+
+  void _goBack() {
+    if (_step == 0 || _step == 3) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _step -= 1);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isCompletion = _step == 3;
     return Scaffold(
-      appBar: AppBar(title: const Text('회원가입')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: _goBack,
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          tooltip: '뒤로가기',
+        ),
+        //title: Text(isCompletion ? '가입 완료' : ''),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF202329),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      '안전한 통학의 시작',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '계정 정보와 자녀 연결 요청을 함께 입력해 주세요.',
-                      style: TextStyle(color: Colors.grey.shade700),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 28),
-                    TextFormField(
-                      controller: _nameController,
-                      textInputAction: TextInputAction.next,
-                      autofillHints: const [AutofillHints.name],
-                      decoration: _inputDecoration(
-                        label: '이름',
-                        icon: Icons.person_outline,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return '이름을 입력해 주세요.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      autofillHints: const [AutofillHints.email],
-                      decoration: _inputDecoration(
-                        label: '이메일',
-                        icon: Icons.email_outlined,
-                      ),
-                      validator: (value) {
-                        final email = value?.trim() ?? '';
-                        if (email.isEmpty) return '이메일을 입력해 주세요.';
-                        if (!RegExp(
-                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                        ).hasMatch(email)) {
-                          return '올바른 이메일 주소를 입력해 주세요.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.next,
-                      autofillHints: const [AutofillHints.newPassword],
-                      decoration: _inputDecoration(
-                        label: '비밀번호',
-                        icon: Icons.lock_outline,
-                        suffixIcon: IconButton(
-                          tooltip: _obscurePassword ? '비밀번호 표시' : '비밀번호 숨기기',
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                          ),
-                          onPressed: () {
-                            setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            );
+        top: false,
+        child: Form(
+          key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+            children: [
+              if (!isCompletion) ...[
+                _ProgressIndicator(step: _step),
+                const SizedBox(height: 28),
+                Text(
+                  _stepTitle,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    height: 1.3,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF202329),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _stepDescription,
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 30),
+                ..._buildCurrentStepFields(),
+                const SizedBox(height: 28),
+                SizedBox(
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: _loading || !_canContinue
+                        ? null
+                        : switch (_step) {
+                            0 => _nextFromEmail,
+                            1 => _nextFromPassword,
+                            _ => _createAccount,
                           },
-                        ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF202329),
+                      disabledBackgroundColor: const Color(0xFFCCCCCC),
+                      disabledForegroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return '비밀번호를 입력해 주세요.';
-                        }
-                        if (value.length < 8) {
-                          return '비밀번호는 8자 이상 입력해 주세요.';
-                        }
-                        return null;
-                      },
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordConfirmationController,
-                      obscureText: _obscurePasswordConfirmation,
-                      textInputAction: TextInputAction.done,
-                      autofillHints: const [AutofillHints.newPassword],
-                      onFieldSubmitted: (_) => _submit(),
-                      decoration: _inputDecoration(
-                        label: '비밀번호 확인',
-                        icon: Icons.lock_outline,
-                        suffixIcon: IconButton(
-                          tooltip: _obscurePasswordConfirmation
-                              ? '비밀번호 표시'
-                              : '비밀번호 숨기기',
-                          icon: Icon(
-                            _obscurePasswordConfirmation
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePasswordConfirmation =
-                                  !_obscurePasswordConfirmation;
-                            });
-                          },
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return '비밀번호를 한 번 더 입력해 주세요.';
-                        }
-                        if (value != _passwordController.text) {
-                          return '비밀번호가 일치하지 않습니다.';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 28),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            '자녀 연결 요청',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                    child: _loading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _step == 2 ? '계정 만들기' : '다음',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _addChild,
-                          icon: const Icon(Icons.add),
-                          label: const Text('자녀 추가'),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      '입력한 자녀 정보는 관리자가 확인한 뒤 연결됩니다.',
-                      style: TextStyle(color: Colors.grey.shade700),
-                    ),
-                    const SizedBox(height: 12),
-                    ...List.generate(_children.length, (index) {
-                      final child = _children[index];
-                      return Padding(
-                        key: ValueKey(child),
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      '자녀 ${index + 1}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  if (_children.length > 1)
-                                    IconButton(
-                                      tooltip: '자녀 삭제',
-                                      onPressed: () => _removeChild(index),
-                                      icon: const Icon(Icons.delete_outline),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              TextFormField(
-                                controller: child.nameController,
-                                textInputAction: TextInputAction.next,
-                                decoration: _inputDecoration(
-                                  label: '자녀 이름',
-                                  icon: Icons.child_care_outlined,
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return '자녀 이름을 입력해 주세요.';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: child.classController,
-                                textInputAction: TextInputAction.next,
-                                decoration: _inputDecoration(
-                                  label: '학년 / 반',
-                                  icon: Icons.class_outlined,
-                                  suffixIcon: const Padding(
-                                    padding: EdgeInsets.only(right: 12),
-                                    child: Center(
-                                      widthFactor: 1,
-                                      child: Text('예: 1학년 2반'),
-                                    ),
-                                  ),
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return '학년과 반을 입력해 주세요.';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: child.relation,
-                                decoration: _inputDecoration(
-                                  label: '자녀와의 관계',
-                                  icon: Icons.family_restroom,
-                                ),
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: '어머니',
-                                    child: Text('어머니'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: '아버지',
-                                    child: Text('아버지'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: '보호자',
-                                    child: Text('보호자'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: '기타',
-                                    child: Text('기타'),
-                                  ),
-                                ],
-                                onChanged: (value) {
-                                  setState(() => child.relation = value);
-                                },
-                                validator: (value) {
-                                  if (value == null) {
-                                    return '자녀와의 관계를 선택해 주세요.';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 24),
-                    PrimaryButton(
-                      label: '회원가입 및 연결 요청',
-                      loading: _loading,
-                      onPressed: _submit,
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (_step == 0)
+                  Center(
+                    child: TextButton(
+                      onPressed: _finishSignup,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF202329),
+                      ),
                       child: const Text('이미 계정이 있으신가요? 로그인'),
                     ),
-                  ],
+                  ),
+              ] else
+                _buildCompletion(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String get _stepTitle => switch (_step) {
+    0 => '이메일을 입력하세요',
+    1 => '비밀번호를 설정하세요',
+    _ => '이름을 입력하세요',
+  };
+
+  String get _stepDescription => switch (_step) {
+    0 => '계정에 사용할 이메일 주소를 입력해 주세요.',
+    1 => '4자 이상, 영문 대문자와 특수문자를 포함해 주세요.',
+    _ => '마지막으로 계정에 표시할 이름을 입력해 주세요.',
+  };
+
+  bool get _canContinue => switch (_step) {
+    0 => _validEmail,
+    1 => _validPassword && _passwordsMatch,
+    _ => _nameController.text.trim().isNotEmpty,
+  };
+
+  List<Widget> _buildCurrentStepFields() {
+    switch (_step) {
+      case 0:
+        return [
+          _fieldLabel('이메일'),
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.email],
+            onChanged: (_) => setState(() {}),
+            onFieldSubmitted: (_) => _nextFromEmail(),
+            decoration: _inputDecoration('이메일 주소 입력'),
+            validator: (value) {
+              final email = value?.trim() ?? '';
+              if (email.isEmpty) return null;
+              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+                return '올바른 이메일 주소를 입력해 주세요.';
+              }
+              return null;
+            },
+          ),
+        ];
+      case 1:
+        return [
+          _fieldLabel('비밀번호'),
+          TextFormField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.newPassword],
+            onChanged: (_) => setState(() {}),
+            decoration: _inputDecoration('4자 이상 · 대문자 · 특수문자').copyWith(
+              suffixIcon: IconButton(
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                 ),
               ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) return null;
+              if (value.length < 4) return '비밀번호는 4자리 이상 입력해 주세요.';
+              if (!RegExp(r'[A-Z]').hasMatch(value)) {
+                return '영문 대문자를 1개 이상 포함해 주세요.';
+              }
+              if (!_hasAsciiPunctuation(value)) {
+                return '특수문자를 1개 이상 포함해 주세요.';
+              }
+              if (utf8.encode(value).length > 72) {
+                return '비밀번호가 너무 깁니다. (최대 72바이트)';
+              }
+              return null;
+            },
+          ),
+          if (_validPassword) ...[
+            const SizedBox(height: 24),
+            _fieldLabel('비밀번호 확인'),
+            TextFormField(
+              controller: _passwordConfirmationController,
+              obscureText: _obscureConfirmation,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.newPassword],
+              onChanged: (_) => setState(() {}),
+              onFieldSubmitted: (_) => _nextFromPassword(),
+              decoration: _inputDecoration('비밀번호를 다시 입력해 주세요').copyWith(
+                suffixIcon: IconButton(
+                  onPressed: () => setState(
+                    () => _obscureConfirmation = !_obscureConfirmation,
+                  ),
+                  icon: Icon(
+                    _obscureConfirmation
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) return null;
+                if (value != _passwordController.text) {
+                  return '비밀번호가 일치하지 않습니다.';
+                }
+                return null;
+              },
+            ),
+          ],
+        ];
+      default:
+        return [
+          _fieldLabel('이름'),
+          TextFormField(
+            controller: _nameController,
+            textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.name],
+            onChanged: (_) => setState(() {}),
+            onFieldSubmitted: (_) => _createAccount(),
+            decoration: _inputDecoration('이름 입력'),
+            validator: (value) =>
+                value == null || value.trim().isEmpty ? '이름을 입력해 주세요.' : null,
+          ),
+        ];
+    }
+  }
+
+  Widget _buildCompletion() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const SizedBox(height: 24),
+      const Icon(
+        Icons.check_circle_rounded,
+        size: 64,
+        color: Color(0xFF22A06B),
+      ),
+      const SizedBox(height: 20),
+      const Text(
+        '계정 가입이 완료되었습니다',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 21,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF202329),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Text(
+        '${_nameController.text.trim()}님, 환영합니다.\n자녀 연결은 지금 요청하거나 나중에 추가할 수 있어요.',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 14,
+          height: 1.6,
+          color: Colors.grey.shade600,
+        ),
+      ),
+      const SizedBox(height: 32),
+      SizedBox(
+        height: 52,
+        child: FilledButton(
+          onPressed: _addChildNow,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF202329),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text('자녀 연결 요청 추가'),
+        ),
+      ),
+      const SizedBox(height: 12),
+      SizedBox(
+        height: 50,
+        child: OutlinedButton(
+          onPressed: _finishSignup,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF202329),
+            side: const BorderSide(color: Color(0xFFD8DADD)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text('나중에 하기'),
+        ),
+      ),
+      const SizedBox(height: 12),
+      Text(
+        '자녀 정보는 가입 후에도 홈 화면에서 언제든 추가할 수 있습니다.',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+      ),
+    ],
+  );
+
+  Widget _fieldLabel(String label) => Padding(
+    padding: const EdgeInsets.only(bottom: 2),
+    child: Text(
+      label,
+      style: const TextStyle(fontSize: 12, color: Color(0xFF858B93)),
+    ),
+  );
+
+  InputDecoration _inputDecoration(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF9A9EA4)),
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+    errorStyle: const TextStyle(
+      fontSize: 11,
+      color: Color(0xFFE45B37),
+      height: 1.2,
+    ),
+    enabledBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Color(0xFF9A9EA4)),
+    ),
+    focusedBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Color(0xFF202329), width: 1.5),
+    ),
+    errorBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Color(0xFFE45B37)),
+    ),
+    focusedErrorBorder: const UnderlineInputBorder(
+      borderSide: BorderSide(color: Color(0xFFE45B37), width: 1.5),
+    ),
+  );
+}
+
+class _ProgressIndicator extends StatelessWidget {
+  const _ProgressIndicator({required this.step});
+
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(
+        3,
+        (index) => Expanded(
+          child: Container(
+            height: 4,
+            margin: EdgeInsets.only(right: index == 2 ? 0 : 6),
+            decoration: BoxDecoration(
+              color: index <= step
+                  ? const Color(0xFF202329)
+                  : const Color(0xFFE6E8EB),
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
         ),

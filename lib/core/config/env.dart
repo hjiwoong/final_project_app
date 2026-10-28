@@ -8,6 +8,9 @@ class Env {
     defaultValue: 'http://10.0.2.2:8000',
   );
 
-  /// true 이면 서버 없이 mock 데이터로 동작
-  static const bool useMock = bool.fromEnvironment('USE_MOCK', defaultValue: true);
+  /// true 이면 API를 호출하지 않고 명시적으로 mock 모드로 동작
+  static const bool useMock = bool.fromEnvironment(
+    'USE_MOCK',
+    defaultValue: false,
+  );
 }
