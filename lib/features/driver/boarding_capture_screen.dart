@@ -19,12 +19,21 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
 
   Future<void> _capture() async {
     setState(() => _loading = true);
-    final count = await ApiRepository.instance.uploadBoardingPhoto(Session.currentTripId ?? 1);
-    if (!mounted) return;
-    setState(() {
-      _loading = false;
-      _count = count;
-    });
+    try {
+      final count = await ApiRepository.instance.uploadBoardingPhoto(
+        Session.currentTripId ?? 1,
+      );
+      if (!mounted) return;
+      Session.currentBoardingCount = count;
+      setState(() => _count = count);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('승차 처리를 완료하지 못했습니다. ($e)')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -38,18 +47,55 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
             Expanded(
               child: Center(
                 child: _count == null
-                    ? const Icon(Icons.photo_camera, size: 96, color: Colors.grey)
-                    : Text('YOLO 승차 인원: $_count명',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    ? const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.photo_camera,
+                            size: 96,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 1),
+                          Text(
+                            '승차 인원 촬영',
+                            style: TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '탑승객이 모두 보이도록 촬영해 주세요.\n 차량 내부의 카메라가 필요합니다.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        'YOLO 승차 인원: $_count명',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
             if (_count == null)
-              PrimaryButton(label: '📷 승차 촬영', loading: _loading, onPressed: _capture)
+              PrimaryButton(
+                label: '승차 촬영',
+                loading: _loading,
+                onPressed: _capture,
+              )
             else
               PrimaryButton(
                 label: '종점으로 이동',
                 onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const DropoffCaptureScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const DropoffCaptureScreen(),
+                  ),
                 ),
               ),
           ],

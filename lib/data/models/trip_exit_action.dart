@@ -1,0 +1,1 @@
+enum TripExitAction { cancel, wait }
