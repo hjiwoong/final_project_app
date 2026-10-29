@@ -13,10 +13,12 @@ void main() {
     await tester.tap(find.text('로그인'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Google로 로그인'), findsOneWidget);
-    expect(find.text('빠른 테스트 계정'), findsNothing);
-    expect(find.text('기사(관리자) 계정'), findsNothing);
-    expect(find.text('학부모 계정'), findsNothing);
+    expect(find.text('Google 계정으로 계속하기'), findsOneWidget);
+    expect(find.text('빠른 테스트 계정'), findsOneWidget);
+    expect(find.text('기사(관리자) 계정'), findsOneWidget);
+    expect(find.text('driver@school.kr'), findsOneWidget);
+    expect(find.text('학부모 계정'), findsOneWidget);
+    expect(find.text('parent@school.kr'), findsOneWidget);
     expect(find.text('Naver로 로그인'), findsNothing);
 
     await tester.tap(find.text('이메일로 로그인'));

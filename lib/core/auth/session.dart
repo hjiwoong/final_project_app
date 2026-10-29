@@ -10,6 +10,7 @@ class Session {
   static String? name;
   static DateTime? createdAt;
   static int? currentTripId;
+  static String? currentTripBusName;
   static int? currentBoardingCount;
   static bool currentTripIsMock = false;
   static bool currentTripSimulationMode = false;
@@ -22,6 +23,7 @@ class Session {
     name = null;
     createdAt = null;
     currentTripId = null;
+    currentTripBusName = null;
     currentBoardingCount = null;
     currentTripIsMock = false;
     currentTripSimulationMode = false;

@@ -7,6 +7,7 @@ class TripProgress {
     required this.isMock,
     required this.currentStopIndex,
     this.simulationMode = false,
+    this.boardingCount,
   });
 
   final int tripId;
@@ -16,17 +17,25 @@ class TripProgress {
   final bool isMock;
   final int currentStopIndex;
   final bool simulationMode;
+  final int? boardingCount;
 
-  TripProgress copyWith({int? currentStopIndex, bool? simulationMode}) =>
-      TripProgress(
-        tripId: tripId,
-        busId: busId,
-        busName: busName,
-        busNumber: busNumber,
-        isMock: isMock,
-        currentStopIndex: currentStopIndex ?? this.currentStopIndex,
-        simulationMode: simulationMode ?? this.simulationMode,
-      );
+  TripProgress copyWith({
+    int? currentStopIndex,
+    bool? simulationMode,
+    int? boardingCount,
+    bool clearBoardingCount = false,
+  }) => TripProgress(
+    tripId: tripId,
+    busId: busId,
+    busName: busName,
+    busNumber: busNumber,
+    isMock: isMock,
+    currentStopIndex: currentStopIndex ?? this.currentStopIndex,
+    simulationMode: simulationMode ?? this.simulationMode,
+    boardingCount: clearBoardingCount
+        ? null
+        : boardingCount ?? this.boardingCount,
+  );
 
   Map<String, dynamic> toJson() => {
     'trip_id': tripId,
@@ -36,6 +45,7 @@ class TripProgress {
     'is_mock': isMock,
     'current_stop_index': currentStopIndex,
     'simulation_mode': simulationMode,
+    'boarding_count': boardingCount,
   };
 
   factory TripProgress.fromJson(Map<String, dynamic> json) => TripProgress(
@@ -46,5 +56,6 @@ class TripProgress {
     isMock: json['is_mock'] as bool,
     currentStopIndex: json['current_stop_index'] as int,
     simulationMode: json['simulation_mode'] as bool? ?? false,
+    boardingCount: json['boarding_count'] as int?,
   );
 }

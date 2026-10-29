@@ -43,24 +43,65 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('종점 촬영')),
+      appBar: AppBar(
+        title: const Text('종점 촬영'),
+        leading: IconButton(
+          tooltip: '뒤로가기',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
             const Expanded(
               child: Center(
-                child: Icon(Icons.photo_camera, size: 96, color: Colors.grey),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Icon(
+                        Icons.photo_camera,
+                        size: 96,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Center(
+                      child: Text(
+                        '종점 인원 촬영',
+                        style: TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      '모든 탑승객이 하차했는지 확인하기 위해 촬영을 시작합니다.\n'
+                      '차량 내부에 남아 있는 승객이 없는지 확인해 주세요.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
             ),
+            const Text(
+              '사진은 서버에 전송됩니다. 인원 확인 목적으로만 사용되며\n전송을 거부할 순 있지만 이 경우 운행을 종료할 수 없습니다.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
             PrimaryButton(
-              label: '종점 촬영 (전원 하차)',
+              label: '종점 촬영 (전원 하차) - 개발용',
               loading: _loading,
               onPressed: () => _capture(oneRemaining: false),
             ),
             const SizedBox(height: 12),
             PrimaryButton(
-              label: '종점 촬영 (1명 남음)',
+              label: '종점 촬영 (1명 남음) - 개발용',
               color: AppTheme.danger,
               loading: _loading,
               onPressed: () => _capture(oneRemaining: true),
