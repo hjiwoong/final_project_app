@@ -1,10 +1,11 @@
+
 import 'package:flutter/material.dart';
 
 import 'attendance_screen.dart';
 import 'notification_list_screen.dart';
 import 'parent_home_screen.dart';
 
-/// 학부모 하단 탭: 홈 · 알림 · 설정(출석/결석)
+// 학부모 하단 탭: 홈 · 알림 · 설정(출석/결석)
 class ParentShell extends StatefulWidget {
   const ParentShell({super.key});
 
