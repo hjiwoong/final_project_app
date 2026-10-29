@@ -28,6 +28,26 @@ class _NotificationListScreenState
     _fetchNotifications();
   }
 
+  Future<void> _fetchNotifications() async {
+    setState(() => _loading = true);
+
+    final items =
+    await ApiRepository.instance.getNotifications();
+
+    if (!mounted) return;
+
+    NotificationMockStore.updateNotifications(
+      items.map((n) => n.id).toList(),
+      items.where((n) => n.read).map((n) => n.id).toSet(),
+    );
+
+    for (final n in items) {
+      n.read = NotificationMockStore.isRead(
+        n.id,
+        n.read,
+      );
+    }
+
   Future<void> _fetchNotifications({bool showLoading = true}) async {
     setState(() {
       if (showLoading) _loading = true;
@@ -36,14 +56,6 @@ class _NotificationListScreenState
     try {
       final items = await ApiRepository.instance.getNotifications();
       if (!mounted) return;
-
-      NotificationMockStore.updateNotifications(
-        items.map((n) => n.id).toList(),
-        items.where((n) => n.read).map((n) => n.id).toSet(),
-      );
-      for (final n in items) {
-        n.read = NotificationMockStore.isRead(n.id, n.read);
-      }
       setState(() => _items = items);
     } catch (e) {
       if (!mounted) return;
@@ -58,7 +70,10 @@ class _NotificationListScreenState
     if (_loading) return;
 
     // 아직 읽지 않은 일반 알림 ID
-    final unreadItems = _items.where((n) => !n.read).toList();
+    final unreadIds = _items
+        .where((n) => !n.read)
+        .map((n) => n.id)
+        .toList();
 
     // 기존 일반 알림과 미하차 테스트 경고 읽음 처리
     NotificationMockStore.markAllAsRead(
@@ -81,9 +96,9 @@ class _NotificationListScreenState
 
     // 기존 일반 알림의 읽음 API 호출 유지
     // 실패해도 Mock 화면의 읽음 상태는 유지
-    for (final item in unreadItems) {
+    for (final id in unreadIds) {
       try {
-        await ApiRepository.instance.readNotification(item);
+        await ApiRepository.instance.readNotification(id);
       } catch (e) {
         debugPrint('알림 읽음 처리 실패: $e');
       }
@@ -297,20 +312,6 @@ class _NotificationListScreenState
                     ? const Center(
                   child: CircularProgressIndicator(),
                 )
-                    : _error != null
-                    ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_error!),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed: _fetchNotifications,
-                        child: const Text('다시 시도'),
-                      ),
-                    ],
-                  ),
-                )
                     : _items.isEmpty
                     ? const Center(
                   child: Text('기존 알림이 없습니다.'),
@@ -354,11 +355,8 @@ class _NotificationListScreenState
                           n.id,
                         );
 
-                        try {
-                          await ApiRepository.instance.readNotification(n);
-                        } catch (e) {
-                          debugPrint('알림 읽음 처리 실패: $e');
-                        }
+                        await ApiRepository.instance
+                            .readNotification(n.id);
 
                         if (!mounted) return;
 
@@ -366,7 +364,7 @@ class _NotificationListScreenState
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) =>
-                                  AlertDetailScreen(alertId: n.alertId),
+                              const AlertDetailScreen(),
                             ),
                           );
                         }
@@ -379,7 +377,112 @@ class _NotificationListScreenState
           );
         },
       ),
+      appBar: AppBar(title: const Text('알림')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? RefreshIndicator(
+              onRefresh: () => _fetchNotifications(showLoading: false),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: 260,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(_error!),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: _fetchNotifications,
+                          child: const Text('다시 시도'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : _items.isEmpty
+          ? RefreshIndicator(
+              onRefresh: () => _fetchNotifications(showLoading: false),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '알림이 없습니다.',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontSize: 26,
+                                color: const Color(0xFF202329),
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '새로운 알림이 도착하면 여기서 확인하실 수 있습니다.',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: () => _fetchNotifications(showLoading: false),
+              child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: _items.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final n = _items[i];
+                  return ListTile(
+                    title: Text(
+                      n.title,
+                      style: TextStyle(
+                        fontWeight: n.read
+                            ? FontWeight.normal
+                            : FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text('${n.busName} · ${n.time}'),
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final navigator = Navigator.of(context);
+                      try {
+                        await ApiRepository.instance.readNotification(n);
+                        if (!mounted) return;
+                        setState(() => n.read = true);
+                      } catch (e) {
+                        if (!mounted) return;
+                        messenger.showSnackBar(
+                          SnackBar(content: Text('알림을 읽음 처리하지 못했습니다. ($e)')),
+                        );
+                      }
+                      if (!mounted) return;
+                      if (n.isAlert) {
+                        navigator.push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                AlertDetailScreen(alertId: n.alertId),
+                          ),
+                        );
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
     );
   }
 }
-
