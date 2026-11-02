@@ -4,6 +4,7 @@
 .flutter-plugins-dependencies
 .packages
 build/
+/config/local.json
 
 # IDE specific
 .idea/

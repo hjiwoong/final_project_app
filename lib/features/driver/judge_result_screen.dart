@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
@@ -15,6 +17,8 @@ class JudgeResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ok = result.isOk;
+    final imageSource = _buildImageProvider();
+
     return Scaffold(
       appBar: AppBar(title: const Text('판정 결과 · 종점')),
       body: Padding(
@@ -25,11 +29,22 @@ class JudgeResultScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.asset(
-                  'assets/images/testimages/boarding_image.jpg',
-                  width: double.infinity,
-                  fit: BoxFit.contain,
-                ),
+                child: imageSource != null
+                    ? (imageSource is File
+                        ? Image.file(imageSource, width: double.infinity, fit: BoxFit.contain)
+                        : Image.network(
+                            imageSource as String,
+                            width: double.infinity,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Center(
+                              child: Icon(Icons.broken_image_outlined, size: 64),
+                            ),
+                          ))
+                    : Image.asset(
+                        'assets/images/testimages/boarding_image.jpg',
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                      ),
               ),
             ),
             const SizedBox(height: 20),
@@ -120,6 +135,19 @@ class JudgeResultScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Object? _buildImageProvider() {
+    if (result.imagePath != null && result.imagePath!.trim().isNotEmpty) {
+      final file = File(result.imagePath!);
+      if (file.existsSync()) {
+        return file;
+      }
+    }
+    if (result.imageUrl != null && result.imageUrl!.trim().isNotEmpty) {
+      return result.imageUrl!;
+    }
+    return null;
   }
 
   void _showAnalysisInfo(BuildContext context) {

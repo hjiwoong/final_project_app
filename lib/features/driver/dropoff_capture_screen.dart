@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/auth/session.dart';
 import '../../core/theme/app_theme.dart';
@@ -17,14 +20,26 @@ class DropoffCaptureScreen extends StatefulWidget {
 
 class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
   bool _loading = false;
+  XFile? _selectedImage;
 
-  Future<void> _capture({required bool oneRemaining}) async {
+  Future<void> _captureFromSource(ImageSource source) async {
     setState(() => _loading = true);
     try {
       final tripId = Session.currentTripId ?? 1;
+      final image = await ApiRepository.instance.pickImage(source: source);
+      if (image == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진 선택을 취소했습니다.')),
+        );
+        return;
+      }
+
+      setState(() => _selectedImage = image);
       final result = await ApiRepository.instance.uploadDropoffPhoto(
         tripId,
-        oneRemaining: oneRemaining,
+        oneRemaining: false,
+        image: image,
       );
       if (!mounted) return;
       Navigator.of(context).push(
@@ -38,6 +53,53 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _choosePhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '사진 선택',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('카메라로 촬영'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('사진 앱에서 선택'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+    await _captureFromSource(source);
+  }
+
+  Future<void> _capture({required bool oneRemaining}) async {
+    if (oneRemaining) {
+      await _choosePhoto();
+      return;
+    }
+    await _choosePhoto();
   }
 
   @override
@@ -80,8 +142,8 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
                     ),
                     SizedBox(height: 12),
                     Text(
-                      '모든 탑승객이 하차했는지 확인하기 위해 촬영을 시작합니다.\n'
-                      '차량 내부에 남아 있는 승객이 없는지 확인해 주세요.',
+                      '모든 탑승객이 하차했는지 확인하기 위해 사진을 선택합니다.\n'
+                      '카메라 또는 사진 앱에서 버스 내부 이미지를 가져와 서버의 YOLO 모델로 분석합니다.',
                       style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
@@ -95,13 +157,13 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
             ),
             const SizedBox(height: 8),
             PrimaryButton(
-              label: '종점 촬영 (전원 하차) - 개발용',
+              label: '종점 사진 선택',
               loading: _loading,
               onPressed: () => _capture(oneRemaining: false),
             ),
             const SizedBox(height: 12),
             PrimaryButton(
-              label: '종점 촬영 (1명 남음) - 개발용',
+              label: '종점 사진 선택 (1명 남음)',
               color: AppTheme.danger,
               loading: _loading,
               onPressed: () => _capture(oneRemaining: true),

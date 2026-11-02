@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
@@ -72,21 +71,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('학부모 홈'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final shouldLogout = await showLogoutConfirmationDialog(context);
-              if (!shouldLogout || !context.mounted) return;
-              await Session.clear();
-              if (!context.mounted) return;
-              Navigator.of(context, rootNavigator: true).pushReplacement(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          ),
-        ],
+        title: const Text('홈'),
       ),
       body: ValueListenableBuilder<Map<String, bool>>(
         valueListenable: AttendanceMockStore.absent,
@@ -437,6 +422,31 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
             ],
           );
         },
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              final shouldLogout = await showLogoutConfirmationDialog(context);
+              if (!shouldLogout || !context.mounted) return;
+              await Session.clear();
+              if (!context.mounted) return;
+              Navigator.of(context, rootNavigator: true).pushReplacement(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+              );
+            },
+            icon: const Icon(Icons.logout_rounded, color: Colors.red),
+            label: const Text(
+              '로그아웃',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
