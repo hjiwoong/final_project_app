@@ -89,7 +89,6 @@ class DriverAccountInfoScreen extends StatelessWidget {
                       : '정보 없음',
                   icon: Icons.badge_outlined,
                 ),
-                const Divider(height: 1, indent: 56),
                 _AccountInfoRow(
                   label: '이메일',
                   value: Session.email?.isNotEmpty == true
@@ -97,13 +96,11 @@ class DriverAccountInfoScreen extends StatelessWidget {
                       : '정보 없음',
                   icon: Icons.email_outlined,
                 ),
-                const Divider(height: 1, indent: 56),
                 _AccountInfoRow(
                   label: '계정 생성일',
                   value: _formatCreatedAt(Session.createdAt),
                   icon: Icons.calendar_today_outlined,
                 ),
-                const Divider(height: 1, indent: 56),
                 _AccountInfoRow(
                   label: '계정 유형',
                   value: _accountRoleLabel(),

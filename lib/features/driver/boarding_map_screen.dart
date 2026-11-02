@@ -214,6 +214,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       await TripProgressStorage.clear();
       if (!mounted) return;
       Session.currentTripId = null;
+      Session.currentTripBusName = null;
       Session.currentBoardingCount = null;
       Session.currentTripIsMock = false;
       Session.currentTripSimulationMode = false;

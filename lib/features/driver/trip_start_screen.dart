@@ -7,6 +7,7 @@ import '../../data/api/api_repository.dart';
 import '../../data/models/trip_exit_action.dart';
 import '../../data/models/trip_progress.dart';
 import '../../widgets/primary_button.dart';
+import 'boarding_capture_screen.dart';
 import 'boarding_map_screen.dart';
 
 /// 버스 및 운행(Trip) 정보 모델
@@ -62,6 +63,7 @@ class _TripStartScreenState extends State<TripStartScreen> {
   BusTripItem? _selectedTrip;
   BusTripItem? _activeTrip;
   TripProgress? _activeProgress;
+  bool _boardingRecoveryPromptShown = false;
 
   @override
   void initState() {
@@ -172,11 +174,14 @@ class _TripStartScreenState extends State<TripStartScreen> {
                   loadedTrips.first;
         _isLoadingTrips = false;
       });
+      if (activeProgress?.boardingCount != null) {
+        await _promptForBoardingRecovery();
+      }
     } catch (e) {
       debugPrint('버스 목록 조회 실패: $e');
       if (!mounted) return;
       setState(() {
-        _loadError = '버스 목록을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.';
+        _loadError = '버스 목록을 불러오지 못했습니다.\n연결을 확인하고 다시 시도해 주세요.';
         _isLoadingTrips = false;
       });
     }
@@ -188,24 +193,27 @@ class _TripStartScreenState extends State<TripStartScreen> {
     if (trip == null || progress == null || _isStartingTrip) return;
 
     Session.currentTripId = progress.tripId;
-    Session.currentBoardingCount = null;
+    Session.currentTripBusName = progress.busName;
+    Session.currentBoardingCount = progress.boardingCount;
     Session.currentTripIsMock = progress.isMock;
     Session.currentTripSimulationMode = progress.simulationMode;
-    final result = await Navigator.of(context).push(
+    final result = await Navigator.of(context).push<Object?>(
       MaterialPageRoute(
-        builder: (_) => BoardingMapScreen(
-          tripId: progress.tripId.toString(),
-          busId: progress.busId,
-          busName: progress.busName,
-          busNumber: progress.busNumber,
-          isMock: progress.isMock,
-          initialStopIndex: progress.currentStopIndex,
-          onStopChanged: (index) {
-            final updated = progress.copyWith(currentStopIndex: index);
-            _activeProgress = updated;
-            return TripProgressStorage.save(updated);
-          },
-        ),
+        builder: (_) => progress.boardingCount != null
+            ? const BoardingCaptureScreen()
+            : BoardingMapScreen(
+                tripId: progress.tripId.toString(),
+                busId: progress.busId,
+                busName: progress.busName,
+                busNumber: progress.busNumber,
+                isMock: progress.isMock,
+                initialStopIndex: progress.currentStopIndex,
+                onStopChanged: (index) {
+                  final updated = progress.copyWith(currentStopIndex: index);
+                  _activeProgress = updated;
+                  return TripProgressStorage.save(updated);
+                },
+              ),
       ),
     );
     if (!mounted) return;
@@ -217,26 +225,119 @@ class _TripStartScreenState extends State<TripStartScreen> {
     }
   }
 
+  Future<void> _promptForBoardingRecovery() async {
+    if (_boardingRecoveryPromptShown || !mounted) return;
+    _boardingRecoveryPromptShown = true;
+    final shouldResume = await showModalBottomSheet<bool>(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      isScrollControlled: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '운행 복구',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '최근에 운행 중이였으나, 앱이 의도치 않게 종료되었습니다. '
+                '진행 중인 운행을 재개하시겠습니까?',
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('아니요'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('예'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (shouldResume == true && mounted) {
+      await _resumeTrip();
+    }
+  }
+
   /// ② 운행 시작 요청 (POST /trips)
   Future<void> _startTrip() async {
     final selectedTrip = _selectedTrip;
     if (selectedTrip == null || _isStartingTrip || _isLoadingTrips) return;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('운행 시작'),
-        content: Text('${selectedTrip.busName} 운행을 시작하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('아니요'),
+      backgroundColor: Colors.transparent,
+      builder: (context) => SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('예'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '운행 시작',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${selectedTrip.busName} 운행을 시작하시겠습니까?',
+                style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('아니요'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('예'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -257,6 +358,7 @@ class _TripStartScreenState extends State<TripStartScreen> {
         simulationMode: selectedTrip.isSimulationBus,
       );
       Session.currentTripId = tripId;
+      Session.currentTripBusName = selectedTrip.busName;
       Session.currentBoardingCount = null;
       Session.currentTripIsMock = selectedTrip.isMock;
       Session.currentTripSimulationMode = selectedTrip.isSimulationBus;

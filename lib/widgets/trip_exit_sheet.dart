@@ -34,24 +34,44 @@ Future<TripExitAction?> showTripExitSheet(BuildContext context) =>
                 style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                height: 58,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.danger,
+              TextButton(
+                style: TextButton.styleFrom(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
                   ),
-                  onPressed: () =>
-                      Navigator.of(context).pop(TripExitAction.cancel),
-                  child: const Text('운행 취소'),
+                  foregroundColor: AppTheme.danger,
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () =>
+                    Navigator.of(context).pop(TripExitAction.cancel),
+                child: const Row(
+                  children: [
+                    Icon(Icons.close_outlined),
+                    SizedBox(width: 10),
+                    Text('운행 취소'),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 58,
-                child: OutlinedButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop(TripExitAction.wait),
-                  child: const Text('운행 대기'),
+              TextButton(
+                style: TextButton.styleFrom(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
+                  ),
+                  foregroundColor: AppTheme.primary,
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () =>
+                    Navigator.of(context).pop(TripExitAction.wait),
+                child: const Row(
+                  children: [
+                    Icon(Icons.access_time_outlined),
+                    SizedBox(width: 10),
+                    Text('운행 대기'),
+                  ],
                 ),
               ),
             ],

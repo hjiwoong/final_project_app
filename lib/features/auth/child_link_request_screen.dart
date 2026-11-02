@@ -46,17 +46,41 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
         );
       }
       if (!mounted) return;
-      await showDialog<void>(
+      await showModalBottomSheet<void>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('연결 요청 완료'),
-          content: const Text('자녀 연결 요청을 접수했습니다. 확인 후 연결됩니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('확인'),
+        backgroundColor: Colors.transparent,
+        builder: (context) => SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '연결 요청 완료',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '자녀 연결 요청을 접수했습니다. 확인 후 연결됩니다.',
+                  style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('확인'),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
       if (mounted) Navigator.of(context).pop(true);
