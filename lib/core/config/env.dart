@@ -9,7 +9,7 @@ class Env {
   );
 
   /// Google OAuth 웹 클라이언트 ID. API의 GOOGLE_CLIENT_ID와 같아야 한다.
-  /// 실행 시 --dart-define=GOOGLE_SERVER_CLIENT_ID=<웹 클라이언트 ID> 로 지정한다.
+  /// run.ps1을 처음 실행할 때 입력하면 config/local.json에 저장된다.
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
   );
