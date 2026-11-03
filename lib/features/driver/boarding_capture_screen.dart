@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/auth/session.dart';
 import '../../core/auth/trip_progress_storage.dart';
@@ -17,12 +20,25 @@ class BoardingCaptureScreen extends StatefulWidget {
 class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
   bool _loading = false;
   int? _count = Session.currentBoardingCount;
+  XFile? _selectedImage;
 
-  Future<void> _capture() async {
+  Future<void> _captureFromSource(ImageSource source) async {
     setState(() => _loading = true);
     try {
+      final image = await ApiRepository.instance.pickImage(source: source);
+      if (image == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진 선택을 취소했습니다.')),
+        );
+        return;
+      }
+
+      setState(() => _selectedImage = image);
+
       final count = await ApiRepository.instance.uploadBoardingPhoto(
         Session.currentTripId ?? 1,
+        image: image,
       );
       if (!mounted) return;
       Session.currentBoardingCount = count;
@@ -42,6 +58,49 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
     }
   }
 
+  Future<void> _choosePhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '사진 선택',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('카메라로 촬영'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('사진 앱에서 선택'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+    await _captureFromSource(source);
+  }
+
+  Future<void> _capture() async {
+    await _choosePhoto();
+  }
+
   void _retake() {
     _clearSavedBoardingCount();
   }
@@ -57,7 +116,10 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       );
       if (!mounted) return;
       Session.currentBoardingCount = null;
-      setState(() => _count = null);
+      setState(() {
+        _count = null;
+        _selectedImage = null;
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -82,6 +144,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
   }
 
   void _showFullImage() {
+    if (_selectedImage == null) return;
     showDialog<void>(
       context: context,
       builder: (context) => Dialog.fullscreen(
@@ -99,8 +162,8 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
             child: InteractiveViewer(
               minScale: 1,
               maxScale: 5,
-              child: Image.asset(
-                'assets/images/testimages/boarding_image.jpg',
+              child: Image.file(
+                File(_selectedImage!.path),
                 fit: BoxFit.contain,
               ),
             ),
@@ -148,7 +211,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '승차 사진에서 YOLO를 이용해 버스에 탑승하고 있는 승객을 탐지해 총 탑승 인원을 산출합니다. '
+                '승차 사진에서 YOLO 모델을 이용해 버스에 탑승하고 있는 승객을 탐지해 총 탑승 인원을 산출합니다. '
                 '촬영 환경에 따라 실제 인원과 분석 결과가 다를 수 있습니다.',
                 style: TextStyle(
                   fontSize: 15,
@@ -258,7 +321,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            '탑승객이 모두 보이도록 촬영을 시작합니다.\n차량 내부의 카메라가 필요합니다. 카메라가 없는 경우 운행하려는 버스에 카메라가 설치되어 있는지 확인합니다.',
+                            '탑승객이 모두 보이도록 사진을 선택합니다.\n카메라 또는 사진 앱에서 버스 내부 이미지를 가져와 분석합니다.\n\n권한을 거부한 경우 설정에서 변경할 수 있습니다.',
                             textAlign: TextAlign.left,
                             style: TextStyle(fontSize: 14, color: Colors.grey),
                           ),
@@ -272,21 +335,24 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            GestureDetector(
-                              onTap: _showFullImage,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(20),
-                                clipBehavior: Clip.antiAlias,
-                                child: AspectRatio(
-                                  aspectRatio: 16 / 9,
-                                  child: Image.asset(
-                                    'assets/images/testimages/boarding_image.jpg',
-                                    width: double.infinity,
-                                    fit: BoxFit.contain,
+                            if (_selectedImage != null)
+                              GestureDetector(
+                                onTap: _showFullImage,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: AspectRatio(
+                                    aspectRatio: 16 / 9,
+                                    child: Image.file(
+                                      File(_selectedImage!.path),
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
+                              )
+                            else
+                              const SizedBox.shrink(),
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -326,7 +392,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                   ),
                   const SizedBox(height: 8),
                   PrimaryButton(
-                    label: '승차 촬영',
+                    label: '승차 사진 선택',
                     loading: _loading,
                     onPressed: _capture,
                   ),

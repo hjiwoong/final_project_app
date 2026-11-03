@@ -40,4 +40,19 @@ void main() {
     expect(find.text('계정 생성일'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('설정 목록에서 앱 정보 화면을 연다', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: DriverSettingsScreen()));
+
+    expect(find.text('계정 정보'), findsOneWidget);
+    expect(find.text('앱 정보'), findsOneWidget);
+
+    await tester.tap(find.text('앱 정보'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('서비스 소개'), findsOneWidget);
+    expect(find.text('기사용 앱'), findsOneWidget);
+    expect(find.text('주요 기능'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
