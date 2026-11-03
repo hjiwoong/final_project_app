@@ -257,6 +257,18 @@ class ApiRepository {
         .toList();
     return children.isEmpty ? MockRepository.instance.children : children;
   }
+  // 학부모의 자녀가 배정된 버스 운행 현황 조회
+  Future<List<Map<String, dynamic>>> getParentBusStatus() async {
+    if (Env.useMock || Session.isMockAccount) {
+      return [];
+    }
+
+    final response = await _dio.get('/me/bus-status');
+
+    return (response.data as List)
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
 
   Future<List<ChildStudent>> getBusStudents(
     int busId, {
@@ -300,6 +312,26 @@ class ApiRepository {
         'is_absent': isAbsent,
       },
     );
+  }
+
+  // 결석 여부 조회 (GET /me/children/{studentId}/attendance)
+  Future<bool> getChildAttendance(
+      ChildStudent child, {
+        required DateTime date,
+      }) async {
+    if (Env.useMock || child.isMock) {
+      return child.isAbsent;
+    }
+
+    final response = await _dio.get(
+      '/me/children/${child.id}/attendance',
+      queryParameters: {
+        'date': date.toIso8601String().substring(0, 10),
+      },
+    );
+
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return data['is_absent'] as bool;
   }
 
   // 3. 운행 시작 (POST /trips)
