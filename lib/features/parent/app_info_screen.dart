@@ -177,14 +177,14 @@ class AppInfoScreen extends StatelessWidget {
               children: [
                 ListTile(
                   title: Text('서비스 유형'),
-                  trailing: Text('학부모용 앱'),
+                  trailing: Text('학부모'),
                 ),
 
                 Divider(height: 1),
 
                 ListTile(
                   title: Text('개발 상태'),
-                  trailing: Text('Mock 테스트'),
+                  trailing: Text('API 테스트'),
                 ),
 
                 Divider(height: 1),

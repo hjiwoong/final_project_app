@@ -412,7 +412,8 @@ class _TripStartScreenState extends State<TripStartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('운행 홈')),
+      //운행 홈
+      appBar: AppBar(title: const Text('홈')),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         child: Column(

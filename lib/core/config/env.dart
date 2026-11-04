@@ -5,7 +5,7 @@
 class Env {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'http://223.194.48.32:8000',
   );
 
   /// Google OAuth 웹 클라이언트 ID. API의 GOOGLE_CLIENT_ID와 같아야 한다.
