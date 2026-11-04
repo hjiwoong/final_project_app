@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/auth/session.dart';
 import '../../core/auth/token_storage.dart';
 import '../../core/config/env.dart';
@@ -16,6 +19,32 @@ class ApiRepository {
   static final ApiRepository instance = ApiRepository._();
 
   final Dio _dio = ApiClient.instance.dio;
+
+  Future<XFile?> pickImage({ImageSource source = ImageSource.camera}) async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: source, imageQuality: 85, maxWidth: 1600);
+    return file;
+  }
+
+  Future<FormData> buildUploadFormData({
+    required XFile image,
+    required String fieldName,
+    required DateTime capturedAt,
+  }) async {
+    final file = File(image.path);
+    if (!await file.exists()) {
+      throw StateError('선택한 이미지 파일을 찾을 수 없습니다.');
+    }
+
+    return FormData.fromMap({
+      fieldName: await MultipartFile.fromFile(
+        image.path,
+        filename: image.name.isNotEmpty ? image.name : '${fieldName}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        contentType: DioMediaType('image', 'jpeg'),
+      ),
+      'captured_at': capturedAt.toUtc().toIso8601String(),
+    });
+  }
 
   Future<void> signup({
     required String email,
@@ -371,100 +400,35 @@ class ApiRepository {
   }
 
   // 4. 승차 사진 업로드 (POST /trips/{tripId}/boarding-photo)
-  Future<int> uploadBoardingPhoto(int tripId, {int mockCount = 5}) async {
-    if (Env.useMock || Session.currentTripIsMock) {
-      return MockRepository.instance.uploadBoardingPhoto();
+  Future<int> uploadBoardingPhoto(
+    int tripId, {
+    XFile? image,
+  }) async {
+    if (Env.useMock) {
+      throw StateError('모의 데이터 분석은 비활성화되어 있습니다. 실제 서버 연결을 사용하세요.');
     }
-    try {
-      final dummyBytes = [
-        0x89,
-        0x50,
-        0x4E,
-        0x47,
-        0x0D,
-        0x0A,
-        0x1A,
-        0x0A,
-        0x00,
-        0x00,
-        0x00,
-        0x0D,
-        0x49,
-        0x48,
-        0x44,
-        0x52,
-        0x00,
-        0x00,
-        0x00,
-        0x01,
-        0x00,
-        0x00,
-        0x00,
-        0x01,
-        0x08,
-        0x06,
-        0x00,
-        0x00,
-        0x00,
-        0x1F,
-        0x15,
-        0xC4,
-        0x89,
-        0x00,
-        0x00,
-        0x00,
-        0x0A,
-        0x49,
-        0x44,
-        0x41,
-        0x54,
-        0x78,
-        0x9C,
-        0x63,
-        0x00,
-        0x01,
-        0x00,
-        0x00,
-        0x05,
-        0x00,
-        0x01,
-        0x0D,
-        0x0A,
-        0x2D,
-        0xB4,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x49,
-        0x45,
-        0x4E,
-        0x44,
-        0xAE,
-        0x42,
-        0x60,
-        0x82,
-      ];
 
-      FormData formData = FormData.fromMap({
-        'image': MultipartFile.fromBytes(
-          dummyBytes,
-          filename: 'boarding.png',
-          contentType: DioMediaType('image', 'png'),
-        ),
-        'captured_at': DateTime.now().toIso8601String(),
-        'mock_count': mockCount,
-      });
+    final selectedImage = image ?? await pickImage(source: ImageSource.camera);
+    if (selectedImage == null) {
+      throw StateError('분석할 사진을 선택해 주세요.');
+    }
+
+    try {
+      final formData = await buildUploadFormData(
+        image: selectedImage,
+        fieldName: 'image',
+        capturedAt: DateTime.now(),
+      );
 
       final response = await _dio.post(
         '/trips/$tripId/boarding-photo',
         data: formData,
       );
-      return response.data['boarding_count'] ?? mockCount;
+      return response.data['boarding_count'] ?? 0;
     } on DioException catch (e) {
       if (e.response != null) rethrow;
-      debugPrint('승차 촬영 서버에 연결할 수 없어 Mock 사용: $e');
-      return await MockRepository.instance.uploadBoardingPhoto();
+      debugPrint('승차 촬영 서버 연결 실패: $e');
+      rethrow;
     }
   }
 
@@ -472,109 +436,45 @@ class ApiRepository {
   Future<JudgeResult> uploadDropoffPhoto(
     int tripId, {
     required bool oneRemaining,
+    XFile? image,
   }) async {
-    if (Env.useMock || Session.currentTripIsMock) {
-      return MockRepository.instance.uploadDropoffPhoto(
-        oneRemaining: oneRemaining,
-      );
+    if (Env.useMock) {
+      throw StateError('모의 데이터 분석은 비활성화되어 있습니다. 실제 서버 연결을 사용하세요.');
     }
-    try {
-      final dummyBytes = [
-        0x89,
-        0x50,
-        0x4E,
-        0x47,
-        0x0D,
-        0x0A,
-        0x1A,
-        0x0A,
-        0x00,
-        0x00,
-        0x00,
-        0x0D,
-        0x49,
-        0x48,
-        0x44,
-        0x52,
-        0x00,
-        0x00,
-        0x00,
-        0x01,
-        0x00,
-        0x00,
-        0x00,
-        0x01,
-        0x08,
-        0x06,
-        0x00,
-        0x00,
-        0x00,
-        0x1F,
-        0x15,
-        0xC4,
-        0x89,
-        0x00,
-        0x00,
-        0x00,
-        0x0A,
-        0x49,
-        0x44,
-        0x41,
-        0x54,
-        0x78,
-        0x9C,
-        0x63,
-        0x00,
-        0x01,
-        0x00,
-        0x00,
-        0x05,
-        0x00,
-        0x01,
-        0x0D,
-        0x0A,
-        0x2D,
-        0xB4,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x49,
-        0x45,
-        0x4E,
-        0x44,
-        0xAE,
-        0x42,
-        0x60,
-        0x82,
-      ];
 
-      FormData formData = FormData.fromMap({
-        'image': MultipartFile.fromBytes(
-          dummyBytes,
-          filename: 'dropoff.png',
-          contentType: DioMediaType('image', 'png'),
-        ),
-        'captured_at': DateTime.now().toIso8601String(),
-        'mock_count': oneRemaining ? 1 : 0,
-      });
+    final selectedImage = image ?? await pickImage(source: ImageSource.camera);
+    if (selectedImage == null) {
+      throw StateError('분석할 사진을 선택해 주세요.');
+    }
+
+    try {
+      final formData = await buildUploadFormData(
+        image: selectedImage,
+        fieldName: 'image',
+        capturedAt: DateTime.now(),
+      );
 
       final response = await _dio.post(
         '/trips/$tripId/dropoff-photo',
         data: formData,
       );
-      final remaining =
-          response.data['remaining_count'] ?? (oneRemaining ? 1 : 0);
-      return JudgeResult(
-        boardingCount: Session.currentBoardingCount ?? 0,
-        remainingCount: remaining,
+
+      final payload = response.data is Map ? Map<String, dynamic>.from(response.data as Map) : <String, dynamic>{};
+      final result = JudgeResult.fromJson(
+        payload,
+        fallbackBoardingCount: Session.currentBoardingCount ?? 0,
+      );
+
+      return result.copyWith(
+        boardingCount: Session.currentBoardingCount ?? result.boardingCount,
+        remainingCount: result.remainingCount,
+        imagePath: result.imagePath ?? selectedImage.path,
+        imageUrl: result.imageUrl,
       );
     } on DioException catch (e) {
       if (e.response != null) rethrow;
-      debugPrint('종점 촬영 서버에 연결할 수 없어 Mock 사용: $e');
-      return await MockRepository.instance.uploadDropoffPhoto(
-        oneRemaining: oneRemaining,
-      );
+      debugPrint('종점 촬영 서버 연결 실패: $e');
+      rethrow;
     }
   }
 
