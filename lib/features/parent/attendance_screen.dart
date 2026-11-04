@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
@@ -164,7 +163,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             _selectedDate.day == today.day;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        backgroundColor: Colors.white,
         title: const Text('설정'),
       ),
       body: Padding(
@@ -259,12 +260,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     )
                   else if (!_useMock && _children.isEmpty)
                       const Card(
+                        color: Color(0xFFFAFAFA),
                         child: ListTile(
                           title: Text('연결된 자녀가 없습니다.'),
                         ),
                       )
                     else
                       Card(
+                        color: const Color(0xFFFAFAFA),
                         child: Column(
                           children: [
                             for (final name in _absent.keys)
@@ -301,6 +304,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   const SizedBox(height: 8),
 
                   Card(
+                    color: const Color(0xFFFAFAFA),
                     child: ListTile(
                       leading: const Icon(
                         Icons.people_outline,
@@ -333,6 +337,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   const SizedBox(height: 8),
 
                   Card(
+                    color: const Color(0xFFFAFAFA),
                     child: ListTile(
                       leading: const Icon(
                         Icons.notifications_none,
@@ -366,6 +371,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   const SizedBox(height: 8),
 
                   Card(
+                    color: const Color(0xFFFAFAFA),
                     child: ListTile(
                       leading: const Icon(
                         Icons.info_outline,
