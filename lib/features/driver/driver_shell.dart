@@ -4,6 +4,7 @@ import '../../core/auth/session.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/user_role.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
+import '../auth/change_password_screen.dart';
 import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
 import 'trip_start_screen.dart';
@@ -137,6 +138,100 @@ class DriverAccountInfoScreen extends StatelessWidget {
   }
 }
 
+class DriverAppInfoScreen extends StatelessWidget {
+  const DriverAppInfoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('앱 정보')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              '서비스 소개',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primary,
+              ),
+            ),
+          ),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.directions_bus_rounded,
+                    color: AppTheme.accent,
+                    size: 40,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'AI 통학버스 안전관리 서비스',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppTheme.primary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '어린이의 안전한 통학을 위한 운행 및 승하차 관리 서비스입니다.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              '앱 상세 정보',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.primary,
+              ),
+            ),
+          ),
+          const Card(
+            child: Column(
+              children: [
+                _AccountInfoRow(
+                  label: '서비스 유형',
+                  value: '기사용 앱',
+                  icon: Icons.badge_outlined,
+                ),
+                _AccountInfoRow(
+                  label: '주요 기능',
+                  value: '운행 시작 및 종료, 승하차 확인, 알림 조회',
+                  icon: Icons.checklist_rounded,
+                ),
+                _AccountInfoRow(
+                  label: '앱 버전',
+                  value: 'Dev',
+                  icon: Icons.info_outline_rounded,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AccountInfoRow extends StatelessWidget {
   const _AccountInfoRow({
     required this.label,
@@ -185,6 +280,20 @@ class _AccountInfoRow extends StatelessWidget {
 class DriverSettingsScreen extends StatelessWidget {
   const DriverSettingsScreen({super.key});
 
+  String _accountRoleLabel() {
+    final code = Session.accountRole?.toUpperCase();
+    return switch (code) {
+      'ADMIN' => '관리자',
+      'DRIVER' => '기사',
+      'PARENT' => '학부모',
+      _ => switch (Session.role) {
+        UserRole.driver => '기사',
+        UserRole.parent => '학부모',
+        null => '정보 없음',
+      },
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,26 +302,29 @@ class DriverSettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           Card(
+            margin: EdgeInsets.zero,
             clipBehavior: Clip.antiAlias,
             child: Container(
-              padding: const EdgeInsets.all(16),
-              color: const Color(0xFFF1F6FF),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
                     child: const Icon(
-                      Icons.directions_bus_rounded,
-                      size: 28,
-                      color: AppTheme.accent,
+                      Icons.person_rounded,
+                      size: 32,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,19 +334,38 @@ class DriverSettingsScreen extends StatelessWidget {
                               ? Session.name!
                               : '사용자',
                           style: const TextStyle(
-                            color: AppTheme.primary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           Session.email?.isNotEmpty == true
                               ? Session.email!
-                              : '정보 없음',
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 12,
+                              : '이메일 정보 없음',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            _accountRoleLabel(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -263,6 +394,54 @@ class DriverSettingsScreen extends StatelessWidget {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const DriverAccountInfoScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              minVerticalPadding: 14,
+              leading: const Icon(
+                Icons.info_outline_rounded,
+                color: AppTheme.accent,
+              ),
+              title: const Text(
+                '앱 정보',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text('서비스 소개, 앱 유형 및 주요 기능을 확인합니다.'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const DriverAppInfoScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              minVerticalPadding: 14,
+              leading: const Icon(
+                Icons.lock_reset_rounded,
+                color: AppTheme.accent,
+              ),
+              title: const Text(
+                '비밀번호 변경하기',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text('현재 비밀번호와 새 비밀번호를 설정합니다.'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ChangePasswordScreen(),
                   ),
                 );
               },
