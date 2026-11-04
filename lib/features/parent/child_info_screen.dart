@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
-
+import '../../core/auth/session.dart';
+import '../auth/child_link_request_screen.dart';
 import 'attendance_mock_store.dart';
 
 // 학부모 자녀 정보 화면 (Mock 데이터)
@@ -167,7 +168,42 @@ class ChildInfoScreen extends StatelessWidget {
                 ),
 
               const SizedBox(height: 16),
+              Card(
+                color: const Color(0xFFF1F6FF),
+                elevation: 0,
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.family_restroom_rounded,
+                    color: Color(0xFF3B82F6),
+                  ),
+                  title: const Text(
+                    '자녀 연결 요청',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('자녀 정보를 계정에 추가해 주세요.'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    final email = Session.email;
 
+                    if (email == null || email.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('로그인한 계정 정보를 확인할 수 없습니다.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChildLinkRequestScreen(email: email),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(16),

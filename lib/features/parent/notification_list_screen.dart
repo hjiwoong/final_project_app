@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
-
+import '../../core/auth/session.dart';
+import '../../core/config/env.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/notification_item.dart';
 import 'alert_detail_screen.dart';
@@ -180,7 +181,7 @@ class _NotificationListScreenState
           return Column(
             children: [
               // 미하차 의심 경고 (Mock)
-              if (hasAlert)
+              if ((Env.useMock || Session.isMockAccount) && hasAlert)
                 ValueListenableBuilder<int>(
                   valueListenable:
                   NotificationMockStore.unreadCount,
@@ -230,7 +231,8 @@ class _NotificationListScreenState
                 ),
 
               // 승하차 및 이상 상황 이벤트 알림 (Mock)
-              ValueListenableBuilder<List<ParentMockEvent>>(
+              if (Env.useMock || Session.isMockAccount)
+                ValueListenableBuilder<List<ParentMockEvent>>(
                 valueListenable: ParentEventMockStore.events,
                 builder: (context, events, child) {
                   return ValueListenableBuilder<Set<int>>(
@@ -360,7 +362,7 @@ class _NotificationListScreenState
                           debugPrint('알림 읽음 처리 실패: $e');
                         }
 
-                        if (!mounted) return;
+                        if (!context.mounted) return;
 
                         if (n.isAlert) {
                           Navigator.of(context).push(

@@ -80,28 +80,6 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               // 서버에 연결된 실제 자녀 정보
-              Card(
-                color: const Color(0xFFF1F6FF),
-                elevation: 0,
-                child: ListTile(
-                  leading: const Icon(Icons.family_restroom_rounded, color: Color(0xFF3B82F6)),
-                  title: const Text('자녀 연결 요청', style: TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: const Text('자녀 정보를 계정에 추가해 주세요.'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    final email = Session.email;
-                    if (email == null || email.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('로그인한 계정 정보를 확인할 수 없습니다.')),
-                      );
-                      return;
-                    }
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => ChildLinkRequestScreen(email: email)),
-                    );
-                  },
-                ),
-              ),
               const SizedBox(height: 12),
               const Text('서버에 연결된 자녀', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               FutureBuilder<List<ChildStudent>>(
