@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../core/auth/session.dart';
 import '../../core/auth/trip_progress_storage.dart';
+import '../../core/maps/naver_map_status.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
+import '../../data/models/guardian_location.dart';
 import '../../data/models/trip_exit_action.dart';
 import '../../data/models/trip_progress.dart';
 import '../../widgets/primary_button.dart';
@@ -37,11 +41,7 @@ class BoardingMapScreen extends StatefulWidget {
 }
 
 class _BoardingMapScreenState extends State<BoardingMapScreen> {
-  static const List<NLatLng> _mockStopPositions = [
-    NLatLng(37.5682, 126.9768),
-    NLatLng(37.5701, 126.9822),
-    NLatLng(37.5666, 126.9784),
-  ];
+  static const _defaultMapPosition = NLatLng(37.5665, 126.9780);
 
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
@@ -50,10 +50,14 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
   bool _allowPop = false;
   bool _exitDialogOpen = false;
   bool _loadingStops = true;
+  bool _mapLoaded = false;
   String? _loadError;
+  String? _mapError;
+  Timer? _mapLoadTimer;
   double _collapsedSheetSize = 0.12;
   List<Map<String, dynamic>> _stops = [];
   final List<NMarker> _stopMarkers = [];
+  final List<int> _stopMarkerStopIndices = [];
 
   @override
   void initState() {
@@ -65,6 +69,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
 
   @override
   void dispose() {
+    _mapLoadTimer?.cancel();
     _sheetController
       ..removeListener(_updateSheetState)
       ..dispose();
@@ -85,8 +90,8 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       _loadError = null;
     });
     try {
-      final students = await ApiRepository.instance.getBusStudents(
-        widget.busId,
+      final students = await ApiRepository.instance.getTripBoardingMapStudents(
+        int.parse(widget.tripId),
         isMock: widget.isMock,
       );
       if (!mounted) return;
@@ -95,86 +100,95 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
         _currentStopIndex = _currentStopIndex
             .clamp(0, _stops.length - 1)
             .toInt();
+        _currentStopIndex = _nextAvailableStopIndex(_currentStopIndex);
         _loadingStops = false;
       });
     } catch (e) {
+      debugPrint('탑승 지도 학생/보호자 위치 조회 실패: $e');
       if (!mounted) return;
       setState(() {
-        _loadError = '학생 정보를 불러오지 못했습니다. 다시 시도해 주세요.';
+        _loadError = '탑승 지도 정보를 불러오지 못했습니다. 서버 연결과 위치 설정을 확인해 주세요.';
         _loadingStops = false;
       });
     }
   }
 
   List<Map<String, dynamic>> _makeStops(List<ChildStudent> students) {
-    final useMockPositions =
-        students.isNotEmpty && students.every((student) => student.isMock);
     return [
       for (final (index, student) in students.indexed)
         {
           'title': '📍 ${index + 1}번 정류장 도착',
           'student': '${student.name} · ${student.className ?? '학급 정보 없음'}',
-          'status': '승차 대기',
-          'statusColor': Colors.green,
-          if (useMockPositions)
-            'position':
-                _mockStopPositions[index % (_mockStopPositions.length - 1)],
+          'status': student.isAbsent ? '결석 · 건너뜀' : '승차 대기',
+          'statusColor': student.isAbsent ? Colors.grey : Colors.green,
+          'isAbsent': student.isAbsent,
+          'studentId': student.id,
+          'guardianLocations': student.guardianLocations,
         },
       {
         'title': '🏫 종점 도착 · 마지막 정류장',
         'student': '탑승 예정 ${students.length}명',
         'status': '종점',
         'statusColor': Colors.blue,
-        if (useMockPositions) 'position': _mockStopPositions.last,
+        'guardianLocations': const <GuardianLocation>[],
       },
     ];
   }
 
+  List<NLatLng> get _stopPositions => [
+    for (final stop in _stops)
+      for (final location
+          in stop['guardianLocations'] as List<GuardianLocation>)
+        if (location.hasCoordinates)
+          NLatLng(location.latitude!, location.longitude!),
+  ];
+
   Color _markerColor(int index) {
+    if (_stops[index]['isAbsent'] == true) return Colors.grey;
     if (index == _stops.length - 1) return Colors.blue;
     return index < _currentStopIndex ? Colors.green : Colors.red;
   }
 
+  int _nextAvailableStopIndex(int index) {
+    final lastStopIndex = _stops.length - 1;
+    while (index < lastStopIndex && _stops[index]['isAbsent'] == true) {
+      index++;
+    }
+    return index;
+  }
+
   Future<void> _addMapOverlays(NaverMapController controller) async {
-    final positions = _stops
-        .map((stop) => stop['position'])
-        .whereType<NLatLng>()
-        .toList();
-    if (positions.length < 2) return;
-
-    _stopMarkers
-      ..clear()
-      ..addAll([
-        for (final (index, stop) in _stops.indexed)
-          if (stop['position'] case final NLatLng position)
-            NMarker(
-              id: 'boarding_stop_$index',
-              position: position,
-              iconTintColor: _markerColor(index),
-              caption: NOverlayCaption(
-                text: index == _stops.length - 1 ? '종점' : '${index + 1}번 탑승 위치',
-              ),
+    _stopMarkers.clear();
+    _stopMarkerStopIndices.clear();
+    for (final (stopIndex, stop) in _stops.indexed) {
+      final locations = stop['guardianLocations'] as List<GuardianLocation>;
+      for (final (locationIndex, location) in locations.indexed) {
+        if (!location.hasCoordinates) continue;
+        _stopMarkers.add(
+          NMarker(
+            id: 'boarding_stop_${stop['studentId']}_$locationIndex',
+            position: NLatLng(location.latitude!, location.longitude!),
+            iconTintColor: _markerColor(stopIndex),
+            caption: NOverlayCaption(
+              text: '${stopIndex + 1}번 정류장 · 보호자 ${locationIndex + 1}',
             ),
-      ]);
-
-    await controller.addOverlayAll({
-      ..._stopMarkers,
-      NPolylineOverlay(
-        id: 'mock_boarding_route',
-        coords: positions,
-        color: Colors.blue,
-        width: 5,
-      ),
-    });
+          ),
+        );
+        _stopMarkerStopIndices.add(stopIndex);
+      }
+    }
+    if (_stopMarkers.isNotEmpty) {
+      await controller.addOverlayAll(_stopMarkers.toSet());
+    }
   }
 
   Future<void> _nextStop() async {
     if (_currentStopIndex < _stops.length - 1) {
       setState(() {
-        _currentStopIndex++;
+        _currentStopIndex = _nextAvailableStopIndex(_currentStopIndex + 1);
       });
       for (final (index, marker) in _stopMarkers.indexed) {
-        marker.setIconTintColor(_markerColor(index));
+        marker.setIconTintColor(_markerColor(_stopMarkerStopIndices[index]));
       }
       await widget.onStopChanged?.call(_currentStopIndex);
     } else {
@@ -279,20 +293,46 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
               .clamp(collapsedSheetSize + 0.05, 0.5)
               .toDouble();
           _collapsedSheetSize = collapsedSheetSize;
+          final stopPositions = _stopPositions;
 
           return Stack(
             children: [
               NaverMap(
-                options: const NaverMapViewOptions(
+                options: NaverMapViewOptions(
                   initialCameraPosition: NCameraPosition(
-                    target: NLatLng(37.5683, 126.9795),
-                    zoom: 14.5,
+                    target: stopPositions.isNotEmpty
+                        ? stopPositions.first
+                        : _defaultMapPosition,
+                    zoom: stopPositions.isNotEmpty ? 14.5 : 11.5,
                   ),
                   locationButtonEnable: true,
                 ),
                 onMapReady: (controller) async {
                   debugPrint('네이버 지도 로딩 완료');
-                  await _addMapOverlays(controller);
+                  _mapLoadTimer?.cancel();
+                  _mapLoadTimer = Timer(const Duration(seconds: 15), () {
+                    if (!mounted || _mapLoaded) return;
+                    setState(() {
+                      _mapError =
+                          '지도를 불러오지 못했습니다. 네이버 지도 Client ID와 앱 패키지 등록, 네트워크 연결을 확인해 주세요.';
+                    });
+                  });
+                  try {
+                    await _addMapOverlays(controller);
+                  } catch (error) {
+                    debugPrint('탑승 지도 마커 표시 실패: $error');
+                    if (mounted) {
+                      setState(() => _mapError = '정류장 위치를 지도에 표시하지 못했습니다.');
+                    }
+                  }
+                },
+                onMapLoaded: () {
+                  _mapLoadTimer?.cancel();
+                  if (!mounted) return;
+                  setState(() {
+                    _mapLoaded = true;
+                    _mapError = null;
+                  });
                 },
               ),
               Positioned(
@@ -329,11 +369,22 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                             _buildLegendDot(Colors.grey, '결석'),
                           ],
                         ),
-                        if (_stops.any((stop) => stop.containsKey('position')))
+                        if (stopPositions.isNotEmpty)
                           const Padding(
                             padding: EdgeInsets.only(top: 4),
                             child: Text(
-                              '테스트용 목업 좌표 · 실제 위치 아님',
+                              '보호자가 저장한 실제 위치',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        if (stopPositions.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Text(
+                              '보호자 좌표가 없어 기본 위치의 지도를 표시합니다.',
                               style: TextStyle(
                                 color: Colors.black54,
                                 fontSize: 11,
@@ -344,6 +395,45 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                     ),
                   ),
                 ),
+              ),
+              if (_mapError != null)
+                Positioned(
+                  top: 76,
+                  left: 16,
+                  right: 16,
+                  child: Card(
+                    color: Colors.white,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        _mapError!,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+              ValueListenableBuilder<String?>(
+                valueListenable: naverMapAuthError,
+                builder: (context, authError, child) {
+                  if (authError == null) return const SizedBox.shrink();
+                  return Positioned(
+                    top: 76,
+                    left: 16,
+                    right: 16,
+                    child: Card(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          '네이버 지도 인증에 실패했습니다: $authError\nNCP 콘솔의 Client ID, Dynamic Map 활성화, Android 패키지 등록을 확인해 주세요.',
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
               DraggableScrollableSheet(
                 controller: _sheetController,

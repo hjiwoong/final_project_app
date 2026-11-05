@@ -29,19 +29,29 @@ Future<bool> showLogoutConfirmationDialog(BuildContext context) async {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('취소'),
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          style: OutlinedButton.styleFrom(
+                            shape: const StadiumBorder(),
+                          ),
+                          child: const Text('취소'),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFDC2626),
+                      child: SizedBox(
+                        height: 48,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            shape: const StadiumBorder(),
+                          ),
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('로그아웃'),
                         ),
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('로그아웃'),
                       ),
                     ),
                   ],

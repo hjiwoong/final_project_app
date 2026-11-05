@@ -7,14 +7,16 @@ import '../../data/models/child_student.dart';
 import '../../data/models/user_role.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
 import '../../widgets/primary_button.dart';
+import '../auth/account_removal_screen.dart';
 import '../auth/change_password_screen.dart';
 import '../auth/login_screen.dart';
 import 'app_info_screen.dart';
 import 'attendance_mock_store.dart';
 import 'child_info_screen.dart';
+import 'guardian_location_screen.dart';
 import 'notification_settings_screen.dart';
 
-// 출석·결석 설정: 결석이면 탑승 예정 인원에서 빠져 오경고 감소
+// 출석·결석 관리: 날짜별 등교/결석 상태를 설정
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
 
@@ -66,12 +68,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _absent = AttendanceMockStore.getAttendance(date);
     });
 
-    _loadChildren();
+    _loadChildren(date: date);
   }
 
   // 자녀 목록 및 선택 날짜의 결석 상태 조회 (mock / 서버 공용)
-  Future<void> _loadChildren() async {
-    final selectedDate = _selectedDate;
+  Future<void> _loadChildren({DateTime? date}) async {
+    final selectedDate = date ?? _selectedDate;
 
     setState(() {
       _loading = true;
@@ -118,7 +120,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  // 결석 정보 저장 (mock / 서버 공용)
+  // 결석 정보 저장 (mock / 서버 공용) 후 최신 상태 다시 조회
   Future<void> _saveAttendance() async {
     if (_saving || _loading || _error != null) return;
 
@@ -137,6 +139,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         }
       }
 
+      await _loadChildren(date: _selectedDate);
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -162,8 +165,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (!shouldLogout || !mounted) return;
     await Session.clear();
     if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).pushReplacement(
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
     );
   }
 
@@ -251,6 +255,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
+  // 등교/결석 상태 + (서버 모드일 때) 반 이름
+  String _attendanceSubtitle(String name) {
+    final status = _absent[name]! ? '결석' : '등교';
+    final className =
+        _children.where((c) => c.name == name).firstOrNull?.className;
+    return className == null || className.isEmpty
+        ? status
+        : '$status · $className';
+  }
+
   Widget _buildAttendanceList() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
@@ -280,7 +294,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           for (final name in _absent.keys)
             SwitchListTile(
               title: Text(name),
-              subtitle: Text(_absent[name]! ? '결석' : '등교'),
+              subtitle: Text(_attendanceSubtitle(name)),
               // ON = 등교 / OFF = 결석
               value: !_absent[name]!,
               onChanged: _saving
@@ -320,7 +334,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     _buildProfileCard(),
                     const SizedBox(height: 20),
 
-                    // 계정 정보
+                    // 계정 정보 (보호자 위치, 비밀번호 변경, 로그아웃, 계정 삭제)
                     Card(
                       margin: EdgeInsets.zero,
                       child: ListTile(
@@ -393,7 +407,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // 자녀별 출석·결석
+                    // 자녀별 출석 상태
+                    const Text(
+                      '자녀별 출석 상태',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     _buildAttendanceList(),
                     const SizedBox(height: 24),
 
@@ -542,11 +564,15 @@ class ParentAccountInfoScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Colors.blue,
+                color: Colors.black,
               ),
             ),
           ),
           Card(
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
             child: Column(
               children: [
                 _AccountInfoRow(
@@ -578,14 +604,97 @@ class ParentAccountInfoScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Card(
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
             child: ListTile(
-              leading: const Icon(Icons.lock_reset_rounded, color: Colors.blue),
+              leading: const Icon(Icons.location_on_outlined),
+              title: const Text('보호자 주소 및 위치'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const GuardianLocationScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
+            child: ListTile(
+              leading: const Icon(
+                Icons.lock_reset_rounded,
+                color: Colors.black,
+              ),
               title: const Text('비밀번호 변경하기'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const ChangePasswordScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.logout_rounded, color: Colors.red),
+              title: const Text(
+                '로그아웃',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              onTap: () async {
+                final shouldLogout = await showLogoutConfirmationDialog(
+                  context,
+                );
+                if (!shouldLogout || !context.mounted) return;
+                await Session.clear();
+                if (!context.mounted) return;
+                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (_) => false,
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
+            child: ListTile(
+              leading: const Icon(
+                Icons.person_remove_alt_1_rounded,
+                color: Colors.red,
+              ),
+              title: const Text(
+                '계정 삭제',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: Colors.red),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const AccountRemovalScreen(),
                   ),
                 );
               },
@@ -614,7 +723,7 @@ class _AccountInfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(icon, color: Colors.blue, size: 22),
+          Icon(icon, color: Colors.black, size: 22),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../widgets/primary_button.dart';
@@ -68,7 +67,7 @@ class _NotificationSettingsScreenState
                   const SizedBox(height: 8),
 
                   const Text(
-                    '학부모가 수신할 알림 유형을 설정할 수 있습니다.',
+                    '수신받을 알림을 설정합니다.',
                     style: TextStyle(
                       color: Colors.grey,
                       fontSize: 13,
@@ -169,8 +168,8 @@ class _NotificationSettingsScreenState
                   const SizedBox(height: 16),
 
                   const Text(
-                    '※ 현재 알림 설정은 Mock 데이터로 저장됩니다. '
-                        '실제 푸시 알림 수신 설정과는 연결되지 않았습니다.',
+                    '승하차 및 일반 이상 상황 알림 설정은 아직 서버와 연결되지 않았습니다. '
+                        '미하차 의심 경고는 필수 안전 알림으로 별도 푸시 발송됩니다.',
                     style: TextStyle(
                       color: Colors.grey,
                       fontSize: 12,

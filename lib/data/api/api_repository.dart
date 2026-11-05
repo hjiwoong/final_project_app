@@ -7,7 +7,11 @@ import '../../core/auth/session.dart';
 import '../../core/auth/token_storage.dart';
 import '../../core/config/env.dart';
 import '../../core/network/api_client.dart';
+import '../../core/notifications/push_notification_service.dart';
 import '../../data/models/child_student.dart';
+import '../../data/models/child_link_request.dart';
+import '../../data/models/guardian_location.dart';
+import '../../data/models/account_deletion_schedule.dart';
 import '../../data/mock/mock_repository.dart';
 import '../../data/models/judge_result.dart';
 import '../../data/models/notification_item.dart';
@@ -22,7 +26,11 @@ class ApiRepository {
 
   Future<XFile?> pickImage({ImageSource source = ImageSource.camera}) async {
     final picker = ImagePicker();
-    final file = await picker.pickImage(source: source, imageQuality: 85, maxWidth: 1600);
+    final file = await picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 1600,
+    );
     return file;
   }
 
@@ -39,7 +47,9 @@ class ApiRepository {
     return FormData.fromMap({
       fieldName: await MultipartFile.fromFile(
         image.path,
-        filename: image.name.isNotEmpty ? image.name : '${fieldName}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        filename: image.name.isNotEmpty
+            ? image.name
+            : '${fieldName}_${DateTime.now().millisecondsSinceEpoch}.jpg',
         contentType: DioMediaType('image', 'jpeg'),
       ),
       'captured_at': capturedAt.toUtc().toIso8601String(),
@@ -110,6 +120,7 @@ class ApiRepository {
       Session.createdAt = null;
     }
     Session.isMockAccount = false;
+    await _initializePushNotifications();
   }
 
   Future<void> addChildRequest({
@@ -119,15 +130,10 @@ class ApiRepository {
     required String relation,
   }) async {
     if (Env.useMock || Session.isMockAccount) {
-      await MockRepository.instance.addChildLinks(
-        email: email,
-        children: [
-          MockChildLinkRequest(
-            name: name,
-            className: className,
-            relation: relation,
-          ),
-        ],
+      await MockRepository.instance.addChildRequest(
+        name: name,
+        className: className,
+        relation: relation,
       );
       return;
     }
@@ -135,6 +141,123 @@ class ApiRepository {
     await _dio.post(
       '/me/child-requests',
       data: {'name': name, 'class_name': className, 'relation': relation},
+    );
+  }
+
+  Future<List<ChildLinkRequest>> getChildRequests() async {
+    if (Env.useMock || Session.isMockAccount) {
+      return MockRepository.instance.childRequests;
+    }
+
+    final response = await _dio.get('/me/child-requests');
+    return (response.data as List)
+        .map(
+          (item) =>
+              ChildLinkRequest.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
+  }
+
+  Future<void> cancelChildRequest(ChildLinkRequest request) async {
+    if (Env.useMock || Session.isMockAccount) {
+      MockRepository.instance.cancelChildRequest(request.id);
+      return;
+    }
+
+    await _dio.delete('/me/child-requests/${request.id}');
+  }
+
+  Future<GuardianLocation> getMyLocation() async {
+    if (Env.useMock || Session.isMockAccount) {
+      return MockRepository.instance.guardianLocation;
+    }
+
+    final response = await _dio.get('/me/location');
+    return GuardianLocation.fromJson(
+      Map<String, dynamic>.from(response.data as Map),
+    );
+  }
+
+  Future<GuardianLocation> searchLocationAddress(String address) async {
+    final normalizedAddress = address.trim();
+    if (normalizedAddress.isEmpty) {
+      throw ArgumentError('검색할 주소를 입력해 주세요.');
+    }
+
+    final response = await _dio.get(
+      '/me/location/search',
+      queryParameters: {'address': normalizedAddress},
+    );
+    return GuardianLocation.fromJson({
+      ...Map<String, dynamic>.from(response.data as Map),
+      'address': normalizedAddress,
+    });
+  }
+
+  Future<GuardianLocation> saveMyLocation({
+    required String address,
+    double? latitude,
+    double? longitude,
+  }) async {
+    if ((latitude == null) != (longitude == null)) {
+      throw ArgumentError('위도와 경도는 함께 입력해야 합니다.');
+    }
+    if (Env.useMock || Session.isMockAccount) {
+      final location = GuardianLocation(
+        address: address,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      MockRepository.instance.setGuardianLocation(location);
+      return location;
+    }
+
+    final data = <String, Object>{'address': address};
+    if (latitude != null) data['latitude'] = latitude;
+    if (longitude != null) data['longitude'] = longitude;
+
+    final response = await _dio.put('/me/location', data: data);
+    return GuardianLocation.fromJson(
+      Map<String, dynamic>.from(response.data as Map),
+    );
+  }
+
+  Future<void> clearMyLocation() async {
+    if (Env.useMock || Session.isMockAccount) {
+      MockRepository.instance.clearGuardianLocation();
+      return;
+    }
+
+    await _dio.delete('/me/location');
+  }
+
+  Future<void> unlinkChild(ChildStudent child) async {
+    if (Env.useMock || Session.isMockAccount || child.isMock) {
+      MockRepository.instance.unlinkChild(child.id);
+      return;
+    }
+
+    await _dio.delete('/me/children/${child.id}');
+  }
+
+  Future<AccountDeletionSchedule> requestAccountDeletion() async {
+    if (Session.accountRole?.toUpperCase() != 'PARENT' &&
+        Session.role != UserRole.parent) {
+      throw StateError('학부모 계정만 삭제를 요청할 수 있습니다.');
+    }
+
+    if (Env.useMock || Session.isMockAccount) {
+      final requestedAt = DateTime.now();
+      return AccountDeletionSchedule(
+        requestedAt: requestedAt,
+        scheduledDeletionAt: requestedAt.add(const Duration(days: 30)),
+        gracePeriodDays: 30,
+      );
+    }
+
+    final response = await _dio.post('/me/account-deletion');
+    return AccountDeletionSchedule.fromJson(
+      Map<String, dynamic>.from(response.data as Map),
     );
   }
 
@@ -187,12 +310,47 @@ class ApiRepository {
 
     switch (roleStr.toUpperCase()) {
       case 'PARENT':
+        await _initializePushNotifications();
         return UserRole.parent;
       case 'ADMIN':
       case 'DRIVER':
+        await _initializePushNotifications();
         return UserRole.driver;
     }
     throw FormatException('지원하지 않는 사용자 역할입니다: $roleStr');
+  }
+
+  Future<UserRole?> restoreSession() async {
+    if (await TokenStorage.read() == null) return null;
+
+    late final Response<dynamic> response;
+    try {
+      response = await _dio.get('/me');
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 401 ||
+          error.response?.statusCode == 403) {
+        await TokenStorage.clear();
+        return null;
+      }
+      rethrow;
+    }
+
+    final user = Map<String, dynamic>.from(response.data as Map);
+    final accountRole = (user['role'] as String).toUpperCase();
+    final role = switch (accountRole) {
+      'PARENT' => UserRole.parent,
+      'ADMIN' || 'DRIVER' => UserRole.driver,
+      _ => throw FormatException('지원하지 않는 사용자 역할입니다: $accountRole'),
+    };
+
+    Session.role = role;
+    Session.accountRole = accountRole;
+    Session.email = user['email'] as String?;
+    Session.name = user['name'] as String?;
+    Session.createdAt = _parseCreatedAt(user['created_at']);
+    Session.isMockAccount = false;
+    await _initializePushNotifications();
+    return role;
   }
 
   Future<UserRole> loginWithGoogle(String idToken) async {
@@ -222,7 +380,17 @@ class ApiRepository {
     Session.name = user['name'] as String?;
     Session.createdAt = _parseCreatedAt(user['created_at']);
     Session.isMockAccount = false;
+    await _initializePushNotifications();
     return role;
+  }
+
+  Future<void> _initializePushNotifications() => PushNotificationService
+      .instance
+      .initialize(registerToken: registerPushToken);
+
+  Future<void> registerPushToken(String token) async {
+    if (Session.isMockAccount || await TokenStorage.read() == null) return;
+    await _dio.put('/me/push-token', data: {'push_token': token});
   }
 
   DateTime? _parseCreatedAt(Object? value) {
@@ -266,25 +434,36 @@ class ApiRepository {
   ];
 
   // 학부모의 자녀 목록 조회 (/me/children)
-  Future<List<ChildStudent>> getChildren() async {
-    if (Env.useMock) return MockRepository.instance.children;
-
-    late final Response<dynamic> response;
-    try {
-      response = await _dio.get('/me/children');
-    } on DioException catch (e) {
-      if (e.response != null) rethrow;
-      debugPrint('자녀 목록 서버에 연결할 수 없어 Mock 데이터 반환: $e');
-      return MockRepository.instance.children;
-    }
-
+  Future<List<ChildStudent>> getChildren({DateTime? date}) async {
+    final response = await _dio.get(
+      '/me/children',
+      queryParameters: date == null
+          ? null
+          : {
+              'date':
+                  '${date.year.toString().padLeft(4, '0')}-'
+                  '${date.month.toString().padLeft(2, '0')}-'
+                  '${date.day.toString().padLeft(2, '0')}',
+            },
+    );
     final children = (response.data as List)
         .map(
           (item) =>
               ChildStudent.fromJson(Map<String, dynamic>.from(item as Map)),
         )
         .toList();
-    return children.isEmpty ? MockRepository.instance.children : children;
+    return children;
+  }
+
+  Future<List<Map<String, dynamic>>> getMyBuses() async {
+    if (Env.useMock || Session.isMockAccount) return [];
+
+    final response = await _dio.get('/me/buses');
+    return List<Map<String, dynamic>>.from(
+      (response.data as List).map(
+        (bus) => Map<String, dynamic>.from(bus as Map),
+      ),
+    );
   }
   // 학부모의 자녀가 배정된 버스 운행 현황 조회
   Future<List<Map<String, dynamic>>> getParentBusStatus() async {
@@ -320,7 +499,24 @@ class ApiRepository {
               ChildStudent.fromJson(Map<String, dynamic>.from(item as Map)),
         )
         .toList();
-    return students.isEmpty ? MockRepository.instance.children : students;
+    return students;
+  }
+
+  Future<List<ChildStudent>> getTripBoardingMapStudents(
+    int tripId, {
+    bool isMock = false,
+  }) async {
+    if (Env.useMock || isMock) return MockRepository.instance.children;
+
+    final response = await _dio.get('/trips/$tripId/boarding-map');
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final students = data['students'] as List;
+    return students
+        .map(
+          (item) =>
+              ChildStudent.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
   // 결석 여부 저장 (PUT /me/children/{studentId}/attendance)
@@ -329,11 +525,6 @@ class ApiRepository {
     required bool isAbsent,
     required DateTime date,
   }) async {
-    if (Env.useMock || child.isMock) {
-      MockRepository.instance.setMockAttendance(child.id, isAbsent);
-      return;
-    }
-
     await _dio.put(
       '/me/children/${child.id}/attendance',
       data: {
@@ -400,10 +591,7 @@ class ApiRepository {
   }
 
   // 4. 승차 사진 업로드 (POST /trips/{tripId}/boarding-photo)
-  Future<int> uploadBoardingPhoto(
-    int tripId, {
-    XFile? image,
-  }) async {
+  Future<int> uploadBoardingPhoto(int tripId, {XFile? image}) async {
     if (Env.useMock) {
       throw StateError('모의 데이터 분석은 비활성화되어 있습니다. 실제 서버 연결을 사용하세요.');
     }
@@ -459,7 +647,9 @@ class ApiRepository {
         data: formData,
       );
 
-      final payload = response.data is Map ? Map<String, dynamic>.from(response.data as Map) : <String, dynamic>{};
+      final payload = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : <String, dynamic>{};
       final result = JudgeResult.fromJson(
         payload,
         fallbackBoardingCount: Session.currentBoardingCount ?? 0,
@@ -516,6 +706,17 @@ class ApiRepository {
       );
     }).toList();
     return notifications;
+  }
+
+  Future<int> getNotificationUnreadCount() async {
+    if (Env.useMock || Session.isMockAccount) return 0;
+
+    final response = await _dio.get(
+      '/me/notifications',
+      queryParameters: {'limit': 1},
+    );
+    final payload = Map<String, dynamic>.from(response.data as Map);
+    return payload['unread_count'] as int;
   }
 
   // 8. 알림 읽음 처리 (POST /me/notifications/{id}/read)

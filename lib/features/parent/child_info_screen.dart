@@ -1,46 +1,159 @@
-
 import 'package:flutter/material.dart';
-import '../../core/auth/session.dart';
-import '../auth/child_link_request_screen.dart';
-import 'attendance_mock_store.dart';
 
-// 학부모 자녀 정보 화면 (Mock 데이터)
-class ChildInfoScreen extends StatelessWidget {
+import '../../core/auth/session.dart';
+import '../../core/config/env.dart';
+import '../../data/api/api_repository.dart';
+import '../../data/models/child_student.dart';
+import '../auth/child_link_request_screen.dart';
+
+class ChildInfoScreen extends StatefulWidget {
   const ChildInfoScreen({super.key});
+
+  @override
+  State<ChildInfoScreen> createState() => _ChildInfoScreenState();
+}
+
+class _ChildInfoScreenState extends State<ChildInfoScreen> {
+  late Future<List<ChildStudent>> _children;
+
+  bool get _useMock => Env.useMock || Session.isMockAccount;
+
+  @override
+  void initState() {
+    super.initState();
+    _children = ApiRepository.instance.getChildren();
+  }
+
+  void _reload() {
+    setState(() => _children = ApiRepository.instance.getChildren());
+  }
+
+  String _status(ChildStudent child) {
+    if (child.isAbsent) return '오늘 결석';
+    return switch (child.busStatus) {
+      'IN_PROGRESS' => '배정 버스 운행 중',
+      'CLOSED' => '배정 버스 운행 완료',
+      'NOT_STARTED' => '운행 전',
+      'NOT_ASSIGNED' => '버스 미배정',
+      _ => '운행 상태 확인 불가',
+    };
+  }
+
+  // 자녀 연결 요청 화면으로 이동
+  void _openChildLinkRequest() {
+    final email = Session.email;
+
+    if (email == null || email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인한 계정 정보를 확인할 수 없습니다.')),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChildLinkRequestScreen(email: email),
+      ),
+    );
+  }
+
+  Widget _buildChildLinkRequestCard() {
+    return Card(
+      color: const Color(0xFFF1F6FF),
+      elevation: 0,
+      child: ListTile(
+        leading: const Icon(
+          Icons.family_restroom_rounded,
+          color: Color(0xFF3B82F6),
+        ),
+        title: const Text(
+          '자녀 연결 요청',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: const Text('자녀 정보를 계정에 추가해 주세요.'),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: _openChildLinkRequest,
+      ),
+    );
+  }
+
+  Widget _buildMockNotice() {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.grey),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '현재 자녀 정보는 Mock 데이터입니다. '
+                '학교, 학년, 반 및 배정 버스 정보는 '
+                '실제 서버 연동 후 표시할 예정입니다.',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('자녀 정보'),
-      ),
-      body: ValueListenableBuilder<Map<String, bool>>(
-        valueListenable: AttendanceMockStore.absent,
-        builder: (context, absent, child) {
+      appBar: AppBar(title: const Text('자녀 정보')),
+      body: FutureBuilder<List<ChildStudent>>(
+        future: _children,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('자녀 정보를 불러오지 못했습니다.'),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: _reload,
+                    child: const Text('다시 시도'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final children = snapshot.data ?? const <ChildStudent>[];
+
+          // 연결된 자녀가 없어도 연결 요청은 할 수 있게 함
+          if (children.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const SizedBox(height: 40),
+                const Center(child: Text('연결된 자녀가 없습니다.')),
+                const SizedBox(height: 24),
+                _buildChildLinkRequestCard(),
+              ],
+            );
+          }
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               const Text(
                 '등록된 자녀',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-
               const SizedBox(height: 8),
-
               const Text(
                 '학부모 계정에 등록된 자녀의 정보를 확인할 수 있습니다.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
-
               const SizedBox(height: 16),
-
-              for (final name in absent.keys)
+              for (final child in children)
                 Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   child: Padding(
@@ -52,32 +165,24 @@ class ChildInfoScreen extends StatelessWidget {
                           children: [
                             const CircleAvatar(
                               radius: 24,
-                              child: Icon(
-                                Icons.person_outline,
-                                size: 28,
-                              ),
+                              child: Icon(Icons.person_outline, size: 28),
                             ),
-
                             const SizedBox(width: 12),
-
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    name,
+                                    child.name,
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-
                                   const SizedBox(height: 4),
-
-                                  const Text(
-                                    '등록된 자녀',
-                                    style: TextStyle(
+                                  Text(
+                                    child.className ?? '학급 정보 없음',
+                                    style: const TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey,
                                     ),
@@ -85,26 +190,17 @@ class ChildInfoScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-
                             Chip(
-                              label: Text(
-                                absent[name] == true
-                                    ? '오늘 결석'
-                                    : '오늘 등교',
-                              ),
-                              backgroundColor: absent[name] == true
+                              label: Text(_status(child)),
+                              backgroundColor: child.isAbsent
                                   ? Colors.orange.shade50
-                                  : Colors.green.shade50,
+                                  : Colors.blue.shade50,
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 16),
-
                         const Divider(),
-
                         const SizedBox(height: 8),
-
                         const Row(
                           children: [
                             Icon(
@@ -112,122 +208,32 @@ class ChildInfoScreen extends StatelessWidget {
                               size: 20,
                               color: Colors.blue,
                             ),
-
                             SizedBox(width: 8),
-
                             Text(
                               '배정 버스',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 8),
-
-                        const Text(
-                          '버스 배정 정보는 추후 연동 예정',
-                          style: TextStyle(
-                            color: Colors.grey,
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.school_outlined,
-                              size: 20,
-                              color: Colors.blue,
-                            ),
-
-                            SizedBox(width: 8),
-
-                            Text(
-                              '학교 / 학년 / 반',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 8),
-
-                        const Text(
-                          '학교 정보는 추후 연동 예정',
-                          style: TextStyle(
-                            color: Colors.grey,
-                          ),
+                        Text(
+                          child.busName ?? '배정 정보 없음',
+                          style: const TextStyle(color: Colors.grey),
                         ),
                       ],
                     ),
                   ),
                 ),
 
+              // 자녀 연결 요청
               const SizedBox(height: 16),
-              Card(
-                color: const Color(0xFFF1F6FF),
-                elevation: 0,
-                child: ListTile(
-                  leading: const Icon(
-                    Icons.family_restroom_rounded,
-                    color: Color(0xFF3B82F6),
-                  ),
-                  title: const Text(
-                    '자녀 연결 요청',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: const Text('자녀 정보를 계정에 추가해 주세요.'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () {
-                    final email = Session.email;
+              _buildChildLinkRequestCard(),
 
-                    if (email == null || email.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('로그인한 계정 정보를 확인할 수 없습니다.'),
-                        ),
-                      );
-                      return;
-                    }
-
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ChildLinkRequestScreen(email: email),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: Colors.grey,
-                      ),
-
-                      SizedBox(width: 12),
-
-                      Expanded(
-                        child: Text(
-                          '현재 자녀 정보는 Mock 데이터입니다. '
-                              '학교, 학년, 반 및 배정 버스 정보는 '
-                              '실제 서버 연동 후 표시할 예정입니다.',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              // Mock 모드일 때만 안내 표시
+              if (_useMock) ...[
+                const SizedBox(height: 16),
+                _buildMockNotice(),
+              ],
             ],
           );
         },

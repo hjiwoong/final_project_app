@@ -20,7 +20,10 @@ class PrimaryButton extends StatelessWidget {
       width: double.infinity,
       height: 52,
       child: FilledButton(
-        style: color == null ? null : FilledButton.styleFrom(backgroundColor: color),
+        style: FilledButton.styleFrom(
+          backgroundColor: color,
+          shape: const StadiumBorder(),
+        ),
         onPressed: loading ? null : onPressed,
         child: loading
             ? const SizedBox(

@@ -219,7 +219,7 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF202329),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(26),
                     ),
                   ),
                   child: _loading

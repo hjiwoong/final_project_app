@@ -20,8 +20,28 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
+  bool _restoringSession = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _restoreSession();
+  }
 
+  Future<void> _restoreSession() async {
+    UserRole? role;
+    try {
+      role = await ApiRepository.instance.restoreSession();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('로그인 상태를 확인하지 못했습니다. 다시 시도해 주세요. ($error)')),
+      );
+    }
+    if (!mounted) return;
+    setState(() => _restoringSession = false);
+    if (role != null) _navigateToRole(role);
+  }
 
   Future<UserRole?> _loginWithGoogle() async {
     setState(() => _loading = true);
@@ -113,11 +133,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _navigateToRole(UserRole role) {
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) =>
             role == UserRole.driver ? const DriverShell() : const ParentShell(),
       ),
+      (_) => false,
     );
   }
 
@@ -129,6 +150,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_restoringSession) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
