@@ -1,15 +1,21 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/auth/session.dart';
 import '../../core/config/env.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
+import '../../data/models/account_deletion_schedule.dart';
 import '../../data/models/user_role.dart';
 import '../driver/driver_shell.dart';
 import '../parent/parent_shell.dart';
+import 'account_removal_screen.dart';
 import 'email_login_screen.dart';
 import 'signup_screen.dart';
+
+import '../../core/notifications/in_app_notification_banner.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,6 +27,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   bool _restoringSession = true;
+  AccountDeletionSchedule? _pendingDeletionSchedule;
+  String? _pendingDeletionEmail;
+  String? _pendingDeletionGoogleToken;
 
   @override
   void initState() {
@@ -34,8 +43,8 @@ class _LoginScreenState extends State<LoginScreen> {
       role = await ApiRepository.instance.restoreSession();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('로그인 상태를 확인하지 못했습니다. 다시 시도해 주세요. ($error)')),
+      InAppNotificationBanner.showMessage(
+        '로그인 상태를 확인하지 못했습니다. 다시 시도해 주세요. ($error)',
       );
     }
     if (!mounted) return;
@@ -45,6 +54,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<UserRole?> _loginWithGoogle() async {
     setState(() => _loading = true);
+    String? googleEmail;
+    String? googleIdToken;
     try {
       if (Env.googleServerClientId.isEmpty) {
         throw StateError('Google 웹 클라이언트 ID를 GOOGLE_SERVER_CLIENT_ID로 설정하세요.');
@@ -55,18 +66,47 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       final account = await googleSignIn.signIn();
       if (account == null) return null;
+      googleEmail = account.email;
 
-      final idToken = (await account.authentication).idToken;
-      if (idToken == null || idToken.isEmpty) {
+      googleIdToken = (await account.authentication).idToken;
+      if (googleIdToken == null || googleIdToken.isEmpty) {
         throw StateError('Google ID 토큰을 받지 못했습니다. OAuth 설정을 확인하세요.');
       }
 
-      return await ApiRepository.instance.loginWithGoogle(idToken);
+      return await ApiRepository.instance.loginWithGoogle(googleIdToken);
+    } on DioException catch (error) {
+      final detail = error.response?.data is Map
+          ? error.response?.data['detail']?.toString() ?? ''
+          : '';
+      if (error.response?.statusCode == 403 && detail.contains('계정 삭제 유예 중')) {
+        try {
+          final schedule = await ApiRepository.instance
+              .getAccountDeletionStatus(
+                email: googleEmail!,
+                googleIdToken: googleIdToken!,
+              );
+          if (mounted) {
+            setState(() {
+              _pendingDeletionSchedule = schedule;
+              _pendingDeletionEmail = googleEmail;
+              _pendingDeletionGoogleToken = googleIdToken;
+            });
+          }
+        } catch (statusError) {
+          if (mounted) {
+            InAppNotificationBanner.showMessage(
+              '계정 삭제 진행 상태를 확인하지 못했습니다. 다시 시도해 주세요. ($statusError)',
+            );
+          }
+        }
+        return null;
+      }
+      if (!mounted) return null;
+      InAppNotificationBanner.showMessage('Google 로그인을 실패했습니다.: $error');
+      return null;
     } catch (e) {
       if (!mounted) return null;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Google 로그인을 실패했습니다.: $e')));
+      InAppNotificationBanner.showMessage('Google 로그인을 실패했습니다.: $e');
       return null;
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -85,6 +125,8 @@ class _LoginScreenState extends State<LoginScreen> {
           final role = await _loginWithGoogle();
           if (role != null && sheetContext.mounted) {
             Navigator.of(sheetContext).pop(_resultFor(role));
+          } else if (_pendingDeletionSchedule != null && sheetContext.mounted) {
+            Navigator.of(sheetContext).pop(_LoginSheetResult.accountDeletion);
           }
         },
         onEmailLogin: () =>
@@ -98,6 +140,26 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
     if (!mounted || result == null) return;
+    if (result == _LoginSheetResult.accountDeletion) {
+      final schedule = _pendingDeletionSchedule;
+      final email = _pendingDeletionEmail;
+      final googleIdToken = _pendingDeletionGoogleToken;
+      _pendingDeletionSchedule = null;
+      _pendingDeletionEmail = null;
+      _pendingDeletionGoogleToken = null;
+      if (schedule == null || email == null) return;
+      final role = await Navigator.of(context).push<UserRole>(
+        MaterialPageRoute(
+          builder: (_) => AccountDeletionPendingScreen(
+            email: email,
+            googleIdToken: googleIdToken,
+            schedule: schedule,
+          ),
+        ),
+      );
+      if (role != null && mounted) _navigateToRole(role);
+      return;
+    }
     if (result == _LoginSheetResult.email) {
       final role = await Navigator.of(context).push<UserRole>(
         MaterialPageRoute(builder: (_) => const EmailLoginScreen()),
@@ -123,9 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return role;
     } catch (e) {
       if (!mounted) return null;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('테스트 계정 로그인 실패: $e')));
+      InAppNotificationBanner.showMessage('테스트 계정 로그인 실패: $e');
       return null;
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -155,7 +215,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
@@ -173,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF202329),
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                         ),
                         const SizedBox(height: 10),
@@ -183,7 +242,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: TextStyle(
                             fontSize: 14,
                             height: 1.5,
-                            color: Colors.grey.shade600,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -191,9 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-              ),
+              const Row(mainAxisAlignment: MainAxisAlignment.center),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -203,11 +262,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: OutlinedButton(
                         onPressed: _loading ? null : _showLoginOptions,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF202329),
-                          side: const BorderSide(color: Color(0xFFD8DADD)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onSurface,
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.outline,
                           ),
+                          shape: const StadiumBorder(),
                         ),
                         child: const Text(
                           '로그인',
@@ -223,11 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: FilledButton(
                         onPressed: _showSignUp,
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF202329),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                          shape: const StadiumBorder(),
                         ),
                         child: const Text(
                           '회원가입',
@@ -432,7 +489,7 @@ class _Wheel extends StatelessWidget {
   }
 }
 
-enum _LoginSheetResult { email, driver, parent }
+enum _LoginSheetResult { email, driver, parent, accountDeletion }
 
 class _LoginOptionsSheet extends StatelessWidget {
   const _LoginOptionsSheet({
@@ -465,23 +522,21 @@ class _LoginOptionsSheet extends StatelessWidget {
             height: 52,
             child: OutlinedButton.icon(
               onPressed: loading ? null : onGoogleLogin,
-              icon: const FaIcon(
+              icon: FaIcon(
                 FontAwesomeIcons.google,
                 size: 18,
-                color: Color(0xFF000000),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
-              label: const Text(
+              label: Text(
                 'Google 계정으로 계속하기',
                 style: TextStyle(
-                  color: Color(0xFF202329),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFE1E3E6)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                side: BorderSide(color: Theme.of(context).colorScheme.outline),
+                shape: const StadiumBorder(),
               ),
             ),
           ),
@@ -493,16 +548,14 @@ class _LoginOptionsSheet extends StatelessWidget {
               icon: const Icon(Icons.mail_outline_rounded, size: 18),
               label: const Text('이메일로 로그인'),
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF343A40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: Color(0xFFE1E3E6)),
-                ),
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
+                side: BorderSide(color: Theme.of(context).colorScheme.outline),
+                shape: const StadiumBorder(),
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
             child: Row(
               children: [
                 Expanded(child: Divider()),
@@ -510,7 +563,10 @@ class _LoginOptionsSheet extends StatelessWidget {
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
                     '테스트 목적으로만 사용',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF858B93)),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
                 Expanded(child: Divider()),
@@ -532,7 +588,7 @@ class _LoginOptionsSheet extends StatelessWidget {
                   icon: Icons.directions_bus_rounded,
                   title: '기사(관리자) 계정',
                   email: 'driver@school.kr',
-                  color: const Color(0xFF3B82F6),
+                  color: Theme.of(context).colorScheme.primary,
                   onPressed: loading
                       ? null
                       : () => onTestLogin('driver@school.kr'),
@@ -579,10 +635,10 @@ class _TestAccountButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFF202329),
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         side: BorderSide(color: color.withValues(alpha: 0.45)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: const StadiumBorder(),
       ),
       child: Column(
         children: [
@@ -592,7 +648,10 @@ class _TestAccountButton extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             email,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF858B93)),
+            style: TextStyle(
+              fontSize: 10,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -610,11 +669,9 @@ class _SheetSurface extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
+        margin: AppTheme.sheetMargin,
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
+        decoration: AppTheme.sheetDecoration(context, radius: 20),
         child: child,
       ),
     );

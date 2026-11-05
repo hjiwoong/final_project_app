@@ -1,7 +1,12 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
 import '../../data/api/api_repository.dart';
+import '../../data/models/user_role.dart';
+import 'account_removal_screen.dart';
+
+import '../../core/notifications/in_app_notification_banner.dart';
 
 class EmailLoginScreen extends StatefulWidget {
   const EmailLoginScreen({super.key});
@@ -48,34 +53,59 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
       if (!mounted) return;
       Navigator.of(context).pop(role);
+    } on DioException catch (error) {
+      final detail = error.response?.data is Map
+          ? error.response?.data['detail']?.toString() ?? ''
+          : '';
+      if (error.response?.statusCode == 403 && detail.contains('계정 삭제 유예 중')) {
+        try {
+          final email = _emailController.text.trim();
+          final password = _passwordController.text;
+          final schedule = await ApiRepository.instance
+              .getAccountDeletionStatus(email: email, password: password);
+          if (!mounted) return;
+          final role = await Navigator.of(context).push<UserRole>(
+            MaterialPageRoute(
+              builder: (_) => AccountDeletionPendingScreen(
+                email: email,
+                password: password,
+                schedule: schedule,
+              ),
+            ),
+          );
+          if (role != null && mounted) Navigator.of(context).pop(role);
+          return;
+        } catch (statusError) {
+          if (!mounted) return;
+          InAppNotificationBanner.showMessage(
+            '계정 삭제 진행 상태를 확인하지 못했습니다. 다시 시도해 주세요. ($statusError)',
+          );
+          return;
+        }
+      }
+      if (!mounted) return;
+      InAppNotificationBanner.showMessage('로그인 실패: $error');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('로그인 실패: $e')));
+      InAppNotificationBanner.showMessage('로그인 실패: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   void _showPasswordResetInfo() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('비밀번호 재설정은 관리자에게 문의해 주세요.')));
+    InAppNotificationBanner.showMessage('비밀번호 재설정은 관리자에게 문의해 주세요.');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           tooltip: '뒤로가기',
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF202329),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
@@ -87,13 +117,13 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
             children: [
-              const Text(
+              Text(
                 '시작하려면 계정 정보를 입력해주세요',
                 style: TextStyle(
                   fontSize: 22,
                   height: 1.28,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF202329),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 26),
@@ -134,7 +164,9 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                             _obscurePassword
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
-                            color: const Color(0xFF858B93),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             size: 20,
                           ),
                         ),
@@ -154,16 +186,16 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                       '비밀번호를 잊으신 경우 ',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     GestureDetector(
                       onTap: _showPasswordResetInfo,
-                      child: const Text(
+                      child: Text(
                         '비밀번호 재설정',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF202329),
+                          color: Theme.of(context).colorScheme.primary,
                           decoration: TextDecoration.underline,
                           decorationThickness: 1,
                           fontWeight: FontWeight.w500,
@@ -178,21 +210,14 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                 height: 52,
                 child: FilledButton(
                   onPressed: _canLogin ? _login : null,
-                  style: FilledButton.styleFrom(
-                    disabledBackgroundColor: const Color(0xFFCCCCCC),
-                    disabledForegroundColor: Colors.white,
-                    backgroundColor: const Color(0xFF202329),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                  ),
+                  style: FilledButton.styleFrom(shape: const StadiumBorder()),
                   child: _loading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.onPrimary,
                           ),
                         )
                       : const Text(
@@ -215,32 +240,44 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     padding: const EdgeInsets.only(bottom: 2),
     child: Text(
       label,
-      style: const TextStyle(fontSize: 12, color: Color(0xFF858B93)),
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
     ),
   );
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF9A9EA4)),
+    hintStyle: TextStyle(
+      fontSize: 14,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(vertical: 10),
-    errorStyle: const TextStyle(
+    errorStyle: TextStyle(
       fontSize: 11,
-      color: Color(0xFFE45B37),
+      color: Theme.of(context).colorScheme.error,
       height: 1.2,
     ),
     errorMaxLines: 2,
-    enabledBorder: const UnderlineInputBorder(
-      borderSide: BorderSide(color: Color(0xFF9A9EA4), width: 1),
+    enabledBorder: UnderlineInputBorder(
+      borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
     ),
-    focusedBorder: const UnderlineInputBorder(
-      borderSide: BorderSide(color: Color(0xFF202329), width: 1.5),
+    focusedBorder: UnderlineInputBorder(
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.primary,
+        width: 1.5,
+      ),
     ),
-    errorBorder: const UnderlineInputBorder(
-      borderSide: BorderSide(color: Color(0xFFE45B37), width: 1),
+    errorBorder: UnderlineInputBorder(
+      borderSide: BorderSide(color: Theme.of(context).colorScheme.error),
     ),
-    focusedErrorBorder: const UnderlineInputBorder(
-      borderSide: BorderSide(color: Color(0xFFE45B37), width: 1.5),
+    focusedErrorBorder: UnderlineInputBorder(
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.error,
+        width: 1.5,
+      ),
     ),
   );
 }

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import 'bus_trip_mock_store.dart';
@@ -10,9 +9,7 @@ class BusStatusScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('버스 운행 현황'),
-      ),
+      appBar: AppBar(title: const Text('버스 운행 현황')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -22,16 +19,11 @@ class BusStatusScreen extends StatelessWidget {
             builder: (context, status, child) {
               return Card(
                 child: ListTile(
-                  leading: const Icon(
-                    Icons.directions_bus,
-                    size: 32,
-                  ),
+                  leading: const Icon(Icons.directions_bus, size: 32),
                   title: const Text('1호차'),
                   subtitle: const Text('차량번호: 12가3456'),
                   trailing: Chip(
-                    label: Text(
-                      BusTripMockStore.getStatusText(status),
-                    ),
+                    label: Text(BusTripMockStore.getStatusText(status)),
                   ),
                 ),
               );
@@ -42,10 +34,7 @@ class BusStatusScreen extends StatelessWidget {
 
           const Text(
             '현재 차량 위치',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 8),
@@ -69,15 +58,15 @@ class BusStatusScreen extends StatelessWidget {
                 builder: (context, status, child) {
                   return Card(
                     child: ListTile(
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.access_time,
-                        color: Colors.blue,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       title: const Text('예상 도착 시간'),
                       subtitle: const Text('학교 도착까지'),
                       trailing: Text(
                         BusTripMockStore.getEtaText(status),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
@@ -93,10 +82,7 @@ class BusStatusScreen extends StatelessWidget {
 
           const Text(
             '운행 진행 상황',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 8),
@@ -108,6 +94,7 @@ class BusStatusScreen extends StatelessWidget {
               final hasStarted = status != BusTripStatus.before;
               final isRunning = status == BusTripStatus.running;
               final isFinished = status == BusTripStatus.finished;
+              final colors = Theme.of(context).colorScheme;
 
               return Card(
                 child: Column(
@@ -118,14 +105,12 @@ class BusStatusScreen extends StatelessWidget {
                             ? Icons.check_circle
                             : Icons.radio_button_unchecked,
                         color: hasStarted
-                            ? Colors.green
-                            : Colors.grey,
+                            ? colors.tertiary
+                            : colors.onSurfaceVariant,
                       ),
                       title: const Text('운행 시작'),
                       subtitle: Text(
-                        hasStarted
-                            ? '오전 8:10 (Mock)'
-                            : '운행 시작 대기',
+                        hasStarted ? '오전 8:10 (Mock)' : '운행 시작 대기',
                       ),
                     ),
 
@@ -139,14 +124,12 @@ class BusStatusScreen extends StatelessWidget {
                             ? Icons.check_circle
                             : Icons.radio_button_unchecked,
                         color: isRunning
-                            ? Colors.blue
+                            ? colors.primary
                             : isFinished
-                            ? Colors.green
-                            : Colors.grey,
+                            ? colors.tertiary
+                            : colors.onSurfaceVariant,
                       ),
-                      title: Text(
-                        isFinished ? '운행 완료' : '현재 운행 중',
-                      ),
+                      title: Text(isFinished ? '운행 완료' : '현재 운행 중'),
                       subtitle: Text(
                         isRunning
                             ? '학교로 이동 중'
@@ -164,15 +147,11 @@ class BusStatusScreen extends StatelessWidget {
                             ? Icons.check_circle
                             : Icons.radio_button_unchecked,
                         color: isFinished
-                            ? Colors.green
-                            : Colors.grey,
+                            ? colors.tertiary
+                            : colors.onSurfaceVariant,
                       ),
                       title: const Text('학교 도착'),
-                      subtitle: Text(
-                        isFinished
-                            ? '도착 완료 (Mock)'
-                            : '도착 대기',
-                      ),
+                      subtitle: Text(isFinished ? '도착 완료 (Mock)' : '도착 대기'),
                     ),
                   ],
                 ),
@@ -226,10 +205,10 @@ class BusStatusScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          const Text(
+          Text(
             '※ 현재 표시되는 차량 위치와 도착 시간은 테스트 데이터입니다.',
             style: TextStyle(
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,
             ),
           ),
@@ -243,17 +222,16 @@ class BusStatusScreen extends StatelessWidget {
 class _MockBusMap extends StatelessWidget {
   final double progress;
 
-  const _MockBusMap({
-    required this.progress,
-  });
+  const _MockBusMap({required this.progress});
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       height: 220,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF1F5),
+        color: colors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
       ),
       child: LayoutBuilder(
@@ -275,16 +253,13 @@ class _MockBusMap extends StatelessWidget {
           double totalLength = 0;
 
           for (int i = 0; i < points.length - 1; i++) {
-            final length =
-                (points[i + 1] - points[i]).distance;
+            final length = (points[i + 1] - points[i]).distance;
 
             lengths.add(length);
             totalLength += length;
           }
 
-          double remaining =
-              progress.clamp(0.0, 1.0).toDouble() *
-                  totalLength;
+          double remaining = progress.clamp(0.0, 1.0).toDouble() * totalLength;
 
           Offset busPosition = points.last;
 
@@ -292,11 +267,7 @@ class _MockBusMap extends StatelessWidget {
             if (remaining <= lengths[i]) {
               final ratio = remaining / lengths[i];
 
-              busPosition = Offset.lerp(
-                points[i],
-                points[i + 1],
-                ratio,
-              )!;
+              busPosition = Offset.lerp(points[i], points[i + 1], ratio)!;
 
               break;
             }
@@ -309,58 +280,66 @@ class _MockBusMap extends StatelessWidget {
               // 지도 배경 및 이동 경로
               Positioned.fill(
                 child: CustomPaint(
-                  painter: _BusRoutePainter(),
+                  painter: _BusRoutePainter(
+                    roadColor: colors.surface,
+                    routeColor: colors.primary,
+                  ),
                 ),
               ),
 
               // 출발지
-              const Positioned(
+              Positioned(
                 left: 18,
                 bottom: 16,
                 child: _MapMarker(
                   icon: Icons.home,
                   label: '출발지',
-                  color: Colors.green,
+                  color: colors.tertiary,
+                  labelBackgroundColor: colors.surface,
+                  labelColor: colors.onSurface,
+                  iconColor: colors.onPrimary,
                 ),
               ),
 
               // 도착지
-              const Positioned(
+              Positioned(
                 right: 18,
                 top: 16,
                 child: _MapMarker(
                   icon: Icons.school,
                   label: '학교',
-                  color: Colors.deepOrange,
+                  color: colors.error,
+                  labelBackgroundColor: colors.surface,
+                  labelColor: colors.onSurface,
+                  iconColor: colors.onError,
                 ),
               ),
 
               // 현재 버스 위치
               Positioned(
-                left: (busPosition.dx - 55)
-                    .clamp(0.0, width - 110)
-                    .toDouble(),
-                top: (busPosition.dy - 24)
-                    .clamp(0.0, height - 70)
-                    .toDouble(),
-                child: const SizedBox(
+                left: (busPosition.dx - 55).clamp(0.0, width - 110).toDouble(),
+                top: (busPosition.dy - 24).clamp(0.0, height - 70).toDouble(),
+                child: SizedBox(
                   width: 110,
                   child: _MapMarker(
                     icon: Icons.directions_bus,
                     label: '현재 버스 위치',
-                    color: Colors.blue,
+                    color: colors.primary,
+                    labelBackgroundColor: colors.surface,
+                    labelColor: colors.onSurface,
+                    iconColor: colors.onPrimary,
                   ),
                 ),
               ),
 
-              const Positioned(
+              Positioned(
                 right: 10,
                 bottom: 10,
                 child: Text(
                   'Mock 경로',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.black54,
+                    color: colors.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -377,11 +356,17 @@ class _MapMarker extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final Color labelBackgroundColor;
+  final Color labelColor;
+  final Color iconColor;
 
   const _MapMarker({
     required this.icon,
     required this.label,
     required this.color,
+    required this.labelBackgroundColor,
+    required this.labelColor,
+    required this.iconColor,
   });
 
   @override
@@ -392,29 +377,23 @@ class _MapMarker extends StatelessWidget {
         CircleAvatar(
           radius: 19,
           backgroundColor: color,
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 21,
-          ),
+          child: Icon(icon, color: iconColor, size: 21),
         ),
 
         const SizedBox(height: 4),
 
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 7,
-            vertical: 3,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: labelBackgroundColor,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
+              color: labelColor,
             ),
           ),
         ),
@@ -425,11 +404,16 @@ class _MapMarker extends StatelessWidget {
 
 // 지도 배경 도로와 버스 이동 경로 그리기
 class _BusRoutePainter extends CustomPainter {
+  const _BusRoutePainter({required this.roadColor, required this.routeColor});
+
+  final Color roadColor;
+  final Color routeColor;
+
   @override
   void paint(Canvas canvas, Size size) {
     // 도로 스타일
     final roadPaint = Paint()
-      ..color = Colors.white
+      ..color = roadColor
       ..strokeWidth = 16
       ..style = PaintingStyle.stroke;
 
@@ -461,7 +445,7 @@ class _BusRoutePainter extends CustomPainter {
 
     // 버스 이동 경로 스타일
     final routePaint = Paint()
-      ..color = Colors.blue
+      ..color = routeColor
       ..strokeWidth = 5
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
@@ -480,7 +464,7 @@ class _BusRoutePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
-  }
+  bool shouldRepaint(covariant _BusRoutePainter oldDelegate) =>
+      roadColor != oldDelegate.roadColor ||
+      routeColor != oldDelegate.routeColor;
 }

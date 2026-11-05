@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../data/api/api_repository.dart';
 import 'child_link_request_screen.dart';
 
+import '../../core/notifications/in_app_notification_banner.dart';
+
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -79,9 +81,7 @@ class _SignupScreenState extends State<SignupScreen> {
       setState(() => _step = 3);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('회원가입 실패: ${_errorMessage(e)}')));
+      InAppNotificationBanner.showMessage('회원가입 실패: ${_errorMessage(e)}');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -105,9 +105,7 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
     );
     if (added == true && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('자녀 연결 요청을 추가했습니다.')));
+      InAppNotificationBanner.showMessage('자녀 연결 요청을 추가했습니다.');
     }
   }
 
@@ -125,7 +123,6 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     final isCompletion = _step == 3;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
           onPressed: _goBack,
@@ -133,8 +130,6 @@ class _SignupScreenState extends State<SignupScreen> {
           tooltip: '뒤로가기',
         ),
         //title: Text(isCompletion ? '가입 완료' : ''),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF202329),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
@@ -151,17 +146,20 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 28),
                 Text(
                   _stepTitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     height: 1.3,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF202329),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   _stepDescription,
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 30),
                 ..._buildCurrentStepFields(),
@@ -176,21 +174,14 @@ class _SignupScreenState extends State<SignupScreen> {
                             1 => _nextFromPassword,
                             _ => _createAccount,
                           },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF202329),
-                      disabledBackgroundColor: const Color(0xFFCCCCCC),
-                      disabledForegroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
+                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
                     child: _loading
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           )
                         : Text(
@@ -208,7 +199,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     child: TextButton(
                       onPressed: _finishSignup,
                       style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF202329),
+                        foregroundColor: Theme.of(context).colorScheme.primary,
                       ),
                       child: const Text('이미 계정이 있으신가요? 로그인'),
                     ),
@@ -351,19 +342,19 @@ class _SignupScreenState extends State<SignupScreen> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       const SizedBox(height: 24),
-      const Icon(
+      Icon(
         Icons.check_circle_rounded,
         size: 64,
-        color: Color(0xFF22A06B),
+        color: Theme.of(context).colorScheme.primary,
       ),
       const SizedBox(height: 20),
-      const Text(
+      Text(
         '계정 가입이 완료되었습니다',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 21,
           fontWeight: FontWeight.w700,
-          color: Color(0xFF202329),
+          color: Theme.of(context).colorScheme.onSurface,
         ),
       ),
       const SizedBox(height: 10),
@@ -373,7 +364,7 @@ class _SignupScreenState extends State<SignupScreen> {
         style: TextStyle(
           fontSize: 14,
           height: 1.6,
-          color: Colors.grey.shade600,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
       const SizedBox(height: 32),
@@ -381,12 +372,7 @@ class _SignupScreenState extends State<SignupScreen> {
         height: 52,
         child: FilledButton(
           onPressed: _addChildNow,
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF202329),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
+          style: FilledButton.styleFrom(shape: const StadiumBorder()),
           child: const Text('자녀 연결 요청 추가'),
         ),
       ),
@@ -396,11 +382,9 @@ class _SignupScreenState extends State<SignupScreen> {
         child: OutlinedButton(
           onPressed: _finishSignup,
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF202329),
-            side: const BorderSide(color: Color(0xFFD8DADD)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            foregroundColor: Theme.of(context).colorScheme.primary,
+            side: BorderSide(color: Theme.of(context).colorScheme.outline),
+            shape: const StadiumBorder(),
           ),
           child: const Text('나중에 하기'),
         ),
@@ -409,7 +393,10 @@ class _SignupScreenState extends State<SignupScreen> {
       Text(
         '자녀 정보는 가입 후에도 홈 화면에서 언제든 추가할 수 있습니다.',
         textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        style: TextStyle(
+          fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     ],
   );
@@ -418,31 +405,43 @@ class _SignupScreenState extends State<SignupScreen> {
     padding: const EdgeInsets.only(bottom: 2),
     child: Text(
       label,
-      style: const TextStyle(fontSize: 12, color: Color(0xFF858B93)),
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
     ),
   );
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(fontSize: 14, color: Color(0xFF9A9EA4)),
+    hintStyle: TextStyle(
+      fontSize: 14,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(vertical: 10),
-    errorStyle: const TextStyle(
+    errorStyle: TextStyle(
       fontSize: 11,
-      color: Color(0xFFE45B37),
+      color: Theme.of(context).colorScheme.error,
       height: 1.2,
     ),
-    enabledBorder: const UnderlineInputBorder(
-      borderSide: BorderSide(color: Color(0xFF9A9EA4)),
+    enabledBorder: UnderlineInputBorder(
+      borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
     ),
-    focusedBorder: const UnderlineInputBorder(
-      borderSide: BorderSide(color: Color(0xFF202329), width: 1.5),
+    focusedBorder: UnderlineInputBorder(
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.primary,
+        width: 1.5,
+      ),
     ),
-    errorBorder: const UnderlineInputBorder(
-      borderSide: BorderSide(color: Color(0xFFE45B37)),
+    errorBorder: UnderlineInputBorder(
+      borderSide: BorderSide(color: Theme.of(context).colorScheme.error),
     ),
-    focusedErrorBorder: const UnderlineInputBorder(
-      borderSide: BorderSide(color: Color(0xFFE45B37), width: 1.5),
+    focusedErrorBorder: UnderlineInputBorder(
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.error,
+        width: 1.5,
+      ),
     ),
   );
 }
@@ -463,8 +462,8 @@ class _ProgressIndicator extends StatelessWidget {
             margin: EdgeInsets.only(right: index == 2 ? 0 : 6),
             decoration: BoxDecoration(
               color: index <= step
-                  ? const Color(0xFF202329)
-                  : const Color(0xFFE6E8EB),
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(4),
             ),
           ),

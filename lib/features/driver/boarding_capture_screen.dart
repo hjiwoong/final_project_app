@@ -5,9 +5,12 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/auth/session.dart';
 import '../../core/auth/trip_progress_storage.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 import '../../widgets/primary_button.dart';
 import 'dropoff_capture_screen.dart';
+
+import '../../core/notifications/in_app_notification_banner.dart';
 
 /// ③ 승차 촬영: POST /trips/{id}/boarding-photo → YOLO 승차 인원
 class BoardingCaptureScreen extends StatefulWidget {
@@ -28,9 +31,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       final image = await ApiRepository.instance.pickImage(source: source);
       if (image == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('사진 선택을 취소했습니다.')),
-        );
+        InAppNotificationBanner.showMessage('사진 선택을 취소했습니다.');
         return;
       }
 
@@ -50,9 +51,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('승차 처리를 완료하지 못했습니다. ($e)')));
+      InAppNotificationBanner.showMessage('승차 처리를 완료하지 못했습니다. ($e)');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -64,11 +63,9 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => SafeArea(
         child: Container(
+          margin: AppTheme.sheetMargin,
           padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+          decoration: AppTheme.sheetDecoration(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -122,9 +119,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('재촬영 상태를 저장하지 못했습니다. ($e)')));
+      InAppNotificationBanner.showMessage('재촬영 상태를 저장하지 못했습니다. ($e)');
     }
   }
 
@@ -138,8 +133,8 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
 
   Future<void> _showBoardingSaveError(Object error) async {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('승차 인원 결과는 표시되지만 복구 정보 저장에 실패했습니다. ($error)')),
+    InAppNotificationBanner.showMessage(
+      '승차 인원 결과는 표시되지만 복구 정보 저장에 실패했습니다. ($error)',
     );
   }
 
@@ -181,11 +176,9 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       builder: (context) => SafeArea(
         top: false,
         child: Container(
+          margin: AppTheme.sheetMargin,
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+          decoration: AppTheme.sheetDecoration(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,7 +209,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                 style: TextStyle(
                   fontSize: 15,
                   height: 1.5,
-                  color: Colors.grey.shade700,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 12),
@@ -237,11 +230,9 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       builder: (context) => SafeArea(
         top: false,
         child: Container(
+          margin: AppTheme.sheetMargin,
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+          decoration: AppTheme.sheetDecoration(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,7 +244,10 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
               const SizedBox(height: 12),
               Text(
                 '종점으로 도착했다면 예를 탭하세요, 아직 도착하지 않았다면 아니요를 탭합니다.\n예를 선택하면 돌아갈 수 없습니다.',
-                style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 24),
               Row(
@@ -302,14 +296,16 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
           children: [
             Expanded(
               child: _count == null
-                  ? const Center(
+                  ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.photo_camera,
                             size: 96,
-                            color: Colors.grey,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                           SizedBox(height: 1),
                           Text(
@@ -323,7 +319,12 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                           Text(
                             '탑승객이 모두 보이도록 사진을 선택합니다.\n카메라 또는 사진 앱에서 버스 내부 이미지를 가져와 분석합니다.\n\n권한을 거부한 경우 설정에서 변경할 수 있습니다.',
                             textAlign: TextAlign.left,
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),
@@ -368,9 +369,11 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                                 IconButton(
                                   tooltip: '분석 방식 안내',
                                   onPressed: _showAnalysisInfo,
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.info_outline,
-                                    color: Colors.grey,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -385,9 +388,12 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     '사진은 서버에 전송됩니다. 인원 확인 목적으로만 사용되며\n전송을 거부할 순 있지만 이 경우 운행을 진행할 수 없습니다.',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
@@ -406,13 +412,6 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                       height: 52,
                       child: OutlinedButton(
                         onPressed: _retake,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF202329),
-                          side: const BorderSide(color: Color(0xFFD8DADD)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
                         child: const Text(
                           '재촬영',
                           style: TextStyle(fontWeight: FontWeight.w700),

@@ -115,31 +115,35 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
       children: [
         Card(
-          color: const Color(0xFFFEE2E2),
+          color: Theme.of(context).colorScheme.errorContainer,
           shape: RoundedRectangleBorder(
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
             child: Text(
-              '🚨 $message',
+              '$message',
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ),
         ),
         const SizedBox(height: 28),
-        const Padding(
-          padding: EdgeInsets.only(bottom: 12),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
           child: Text(
             '경고 발생 정보',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
           ),
         ),
         Card(
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
@@ -155,25 +159,32 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                 '확인 상태',
                 _statusLabel(status),
                 valueColor: status == 'RESOLVED'
-                    ? Colors.green
-                    : const Color(0xFFE53935),
+                    ? Theme.of(context).colorScheme.tertiary
+                    : Theme.of(context).colorScheme.error,
               ),
             ],
           ),
         ),
         const SizedBox(height: 16),
-        _detailCard(icon: '✨', title: 'AI 요약', description: summary),
+        _detailCard(
+          icon: Icons.auto_awesome,
+          title: 'AI 요약',
+          description: summary,
+        ),
         const SizedBox(height: 12),
         _detailCard(
-          icon: '📄',
+          icon: Icons.description_outlined,
           title: '대응 수칙',
           description: '즉시 차량 확인 후 보호자·학교에 연락',
         ),
         if (isMock) ...[
           const SizedBox(height: 16),
-          const Text(
+          Text(
             '※ 현재 경고 정보와 AI 요약은 테스트용 Mock 데이터입니다.',
-            style: TextStyle(color: Colors.grey, fontSize: 13),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 13,
+            ),
           ),
         ],
       ],
@@ -188,7 +199,10 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   }) {
     return ListTile(
       minVerticalPadding: 18,
-      leading: Icon(icon, color: valueColor ?? Colors.blueGrey.shade700),
+      leading: Icon(
+        icon,
+        color: valueColor ?? Theme.of(context).colorScheme.primary,
+      ),
       title: Text(title),
       trailing: Text(
         value,
@@ -198,13 +212,13 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   }
 
   Widget _detailCard({
-    required String icon,
+    required IconData icon,
     required String title,
     required String description,
   }) {
     return Card(
       shape: RoundedRectangleBorder(
-        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
@@ -212,7 +226,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 18)),
+            Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -223,7 +237,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                   Text(
                     description,
                     style: TextStyle(
-                      color: Colors.blueGrey.shade700,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       height: 1.5,
                     ),
                   ),

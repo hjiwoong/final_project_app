@@ -73,6 +73,7 @@ class ApiRepository {
       Session.email = email;
       Session.name = name;
       Session.createdAt = mockAccount.createdAt;
+      Session.signupMethod = 'APP';
       Session.isMockAccount = true;
       return;
     }
@@ -97,6 +98,7 @@ class ApiRepository {
       Session.email = email;
       Session.name = name;
       Session.createdAt = mockAccount.createdAt;
+      Session.signupMethod = 'APP';
       Session.isMockAccount = true;
       return;
     }
@@ -115,9 +117,11 @@ class ApiRepository {
     if (user is Map) {
       Session.name = user['name'] as String? ?? name;
       Session.createdAt = _parseCreatedAt(user['created_at']);
+      Session.signupMethod = user['signup_method'] as String? ?? 'UNKNOWN';
     } else {
       Session.name = name;
       Session.createdAt = null;
+      Session.signupMethod = 'UNKNOWN';
     }
     Session.isMockAccount = false;
     await _initializePushNotifications();
@@ -240,10 +244,16 @@ class ApiRepository {
     await _dio.delete('/me/children/${child.id}');
   }
 
-  Future<AccountDeletionSchedule> requestAccountDeletion() async {
+  Future<AccountDeletionSchedule> requestAccountDeletion({
+    String? currentPassword,
+    String? googleIdToken,
+  }) async {
     if (Session.accountRole?.toUpperCase() != 'PARENT' &&
         Session.role != UserRole.parent) {
       throw StateError('학부모 계정만 삭제를 요청할 수 있습니다.');
+    }
+    if ((currentPassword == null) == (googleIdToken == null)) {
+      throw ArgumentError('비밀번호 또는 Google 인증 정보 중 하나가 필요합니다.');
     }
 
     if (Env.useMock || Session.isMockAccount) {
@@ -255,13 +265,117 @@ class ApiRepository {
       );
     }
 
-    final response = await _dio.post('/me/account-deletion');
+    final response = await _dio.post(
+      '/me/account-deletion',
+      data: {
+        'current_password': ?currentPassword,
+        'google_id_token': ?googleIdToken,
+      },
+    );
     return AccountDeletionSchedule.fromJson(
       Map<String, dynamic>.from(response.data as Map),
     );
   }
 
+  Future<void> verifyAccountPassword(String password) async {
+    final email = Session.email;
+    if (email == null || email.isEmpty) {
+      throw StateError('로그인한 계정 이메일 정보를 확인할 수 없습니다.');
+    }
+
+    if (Env.useMock || Session.isMockAccount) {
+      final role = await MockRepository.instance.login(email, password);
+      if (role != UserRole.parent) {
+        throw StateError('학부모 계정만 삭제를 요청할 수 있습니다.');
+      }
+      return;
+    }
+
+    final response = await _dio.post(
+      '/auth/login',
+      data: {'email': email, 'password': password},
+    );
+    final data = Map<String, dynamic>.from(response.data as Map);
+    if (data['role']?.toString().toUpperCase() != 'PARENT') {
+      throw StateError('현재 계정의 비밀번호를 확인하지 못했습니다.');
+    }
+  }
+
+  Future<AccountDeletionSchedule> getAccountDeletionStatus({
+    required String email,
+    String? password,
+    String? googleIdToken,
+  }) async {
+    if ((password == null) == (googleIdToken == null)) {
+      throw ArgumentError('비밀번호 또는 Google 인증 정보 중 하나가 필요합니다.');
+    }
+    final response = await _dio.post(
+      '/auth/account-deletion/status',
+      data: {
+        'email': email,
+        'password': ?password,
+        'google_id_token': ?googleIdToken,
+      },
+    );
+    final data = Map<String, dynamic>.from(response.data as Map);
+    if (data['status'] != 'PENDING_DELETION') {
+      throw StateError('진행 중인 계정 삭제 예약이 없습니다.');
+    }
+    return AccountDeletionSchedule.fromJson(data);
+  }
+
+  Future<UserRole> cancelAccountDeletion({
+    required String email,
+    String? password,
+    String? googleIdToken,
+  }) async {
+    if ((password == null) == (googleIdToken == null)) {
+      throw ArgumentError('비밀번호 또는 Google 인증 정보 중 하나가 필요합니다.');
+    }
+    final response = await _dio.post(
+      '/auth/account-deletion/cancel',
+      data: {
+        'email': email,
+        'password': ?password,
+        'google_id_token': ?googleIdToken,
+      },
+    );
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final user = Map<String, dynamic>.from(data['user'] as Map);
+    final roleName = (data['role'] as String).toUpperCase();
+    final role = switch (roleName) {
+      'PARENT' => UserRole.parent,
+      'ADMIN' || 'DRIVER' => UserRole.driver,
+      _ => throw FormatException('지원하지 않는 사용자 역할입니다: $roleName'),
+    };
+
+    await TokenStorage.save(data['access_token'] as String);
+    Session.role = role;
+    Session.accountRole = roleName;
+    Session.email = user['email'] as String?;
+    Session.name = user['name'] as String?;
+    Session.createdAt = _parseCreatedAt(user['created_at']);
+    Session.signupMethod = user['signup_method'] as String? ?? 'UNKNOWN';
+    Session.isMockAccount = false;
+    await _initializePushNotifications();
+    return role;
+  }
+
   // 1. 로그인 API (/auth/login)
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (Env.useMock || Session.isMockAccount) {
+      throw StateError('Mock 계정에서는 비밀번호를 변경할 수 없습니다.');
+    }
+
+    await _dio.put(
+      '/me/password',
+      data: {'current_password': currentPassword, 'new_password': newPassword},
+    );
+  }
+
   Future<UserRole> login(String email, String password) async {
     if (Env.useMock) {
       await TokenStorage.clear();
@@ -269,6 +383,7 @@ class ApiRepository {
       Session.name = email.split('@').first;
       Session.createdAt = null;
       Session.email = email;
+      Session.signupMethod = 'UNKNOWN';
       final role = await MockRepository.instance.login(email, password);
       Session.accountRole = role == UserRole.parent ? 'PARENT' : 'DRIVER';
       return role;
@@ -288,6 +403,7 @@ class ApiRepository {
       Session.name = email.split('@').first;
       Session.createdAt = null;
       Session.email = email;
+      Session.signupMethod = 'UNKNOWN';
       final role = await MockRepository.instance.login(email, password);
       Session.accountRole = role == UserRole.parent ? 'PARENT' : 'DRIVER';
       return role;
@@ -303,9 +419,11 @@ class ApiRepository {
     if (user is Map) {
       Session.name = user['name'] as String?;
       Session.createdAt = _parseCreatedAt(user['created_at']);
+      Session.signupMethod = user['signup_method'] as String? ?? 'UNKNOWN';
     } else {
       Session.name = null;
       Session.createdAt = null;
+      Session.signupMethod = 'UNKNOWN';
     }
 
     switch (roleStr.toUpperCase()) {
@@ -348,6 +466,7 @@ class ApiRepository {
     Session.email = user['email'] as String?;
     Session.name = user['name'] as String?;
     Session.createdAt = _parseCreatedAt(user['created_at']);
+    Session.signupMethod = user['signup_method'] as String? ?? 'UNKNOWN';
     Session.isMockAccount = false;
     await _initializePushNotifications();
     return role;
@@ -379,6 +498,7 @@ class ApiRepository {
     Session.email = user['email'] as String;
     Session.name = user['name'] as String?;
     Session.createdAt = _parseCreatedAt(user['created_at']);
+    Session.signupMethod = user['signup_method'] as String? ?? 'UNKNOWN';
     Session.isMockAccount = false;
     await _initializePushNotifications();
     return role;

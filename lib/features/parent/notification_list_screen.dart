@@ -7,6 +7,8 @@ import 'notification_mock_store.dart';
 import 'alert_mock_store.dart';
 import 'parent_event_mock_store.dart';
 
+import '../../core/notifications/in_app_notification_banner.dart';
+
 class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({super.key});
 
@@ -93,9 +95,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('모든 알림을 확인했습니다.')));
+    InAppNotificationBanner.showMessage('모든 알림을 확인했습니다.');
   }
 
   IconData _getNotificationIcon(NotificationItem n) {
@@ -115,19 +115,20 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   }
 
   Color _getNotificationColor(NotificationItem n) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (n.isAlert) {
-      return Colors.red;
+      return colorScheme.error;
     }
 
     if (n.title.contains('하차')) {
-      return Colors.green;
+      return colorScheme.tertiary;
     }
 
     if (n.title.contains('승차') || n.title.contains('탑승')) {
-      return Colors.blue;
+      return colorScheme.primary;
     }
 
-    return Colors.grey;
+    return colorScheme.onSurfaceVariant;
   }
 
   void _showEventDetail(ParentMockEvent event) {
@@ -182,12 +183,12 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                     final isRead = NotificationMockStore.isTestAlertRead;
 
                     return Card(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.errorContainer,
                       margin: const EdgeInsets.all(12),
                       child: ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.warning_amber_rounded,
-                          color: Colors.red,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
                         ),
                         title: Text(
                           '미하차 의심 경고 (테스트)',
@@ -200,9 +201,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                         subtitle: const Text('1호차 · 차량 내 잔류 인원 1명 가정'),
                         trailing: isRead
                             ? null
-                            : const Icon(
+                            : Icon(
                                 Icons.circle,
-                                color: Colors.red,
+                                color: Theme.of(context).colorScheme.error,
                                 size: 10,
                               ),
                         onTap: () {
@@ -244,7 +245,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                 event.isAlert
                                     ? Icons.warning_amber_rounded
                                     : Icons.directions_bus,
-                                color: event.isAlert ? Colors.red : Colors.blue,
+                                color: event.isAlert
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context).colorScheme.primary,
                               ),
                               title: Text(
                                 event.title,
@@ -259,9 +262,11 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                               ),
                               trailing: isRead
                                   ? null
-                                  : const Icon(
+                                  : Icon(
                                       Icons.circle,
-                                      color: Colors.blue,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                       size: 10,
                                     ),
                               onTap: () {
@@ -319,9 +324,11 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                             subtitle: Text('${n.busName} · ${n.time}'),
                             trailing: n.read
                                 ? null
-                                : const Icon(
+                                : Icon(
                                     Icons.circle,
-                                    color: Colors.blue,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                     size: 10,
                                   ),
                             onTap: () async {

@@ -8,6 +8,8 @@ import '../../data/models/judge_result.dart';
 import '../../widgets/primary_button.dart';
 import 'driver_shell.dart';
 
+import '../../core/notifications/in_app_notification_banner.dart';
+
 /// ⑥ 운행 종료: POST /trips/{id}/confirm · 결과 OK 아니면 409(종료 불가)
 class TripEndScreen extends StatefulWidget {
   final JudgeResult result;
@@ -42,18 +44,14 @@ class _TripEndScreenState extends State<TripEndScreen> {
       Session.currentTripSimulationMode = false;
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('운행이 종료되었습니다')));
+      InAppNotificationBanner.showMessage('운행이 종료되었습니다');
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const DriverShell()),
         (route) => false,
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('운행 종료를 완료하지 못했습니다. ($e)')));
+      InAppNotificationBanner.showMessage('운행 종료를 완료하지 못했습니다. ($e)');
     } finally {
       if (mounted) setState(() => _isConfirming = false);
     }
@@ -62,7 +60,8 @@ class _TripEndScreenState extends State<TripEndScreen> {
   @override
   Widget build(BuildContext context) {
     final result = widget.result;
-    final statusColor = result.isOk ? AppTheme.ok : AppTheme.danger;
+    final colorScheme = Theme.of(context).colorScheme;
+    final statusColor = result.isOk ? colorScheme.tertiary : colorScheme.error;
     return Scaffold(
       appBar: AppBar(title: const Text('운행 결과')),
       body: ListView(
@@ -71,9 +70,9 @@ class _TripEndScreenState extends State<TripEndScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.subtleSurface,
+              color: colorScheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.border),
+              border: Border.all(color: colorScheme.outlineVariant),
             ),
             child: Row(
               children: [
@@ -99,8 +98,8 @@ class _TripEndScreenState extends State<TripEndScreen> {
                     children: [
                       Text(
                         widget.busName,
-                        style: const TextStyle(
-                          color: AppTheme.primary,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
@@ -139,9 +138,9 @@ class _TripEndScreenState extends State<TripEndScreen> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              color: AppTheme.subtleSurface,
+              color: colorScheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.border),
+              border: Border.all(color: colorScheme.outlineVariant),
             ),
             child: Column(
               children: [
@@ -171,16 +170,16 @@ class _TripEndScreenState extends State<TripEndScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: colorScheme.errorContainer,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFECACA)),
+                border: Border.all(color: colorScheme.error),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.info_outline_rounded,
-                    color: AppTheme.danger,
+                    color: colorScheme.error,
                     size: 22,
                   ),
                   const SizedBox(width: 10),
@@ -189,7 +188,7 @@ class _TripEndScreenState extends State<TripEndScreen> {
                       '미하차 인원이 있어 운행을 종료할 수 없습니다. 차량 내부를 확인하세요.'
                       '\n\n미하차에 대한 운행 결과는 운행 기록에 저장됩니다.',
                       style: TextStyle(
-                        color: Colors.red.shade900,
+                        color: colorScheme.onErrorContainer,
                         fontSize: 14,
                         height: 1.45,
                       ),
@@ -221,36 +220,42 @@ class _TripCountRow extends StatelessWidget {
     required this.label,
     required this.count,
     required this.icon,
-    this.color = AppTheme.primary,
+    this.color,
   });
 
   final String label;
   final int count;
   final IconData icon;
-  final Color color;
+  final Color? color;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-    child: Row(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 16),
+  Widget build(BuildContext context) {
+    final color = this.color ?? Theme.of(context).colorScheme.onSurface;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 16,
+              ),
+            ),
           ),
-        ),
-        Text(
-          '$count명',
-          style: TextStyle(
-            color: color,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+          Text(
+            '$count명',
+            style: TextStyle(
+              color: color,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }

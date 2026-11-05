@@ -11,6 +11,8 @@ import '../auth/account_removal_screen.dart';
 import 'guardian_location_screen.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
 
+import '../../core/notifications/in_app_notification_banner.dart';
+
 // 출석·결석 관리: 날짜별 등교/결석 상태를 설정
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -86,14 +88,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
       await _loadChildren(date: _selectedDate);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('출석 상태를 저장했습니다.')));
+      InAppNotificationBanner.showMessage('출석 상태를 저장했습니다.');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('출석 상태를 저장하지 못했습니다. ($e)')));
+      InAppNotificationBanner.showMessage('출석 상태를 저장하지 못했습니다. ($e)');
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -130,9 +128,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       '스위치 ON: 등교 / OFF: 결석',
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -165,7 +166,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     const SizedBox(height: 8),
                     Text(
                       '선택한 날짜: ${_formatDate(_selectedDate)}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     const Text(
@@ -248,6 +252,15 @@ class ParentAccountInfoScreen extends StatelessWidget {
     };
   }
 
+  String _signupMethodLabel() {
+    return switch (Session.signupMethod?.toUpperCase()) {
+      'APP' => '앱 가입',
+      'GOOGLE' => 'Google 가입',
+      'ADMIN' => '관리자 생성',
+      _ => '정보 없음',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -255,14 +268,14 @@ class ParentAccountInfoScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               '계정 상세 정보',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Colors.black,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -297,6 +310,11 @@ class ParentAccountInfoScreen extends StatelessWidget {
                   value: _accountRoleLabel(),
                   icon: Icons.admin_panel_settings_outlined,
                 ),
+                _AccountInfoRow(
+                  label: '가입 경로',
+                  value: _signupMethodLabel(),
+                  icon: Icons.how_to_reg_outlined,
+                ),
               ],
             ),
           ),
@@ -326,10 +344,7 @@ class ParentAccountInfoScreen extends StatelessWidget {
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              leading: const Icon(
-                Icons.lock_reset_rounded,
-                color: Colors.black,
-              ),
+              leading: const Icon(Icons.lock_reset_rounded),
               title: const Text('비밀번호 변경하기'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
@@ -348,11 +363,14 @@ class ParentAccountInfoScreen extends StatelessWidget {
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              leading: const Icon(Icons.logout_rounded, color: Colors.red),
-              title: const Text(
+              leading: Icon(
+                Icons.logout_rounded,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
                 '로그아웃',
                 style: TextStyle(
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.error,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -377,18 +395,21 @@ class ParentAccountInfoScreen extends StatelessWidget {
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              leading: const Icon(
+              leading: Icon(
                 Icons.person_remove_alt_1_rounded,
-                color: Colors.red,
+                color: Theme.of(context).colorScheme.error,
               ),
-              title: const Text(
+              title: Text(
                 '계정 삭제',
                 style: TextStyle(
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.error,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.red),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: Theme.of(context).colorScheme.error,
+              ),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -421,7 +442,7 @@ class _AccountInfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(icon, color: Colors.black, size: 22),
+          Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -429,15 +450,18 @@ class _AccountInfoRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],

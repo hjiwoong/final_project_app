@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../data/api/api_repository.dart';
@@ -52,7 +51,10 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
                 children: [
                   const Text('자녀 정보를 불러오지 못했습니다.'),
                   const SizedBox(height: 8),
-                  OutlinedButton(onPressed: _reload, child: const Text('다시 시도')),
+                  OutlinedButton(
+                    onPressed: _reload,
+                    child: const Text('다시 시도'),
+                  ),
                 ],
               ),
             );
@@ -65,14 +67,17 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Text(
+              Text(
                 '등록된 자녀',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 '학부모 계정에 등록된 자녀의 정보를 확인할 수 있습니다.',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 16),
               for (final child in children)
@@ -92,8 +97,7 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     child.name,
@@ -105,9 +109,11 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     child.className ?? '학급 정보 없음',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -116,8 +122,10 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
                             Chip(
                               label: Text(_status(child)),
                               backgroundColor: child.isAbsent
-                                  ? Colors.orange.shade50
-                                  : Colors.blue.shade50,
+                                  ? Theme.of(context).colorScheme.errorContainer
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
                             ),
                           ],
                         ),
@@ -126,19 +134,26 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.directions_bus_outlined,
                               size: 20,
-                              color: Colors.blue,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                             const SizedBox(width: 8),
-                            const Text('배정 버스', style: TextStyle(fontWeight: FontWeight.bold)),
+                            const Text(
+                              '배정 버스',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         Text(
                           child.busName ?? '배정 정보 없음',
-                          style: const TextStyle(color: Colors.grey),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),

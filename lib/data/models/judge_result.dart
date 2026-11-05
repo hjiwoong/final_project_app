@@ -41,19 +41,12 @@ class JudgeResult {
       root.addAll(Map<String, dynamic>.from(nestedResult));
     }
 
-    final boarding = _readInt(root, [
-      'boarding_count',
-      'boardingCount',
-      '승차인원',
-    ]) ??
+    final boarding =
+        _readInt(root, ['boarding_count', 'boardingCount', '승차인원']) ??
         fallbackBoardingCount ??
         0;
-    final remaining = _readInt(root, [
-      'remaining_count',
-      'remainingCount',
-      '잔류인원',
-    ]) ??
-        0;
+    final remaining =
+        _readInt(root, ['remaining_count', 'remainingCount', '잔류인원']) ?? 0;
 
     return JudgeResult(
       boardingCount: boarding,
