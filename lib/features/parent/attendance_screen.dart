@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
+import '../../core/config/env.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
 import '../../data/models/user_role.dart';
+import '../../widgets/logout_confirmation_dialog.dart';
 import '../../widgets/primary_button.dart';
+import '../auth/account_removal_screen.dart';
 import '../auth/change_password_screen.dart';
 import '../auth/login_screen.dart';
-import '../auth/account_removal_screen.dart';
+import 'app_info_screen.dart';
+import 'attendance_mock_store.dart';
+import 'child_info_screen.dart';
 import 'guardian_location_screen.dart';
-import '../../widgets/logout_confirmation_dialog.dart';
+import 'notification_settings_screen.dart';
 
 // 출석·결석 관리: 날짜별 등교/결석 상태를 설정
 class AttendanceScreen extends StatefulWidget {
@@ -20,85 +25,289 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
+  late Map<String, bool> _absent;
+
   DateTime _selectedDate = DateTime.now();
   bool _loading = true;
   bool _saving = false;
   String? _error;
   List<ChildStudent> _children = [];
-  final Map<int, bool> _apiAbsent = {};
+
+  bool get _useMock => Env.useMock || Session.isMockAccount;
+
+  String _accountRoleLabel() {
+    final code = Session.accountRole?.toUpperCase();
+    return switch (code) {
+      'ADMIN' => '관리자',
+      'DRIVER' => '기사',
+      'PARENT' => '학부모',
+      _ => switch (Session.role) {
+        UserRole.driver => '기사',
+        UserRole.parent => '학부모',
+        null => '정보 없음',
+      },
+    };
+  }
 
   @override
   void initState() {
     super.initState();
+    _absent = AttendanceMockStore.getAttendance(_selectedDate);
     _loadChildren();
   }
 
+  // 날짜 표시
   String _formatDate(DateTime date) {
     return '${date.year}년 ${date.month}월 ${date.day}일';
   }
 
+  // 오늘 또는 내일 선택
   void _selectDate(DateTime date) {
-    setState(() => _selectedDate = date);
+    setState(() {
+      _selectedDate = date;
+      _absent = AttendanceMockStore.getAttendance(date);
+    });
+
     _loadChildren(date: date);
   }
 
+  // 자녀 목록 및 선택 날짜의 결석 상태 조회 (mock / 서버 공용)
   Future<void> _loadChildren({DateTime? date}) async {
+    final selectedDate = date ?? _selectedDate;
+
     setState(() {
       _loading = true;
       _error = null;
     });
 
     try {
-      final children = await ApiRepository.instance.getChildren(
-        date: date ?? _selectedDate,
+      if (_useMock) {
+        if (!mounted || selectedDate != _selectedDate) return;
+
+        setState(() {
+          _absent = AttendanceMockStore.getAttendance(selectedDate);
+          _loading = false;
+        });
+        return;
+      }
+
+      final children = await ApiRepository.instance.getChildren();
+
+      final absentEntries = await Future.wait(
+        children.map((child) async {
+          final isAbsent = await ApiRepository.instance.getChildAttendance(
+            child,
+            date: selectedDate,
+          );
+          return MapEntry(child.name, isAbsent);
+        }),
       );
-      if (!mounted) return;
+
+      if (!mounted || selectedDate != _selectedDate) return;
 
       setState(() {
         _children = children;
-        _apiAbsent
-          ..clear()
-          ..addEntries(
-            children.map((child) => MapEntry(child.id, child.isAbsent)),
-          );
+        _absent = Map<String, bool>.fromEntries(absentEntries);
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || selectedDate != _selectedDate) return;
+
       setState(() {
-        _error = '자녀 정보를 불러오지 못했습니다. 다시 시도해 주세요.';
+        _error = '출석·결석 정보를 불러오지 못했습니다. 다시 시도해 주세요.';
         _loading = false;
       });
     }
   }
 
-  Future<void> _save() async {
+  // 결석 정보 저장 (mock / 서버 공용) 후 최신 상태 다시 조회
+  Future<void> _saveAttendance() async {
+    if (_saving || _loading || _error != null) return;
+
     setState(() => _saving = true);
 
     try {
-      for (final child in _children) {
-        await ApiRepository.instance.setChildAttendance(
-          child,
-          isAbsent: _apiAbsent[child.id] ?? false,
-          date: _selectedDate,
-        );
+      if (_useMock) {
+        AttendanceMockStore.saveForDate(_selectedDate, _absent);
+      } else {
+        for (final child in _children) {
+          await ApiRepository.instance.setChildAttendance(
+            child,
+            isAbsent: _absent[child.name] ?? false,
+            date: _selectedDate,
+          );
+        }
       }
 
       await _loadChildren(date: _selectedDate);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('출석 상태를 저장했습니다.')));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_formatDate(_selectedDate)} 출석·결석 정보가 저장되었습니다'),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('출석 상태를 저장하지 못했습니다. ($e)')));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('출석·결석 정보를 저장하지 못했습니다. ($e)')),
+      );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
       }
     }
+  }
+
+  Future<void> _logout() async {
+    final shouldLogout = await showLogoutConfirmationDialog(context);
+    if (!shouldLogout || !mounted) return;
+    await Session.clear();
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
+  Widget _sectionTitle(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildProfileCard() {
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              child: const Icon(
+                Icons.person_rounded,
+                size: 32,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    Session.name?.isNotEmpty == true
+                        ? Session.name!
+                        : '계정 정보 없음',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    Session.email?.isNotEmpty == true
+                        ? Session.email!
+                        : '이메일 정보 없음',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _accountRoleLabel(),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 등교/결석 상태 + (서버 모드일 때) 반 이름
+  String _attendanceSubtitle(String name) {
+    final status = _absent[name]! ? '결석' : '등교';
+    final className =
+        _children.where((c) => c.name == name).firstOrNull?.className;
+    return className == null || className.isEmpty
+        ? status
+        : '$status · $className';
+  }
+
+  Widget _buildAttendanceList() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Column(
+        children: [
+          Text(_error!),
+          OutlinedButton(
+            onPressed: _loadChildren,
+            child: const Text('다시 시도'),
+          ),
+        ],
+      );
+    }
+
+    if (!_useMock && _children.isEmpty) {
+      return const Card(
+        child: ListTile(title: Text('연결된 자녀가 없습니다.')),
+      );
+    }
+
+    return Card(
+      child: Column(
+        children: [
+          for (final name in _absent.keys)
+            SwitchListTile(
+              title: Text(name),
+              subtitle: Text(_attendanceSubtitle(name)),
+              // ON = 등교 / OFF = 결석
+              value: !_absent[name]!,
+              onChanged: _saving
+                  ? null
+                  : (v) {
+                      setState(() {
+                        _absent[name] = !v;
+                      });
+                    },
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -111,7 +320,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _selectedDate.day == today.day;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('출석·결석 관리')),
+      appBar: AppBar(title: const Text('설정')),
       body: SafeArea(
         top: false,
         child: Padding(
@@ -121,20 +330,49 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               Expanded(
                 child: ListView(
                   children: [
-                    const SizedBox(height: 16),
-                    const Text(
-                      '출석·결석 관리',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    // 프로필 카드
+                    _buildProfileCard(),
+                    const SizedBox(height: 20),
+
+                    // 계정 정보 (보호자 위치, 비밀번호 변경, 로그아웃, 계정 삭제)
+                    Card(
+                      margin: EdgeInsets.zero,
+                      child: ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16),
+                        minVerticalPadding: 14,
+                        leading: const Icon(
+                          Icons.person_outline_rounded,
+                          color: Colors.blue,
+                        ),
+                        title: const Text(
+                          '계정 정보',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle:
+                            const Text('이름, 이메일, 계정 생성일 및 유형을 조회합니다.'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ParentAccountInfoScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ),
+                    const SizedBox(height: 20),
+
+                    // 출석·결석 관리
+                    _sectionTitle('출석·결석 관리'),
                     const SizedBox(height: 8),
                     const Text(
                       '스위치 ON: 등교 / OFF: 결석',
                       style: TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                     const SizedBox(height: 16),
+
+                    // 날짜 선택
                     const Text(
                       '신청 날짜',
                       style: TextStyle(
@@ -168,52 +406,116 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       style: const TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                     const SizedBox(height: 12),
+
+                    // 자녀별 출석 상태
                     const Text(
                       '자녀별 출석 상태',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    if (_loading)
-                      const Center(child: CircularProgressIndicator())
-                    else if (_error != null)
-                      Column(
-                        children: [
-                          Text(_error!),
-                          OutlinedButton(
-                            onPressed: _loadChildren,
-                            child: const Text('다시 시도'),
-                          ),
-                        ],
-                      )
-                    else if (_children.isEmpty)
-                      const Text('연결된 자녀가 없습니다.')
-                    else
-                      ..._children.map(
-                        (child) => SwitchListTile(
-                          title: Text(child.name),
-                          subtitle: Text(child.className ?? '결석 여부'),
-                          value: _apiAbsent[child.id] ?? false,
-                          onChanged: (value) =>
-                              setState(() => _apiAbsent[child.id] = value),
-                        ),
-                      ),
+                    _buildAttendanceList(),
+                    const SizedBox(height: 24),
+
+                    // 자녀 정보
+                    _sectionTitle('자녀 관리'),
                     const SizedBox(height: 8),
-                    PrimaryButton(
-                      label: '저장',
-                      loading: _saving,
-                      onPressed:
-                          _saving ||
-                              _loading ||
-                              _error != null ||
-                              _children.isEmpty
-                          ? null
-                          : _save,
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.people_outline,
+                          color: Colors.blue,
+                        ),
+                        title: const Text('자녀 정보'),
+                        subtitle: const Text('등록된 자녀 및 배정 버스 확인'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ChildInfoScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 알림 설정
+                    _sectionTitle('알림 관리'),
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.notifications_none,
+                          color: Colors.orange,
+                        ),
+                        title: const Text('알림 설정'),
+                        subtitle: const Text('승하차 및 안전 알림 관리'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const NotificationSettingsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 앱 정보
+                    _sectionTitle('기타'),
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.info_outline,
+                          color: Colors.grey,
+                        ),
+                        title: const Text('앱 정보'),
+                        subtitle: const Text('서비스 소개 및 테스트 버전 안내'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AppInfoScreen(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
+              ),
+
+              // 로그아웃
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _logout,
+                icon: const Icon(Icons.logout_rounded, color: Colors.red),
+                label: const Text(
+                  '로그아웃',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+
+              // 저장 (mock이면 로컬, 아니면 서버에 저장)
+              const SizedBox(height: 12),
+              PrimaryButton(
+                label: '저장',
+                loading: _saving,
+                onPressed: _saving ||
+                        _loading ||
+                        _error != null ||
+                        (!_useMock && _children.isEmpty)
+                    ? null
+                    : _saveAttendance,
               ),
             ],
           ),

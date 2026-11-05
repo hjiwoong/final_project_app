@@ -86,7 +86,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
       body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // 서버에 연결된 실제 자녀 정보
+              // 자녀 연결 요청
               Card(
                 color: const Color(0xFFF1F6FF),
                 elevation: 0,
@@ -120,6 +120,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // 서버에 연결된 실제 자녀 정보
               const Text(
                 '서버에 연결된 자녀',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),

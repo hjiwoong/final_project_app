@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import '../../core/auth/session.dart';
+import '../../core/config/env.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/notification_item.dart';
 import 'alert_detail_screen.dart';
@@ -175,7 +176,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
           return Column(
             children: [
               // 미하차 의심 경고 (Mock)
-              if (hasAlert)
+              if ((Env.useMock || Session.isMockAccount) && hasAlert)
                 ValueListenableBuilder<int>(
                   valueListenable: NotificationMockStore.unreadCount,
                   builder: (context, count, child) {
@@ -220,61 +221,64 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                 ),
 
               // 승하차 및 이상 상황 이벤트 알림 (Mock)
-              ValueListenableBuilder<List<ParentMockEvent>>(
-                valueListenable: ParentEventMockStore.events,
-                builder: (context, events, child) {
-                  return ValueListenableBuilder<Set<int>>(
-                    valueListenable: ParentEventMockStore.readEventIds,
-                    builder: (context, readIds, child) {
-                      if (events.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
+              if (Env.useMock || Session.isMockAccount)
+                ValueListenableBuilder<List<ParentMockEvent>>(
+                  valueListenable: ParentEventMockStore.events,
+                  builder: (context, events, child) {
+                    return ValueListenableBuilder<Set<int>>(
+                      valueListenable: ParentEventMockStore.readEventIds,
+                      builder: (context, readIds, child) {
+                        if (events.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
 
-                      return ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 280),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: events.length,
-                          itemBuilder: (context, index) {
-                            final event = events[index];
-                            final isRead = readIds.contains(event.id);
+                        return ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 280),
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: events.length,
+                            itemBuilder: (context, index) {
+                              final event = events[index];
+                              final isRead = readIds.contains(event.id);
 
-                            return ListTile(
-                              leading: Icon(
-                                event.isAlert
-                                    ? Icons.warning_amber_rounded
-                                    : Icons.directions_bus,
-                                color: event.isAlert ? Colors.red : Colors.blue,
-                              ),
-                              title: Text(
-                                event.title,
-                                style: TextStyle(
-                                  fontWeight: isRead
-                                      ? FontWeight.normal
-                                      : FontWeight.bold,
+                              return ListTile(
+                                leading: Icon(
+                                  event.isAlert
+                                      ? Icons.warning_amber_rounded
+                                      : Icons.directions_bus,
+                                  color: event.isAlert
+                                      ? Colors.red
+                                      : Colors.blue,
                                 ),
-                              ),
-                              subtitle: Text(
-                                '${event.message} · ${event.time}',
-                              ),
-                              trailing: isRead
-                                  ? null
-                                  : const Icon(
-                                      Icons.circle,
-                                      color: Colors.blue,
-                                      size: 10,
-                                    ),
-                              onTap: () {
-                                _showEventDetail(event);
-                              },
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+                                title: Text(
+                                  event.title,
+                                  style: TextStyle(
+                                    fontWeight: isRead
+                                        ? FontWeight.normal
+                                        : FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '${event.message} · ${event.time}',
+                                ),
+                                trailing: isRead
+                                    ? null
+                                    : const Icon(
+                                        Icons.circle,
+                                        color: Colors.blue,
+                                        size: 10,
+                                      ),
+                                onTap: () {
+                                  _showEventDetail(event);
+                                },
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
 
               // 기존 알림 목록
               Expanded(
@@ -339,7 +343,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                 debugPrint('알림 읽음 처리 실패: $e');
                               }
 
-                              if (!mounted) return;
+                              if (!context.mounted) return;
 
                               if (n.isAlert) {
                                 Navigator.of(context).push(
