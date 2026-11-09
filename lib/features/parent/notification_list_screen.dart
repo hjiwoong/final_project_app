@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../core/auth/session.dart';
-import '../../core/config/env.dart';
+
 import '../../data/api/api_repository.dart';
 import '../../data/models/notification_item.dart';
 import 'alert_detail_screen.dart';
 import 'notification_mock_store.dart';
 import 'alert_mock_store.dart';
 import 'parent_event_mock_store.dart';
+
+import '../../core/notifications/in_app_notification_banner.dart';
 
 class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({super.key});
@@ -94,9 +95,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('모든 알림을 확인했습니다.')));
+    InAppNotificationBanner.showMessage('모든 알림을 확인했습니다.');
   }
 
   IconData _getNotificationIcon(NotificationItem n) {
@@ -116,19 +115,20 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   }
 
   Color _getNotificationColor(NotificationItem n) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (n.isAlert) {
-      return Colors.red;
+      return colorScheme.error;
     }
 
     if (n.title.contains('하차')) {
-      return Colors.green;
+      return colorScheme.tertiary;
     }
 
     if (n.title.contains('승차') || n.title.contains('탑승')) {
-      return Colors.blue;
+      return colorScheme.primary;
     }
 
-    return Colors.grey;
+    return colorScheme.onSurfaceVariant;
   }
 
   void _showEventDetail(ParentMockEvent event) {
@@ -176,19 +176,19 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
           return Column(
             children: [
               // 미하차 의심 경고 (Mock)
-              if ((Env.useMock || Session.isMockAccount) && hasAlert)
+              if (hasAlert)
                 ValueListenableBuilder<int>(
                   valueListenable: NotificationMockStore.unreadCount,
                   builder: (context, count, child) {
                     final isRead = NotificationMockStore.isTestAlertRead;
 
                     return Card(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.errorContainer,
                       margin: const EdgeInsets.all(12),
                       child: ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.warning_amber_rounded,
-                          color: Colors.red,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
                         ),
                         title: Text(
                           '미하차 의심 경고 (테스트)',
@@ -201,9 +201,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                         subtitle: const Text('1호차 · 차량 내 잔류 인원 1명 가정'),
                         trailing: isRead
                             ? null
-                            : const Icon(
+                            : Icon(
                                 Icons.circle,
-                                color: Colors.red,
+                                color: Theme.of(context).colorScheme.error,
                                 size: 10,
                               ),
                         onTap: () {
@@ -221,64 +221,65 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                 ),
 
               // 승하차 및 이상 상황 이벤트 알림 (Mock)
-              if (Env.useMock || Session.isMockAccount)
-                ValueListenableBuilder<List<ParentMockEvent>>(
-                  valueListenable: ParentEventMockStore.events,
-                  builder: (context, events, child) {
-                    return ValueListenableBuilder<Set<int>>(
-                      valueListenable: ParentEventMockStore.readEventIds,
-                      builder: (context, readIds, child) {
-                        if (events.isEmpty) {
-                          return const SizedBox.shrink();
-                        }
+              ValueListenableBuilder<List<ParentMockEvent>>(
+                valueListenable: ParentEventMockStore.events,
+                builder: (context, events, child) {
+                  return ValueListenableBuilder<Set<int>>(
+                    valueListenable: ParentEventMockStore.readEventIds,
+                    builder: (context, readIds, child) {
+                      if (events.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
 
-                        return ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 280),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: events.length,
-                            itemBuilder: (context, index) {
-                              final event = events[index];
-                              final isRead = readIds.contains(event.id);
+                      return ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 280),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: events.length,
+                          itemBuilder: (context, index) {
+                            final event = events[index];
+                            final isRead = readIds.contains(event.id);
 
-                              return ListTile(
-                                leading: Icon(
-                                  event.isAlert
-                                      ? Icons.warning_amber_rounded
-                                      : Icons.directions_bus,
-                                  color: event.isAlert
-                                      ? Colors.red
-                                      : Colors.blue,
+                            return ListTile(
+                              leading: Icon(
+                                event.isAlert
+                                    ? Icons.warning_amber_rounded
+                                    : Icons.directions_bus,
+                                color: event.isAlert
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context).colorScheme.primary,
+                              ),
+                              title: Text(
+                                event.title,
+                                style: TextStyle(
+                                  fontWeight: isRead
+                                      ? FontWeight.normal
+                                      : FontWeight.bold,
                                 ),
-                                title: Text(
-                                  event.title,
-                                  style: TextStyle(
-                                    fontWeight: isRead
-                                        ? FontWeight.normal
-                                        : FontWeight.bold,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${event.message} · ${event.time}',
-                                ),
-                                trailing: isRead
-                                    ? null
-                                    : const Icon(
-                                        Icons.circle,
-                                        color: Colors.blue,
-                                        size: 10,
-                                      ),
-                                onTap: () {
-                                  _showEventDetail(event);
-                                },
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                              ),
+                              subtitle: Text(
+                                '${event.message} · ${event.time}',
+                              ),
+                              trailing: isRead
+                                  ? null
+                                  : Icon(
+                                      Icons.circle,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      size: 10,
+                                    ),
+                              onTap: () {
+                                _showEventDetail(event);
+                              },
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
 
               // 기존 알림 목록
               Expanded(
@@ -323,9 +324,11 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                             subtitle: Text('${n.busName} · ${n.time}'),
                             trailing: n.read
                                 ? null
-                                : const Icon(
+                                : Icon(
                                     Icons.circle,
-                                    color: Colors.blue,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                     size: 10,
                                   ),
                             onTap: () async {
@@ -343,7 +346,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                 debugPrint('알림 읽음 처리 실패: $e');
                               }
 
-                              if (!context.mounted) return;
+                              if (!mounted) return;
 
                               if (n.isAlert) {
                                 Navigator.of(context).push(

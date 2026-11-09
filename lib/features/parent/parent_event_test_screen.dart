@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import 'parent_event_mock_store.dart';
@@ -9,18 +8,13 @@ class ParentEventTestScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('승하차 · 안전 이벤트 테스트'),
-      ),
+      appBar: AppBar(title: const Text('승하차 · 안전 이벤트 테스트')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
             '승차 · 하차 이벤트',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 12),
@@ -38,10 +32,8 @@ class ParentEventTestScreen extends StatelessWidget {
                         children: [
                           Text(
                             '${entry.key} · '
-                                '${ParentEventMockStore.getChildStatusText(entry.value)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            '${ParentEventMockStore.getChildStatusText(entry.value)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
 
                           const SizedBox(height: 8),
@@ -88,19 +80,14 @@ class ParentEventTestScreen extends StatelessWidget {
 
           const Text(
             '이상 상황 알림 테스트',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 12),
 
           ElevatedButton.icon(
             onPressed: () {
-              ParentEventMockStore.addSafetyEvent(
-                SafetyEventType.suddenBrake,
-              );
+              ParentEventMockStore.addSafetyEvent(SafetyEventType.suddenBrake);
             },
             icon: const Icon(Icons.warning_amber),
             label: const Text('급정거 발생 테스트'),
@@ -110,9 +97,7 @@ class ParentEventTestScreen extends StatelessWidget {
 
           ElevatedButton.icon(
             onPressed: () {
-              ParentEventMockStore.addSafetyEvent(
-                SafetyEventType.speeding,
-              );
+              ParentEventMockStore.addSafetyEvent(SafetyEventType.speeding);
             },
             icon: const Icon(Icons.speed),
             label: const Text('과속 발생 테스트'),
@@ -132,10 +117,10 @@ class ParentEventTestScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          const Text(
+          Text(
             '※ 모든 이벤트는 테스트 데이터이며 실제 차량과 연결되지 않습니다.',
             style: TextStyle(
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,
             ),
           ),

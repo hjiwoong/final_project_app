@@ -13,6 +13,7 @@ class Session {
   static String? email;
   static String? name;
   static DateTime? createdAt;
+  static String? signupMethod;
   static int? currentTripId;
   static String? currentTripBusName;
   static int? currentBoardingCount;
@@ -33,6 +34,7 @@ class Session {
     email = null;
     name = null;
     createdAt = null;
+    signupMethod = null;
     currentTripId = null;
     currentTripBusName = null;
     currentBoardingCount = null;

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_mode_settings_tile.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/user_role.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
 import '../auth/account_removal_screen.dart';
-import '../auth/change_password_screen.dart';
 import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
 import '../parent/notification_mock_store.dart';
@@ -92,14 +92,14 @@ class DriverAccountInfoScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           const SizedBox(height: 0),
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               '계정 상세 정보',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.primary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -129,6 +129,11 @@ class DriverAccountInfoScreen extends StatelessWidget {
                   label: '계정 유형',
                   value: _accountRoleLabel(),
                   icon: Icons.admin_panel_settings_outlined,
+                ),
+                _AccountInfoRow(
+                  label: '가입 경로',
+                  value: _signupMethodLabel(),
+                  icon: Icons.how_to_reg_outlined,
                 ),
               ],
             ),
@@ -215,6 +220,15 @@ class DriverAccountInfoScreen extends StatelessWidget {
       },
     };
   }
+
+  String _signupMethodLabel() {
+    return switch (Session.signupMethod?.toUpperCase()) {
+      'APP' => '앱 가입',
+      'GOOGLE' => 'Google 가입',
+      'ADMIN' => '관리자 생성',
+      _ => '정보 없음',
+    };
+  }
 }
 
 class DriverAppInfoScreen extends StatelessWidget {
@@ -222,19 +236,20 @@ class DriverAppInfoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('앱 정보')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               '서비스 소개',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.primary,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -249,11 +264,11 @@ class DriverAppInfoScreen extends StatelessWidget {
                     size: 40,
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'AI 통학버스 안전관리 서비스',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AppTheme.primary,
+                      color: colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -263,7 +278,7 @@ class DriverAppInfoScreen extends StatelessWidget {
                     '어린이의 안전한 통학을 위한 운행 및 승하차 관리 서비스입니다.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.grey.shade700,
+                      color: colorScheme.onSurfaceVariant,
                       fontSize: 13,
                       height: 1.5,
                     ),
@@ -273,14 +288,14 @@ class DriverAppInfoScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               '앱 상세 정보',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.primary,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -328,7 +343,7 @@ class _AccountInfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(icon, color: AppTheme.accent, size: 22),
+          Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -336,15 +351,18 @@ class _AccountInfoRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -386,7 +404,7 @@ class DriverSettingsScreen extends StatelessWidget {
             child: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+                  colors: [Color(0xFF42A5F5), Color(0xFF1565C0)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -454,8 +472,9 @@ class DriverSettingsScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
           Card(
+            color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -463,10 +482,7 @@ class DriverSettingsScreen extends StatelessWidget {
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               minVerticalPadding: 14,
-              leading: const Icon(
-                Icons.person_outline_rounded,
-                color: AppTheme.accent,
-              ),
+              leading: const Icon(Icons.person_outline_rounded),
               title: const Text(
                 '계정 정보',
                 style: TextStyle(fontWeight: FontWeight.w600),
@@ -482,8 +498,11 @@ class DriverSettingsScreen extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          const ThemeModeSettingsTile(),
+          const SizedBox(height: 12),
           Card(
+            color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -491,10 +510,7 @@ class DriverSettingsScreen extends StatelessWidget {
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               minVerticalPadding: 14,
-              leading: const Icon(
-                Icons.info_outline_rounded,
-                color: AppTheme.accent,
-              ),
+              leading: const Icon(Icons.info_outline_rounded),
               title: const Text(
                 '앱 정보',
                 style: TextStyle(fontWeight: FontWeight.w600),

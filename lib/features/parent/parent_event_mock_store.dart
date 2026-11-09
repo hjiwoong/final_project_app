@@ -1,17 +1,8 @@
-
 import 'package:flutter/foundation.dart';
 
-enum ChildBoardingStatus {
-  waiting,
-  boarded,
-  droppedOff,
-}
+enum ChildBoardingStatus { waiting, boarded, droppedOff }
 
-enum SafetyEventType {
-  suddenBrake,
-  speeding,
-  routeDeviation,
-}
+enum SafetyEventType { suddenBrake, speeding, routeDeviation }
 
 class ParentMockEvent {
   final int id;
@@ -32,30 +23,27 @@ class ParentMockEvent {
 class ParentEventMockStore {
   static int _nextId = 1;
 
-  static final ValueNotifier<Map<String, ChildBoardingStatus>>
-  childStatuses =
-  ValueNotifier<Map<String, ChildBoardingStatus>>({
-    '김하늘': ChildBoardingStatus.droppedOff,
-    '이도윤': ChildBoardingStatus.boarded,
-  });
+  static final ValueNotifier<Map<String, ChildBoardingStatus>> childStatuses =
+      ValueNotifier<Map<String, ChildBoardingStatus>>({
+        '김하늘': ChildBoardingStatus.droppedOff,
+        '이도윤': ChildBoardingStatus.boarded,
+      });
 
   static final ValueNotifier<List<ParentMockEvent>> events =
-  ValueNotifier<List<ParentMockEvent>>([]);
+      ValueNotifier<List<ParentMockEvent>>([]);
 
-  static final ValueNotifier<Set<int>> readEventIds =
-  ValueNotifier<Set<int>>(<int>{});
+  static final ValueNotifier<Set<int>> readEventIds = ValueNotifier<Set<int>>(
+    <int>{},
+  );
 
-  static final ValueNotifier<Map<SafetyEventType, int>>
-  safetyCounts =
-  ValueNotifier<Map<SafetyEventType, int>>({
-    SafetyEventType.suddenBrake: 1,
-    SafetyEventType.speeding: 0,
-    SafetyEventType.routeDeviation: 0,
-  });
+  static final ValueNotifier<Map<SafetyEventType, int>> safetyCounts =
+      ValueNotifier<Map<SafetyEventType, int>>({
+        SafetyEventType.suddenBrake: 1,
+        SafetyEventType.speeding: 0,
+        SafetyEventType.routeDeviation: 0,
+      });
 
-  static String getChildStatusText(
-      ChildBoardingStatus status,
-      ) {
+  static String getChildStatusText(ChildBoardingStatus status) {
     switch (status) {
       case ChildBoardingStatus.waiting:
         return '탑승 대기';
@@ -66,16 +54,10 @@ class ParentEventMockStore {
     }
   }
 
-  static void updateChildStatus(
-      String name,
-      ChildBoardingStatus status,
-      ) {
+  static void updateChildStatus(String name, ChildBoardingStatus status) {
     if (childStatuses.value[name] == status) return;
 
-    childStatuses.value = {
-      ...childStatuses.value,
-      name: status,
-    };
+    childStatuses.value = {...childStatuses.value, name: status};
 
     final title = status == ChildBoardingStatus.boarded
         ? '$name 승차 완료'
@@ -114,11 +96,7 @@ class ParentEventMockStore {
       type: (safetyCounts.value[type] ?? 0) + 1,
     };
 
-    _addEvent(
-      title: title,
-      message: message,
-      isAlert: true,
-    );
+    _addEvent(title: title, message: message, isAlert: true);
   }
 
   static void _addEvent({
@@ -146,10 +124,7 @@ class ParentEventMockStore {
   static void markEventAsRead(int id) {
     if (readEventIds.value.contains(id)) return;
 
-    readEventIds.value = {
-      ...readEventIds.value,
-      id,
-    };
+    readEventIds.value = {...readEventIds.value, id};
   }
 
   static int get unreadEventCount {

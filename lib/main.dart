@@ -5,8 +5,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import 'core/maps/naver_map_status.dart';
+import 'core/notifications/in_app_notification_banner.dart';
 import 'core/notifications/push_notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_controller.dart';
 import 'features/auth/login_screen.dart';
 
 void main() async {
@@ -14,6 +16,7 @@ void main() async {
 
   // Firebase 초기화
   await Firebase.initializeApp();
+  await ThemeController.instance.initialize();
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Match Android's navigation buttons and gesture indicator to the light app surface.
@@ -42,16 +45,22 @@ class BusSafetyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '통학버스 안전',
-      theme: AppTheme.light,
-      debugShowCheckedModeBanner: false,
-      scaffoldMessengerKey: pushMessengerKey,
-      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-        value: AppTheme.systemOverlayStyle,
-        child: child ?? const SizedBox.shrink(),
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) => MaterialApp(
+        title: '통학버스 안전',
+        navigatorKey: appNavigatorKey,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeController.instance.themeMode,
+        debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: pushMessengerKey,
+        builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: AppTheme.systemOverlayStyleFor(Theme.of(context).brightness),
+          child: child ?? const SizedBox.shrink(),
+        ),
+        home: const LoginScreen(),
       ),
-      home: const LoginScreen(),
     );
   }
 }

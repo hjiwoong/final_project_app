@@ -6,6 +6,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import '../../core/auth/session.dart';
 import '../../core/auth/trip_progress_storage.dart';
 import '../../core/maps/naver_map_status.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
 import '../../data/models/guardian_location.dart';
@@ -14,6 +15,8 @@ import '../../data/models/trip_progress.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/trip_exit_sheet.dart';
 import 'boarding_capture_screen.dart';
+
+import '../../core/notifications/in_app_notification_banner.dart';
 
 /// ② 탑승 지도: 네이버 지도 + 정류장 마커 + 학부모 출결 반영 UI (스크린샷 스타일)
 class BoardingMapScreen extends StatefulWidget {
@@ -55,9 +58,11 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
   String? _mapError;
   Timer? _mapLoadTimer;
   double _collapsedSheetSize = 0.12;
+  double _expandedSheetSize = 0.3;
   List<Map<String, dynamic>> _stops = [];
   final List<NMarker> _stopMarkers = [];
   final List<int> _stopMarkerStopIndices = [];
+  final Map<Color, NOverlayImage> _markerIcons = {};
 
   @override
   void initState() {
@@ -78,9 +83,47 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
 
   void _updateSheetState() {
     if (!_sheetController.isAttached) return;
-    final isCollapsed = _sheetController.size <= _collapsedSheetSize + 0.01;
+    final expandedContentThreshold =
+        _collapsedSheetSize + (_expandedSheetSize - _collapsedSheetSize) * 0.8;
+    final isCollapsed = _sheetController.size < expandedContentThreshold;
     if (isCollapsed != _isSheetCollapsed) {
       setState(() => _isSheetCollapsed = isCollapsed);
+    }
+  }
+
+  Future<void> _toggleSheet() async {
+    if (!_sheetController.isAttached) return;
+    await _animateSheet(expanded: _isSheetCollapsed);
+  }
+
+  Future<void> _animateSheet({required bool expanded}) async {
+    if (!_sheetController.isAttached) return;
+    await _sheetController.animateTo(
+      expanded ? _expandedSheetSize : _collapsedSheetSize,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _onSheetDragUpdate(DragUpdateDetails details, double availableHeight) {
+    if (!_sheetController.isAttached) return;
+    final nextSize =
+        (_sheetController.size - details.delta.dy / availableHeight)
+            .clamp(_collapsedSheetSize, _expandedSheetSize)
+            .toDouble();
+    _sheetController.jumpTo(nextSize);
+  }
+
+  void _onSheetDragEnd(DragEndDetails details) {
+    if (!_sheetController.isAttached) return;
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity < -250) {
+      _animateSheet(expanded: true);
+    } else if (velocity > 250) {
+      _animateSheet(expanded: false);
+    } else {
+      final midpoint = (_collapsedSheetSize + _expandedSheetSize) / 2;
+      _animateSheet(expanded: _sheetController.size >= midpoint);
     }
   }
 
@@ -96,7 +139,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _stops = _makeStops(students);
+        _stops = _makeStops(context, students);
         _currentStopIndex = _currentStopIndex
             .clamp(0, _stops.length - 1)
             .toInt();
@@ -113,23 +156,28 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _makeStops(List<ChildStudent> students) {
+  List<Map<String, dynamic>> _makeStops(
+    BuildContext context,
+    List<ChildStudent> students,
+  ) {
     return [
       for (final (index, student) in students.indexed)
         {
-          'title': '📍 ${index + 1}번 정류장 도착',
+          'title': '${index + 1}번 정류장 도착',
           'student': '${student.name} · ${student.className ?? '학급 정보 없음'}',
           'status': student.isAbsent ? '결석 · 건너뜀' : '승차 대기',
-          'statusColor': student.isAbsent ? Colors.grey : Colors.green,
+          'statusColor': student.isAbsent
+              ? Theme.of(context).colorScheme.onSurfaceVariant
+              : Theme.of(context).colorScheme.tertiary,
           'isAbsent': student.isAbsent,
           'studentId': student.id,
           'guardianLocations': student.guardianLocations,
         },
       {
-        'title': '🏫 종점 도착 · 마지막 정류장',
+        'title': '종점 도착 · 마지막 정류장',
         'student': '탑승 예정 ${students.length}명',
         'status': '종점',
-        'statusColor': Colors.blue,
+        'statusColor': Theme.of(context).colorScheme.primary,
         'guardianLocations': const <GuardianLocation>[],
       },
     ];
@@ -143,10 +191,31 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
           NLatLng(location.latitude!, location.longitude!),
   ];
 
-  Color _markerColor(int index) {
-    if (_stops[index]['isAbsent'] == true) return Colors.grey;
-    if (index == _stops.length - 1) return Colors.blue;
-    return index < _currentStopIndex ? Colors.green : Colors.red;
+  Color _markerColor(BuildContext context, int index) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (_stops[index]['isAbsent'] == true) return colorScheme.onSurfaceVariant;
+    if (index == _stops.length - 1) return colorScheme.primary;
+    return index < _currentStopIndex ? colorScheme.tertiary : colorScheme.error;
+  }
+
+  Future<NOverlayImage> _markerIcon(BuildContext context, int stopIndex) async {
+    final color = _markerColor(context, stopIndex);
+    final cachedIcon = _markerIcons[color];
+    if (cachedIcon != null) return cachedIcon;
+
+    final icon = await NOverlayImage.fromWidget(
+      context: context,
+      size: const Size(48, 48),
+      widget: Stack(
+        alignment: Alignment.center,
+        children: [
+          const Icon(Icons.location_on, size: 48, color: Colors.white),
+          Icon(Icons.location_on, size: 38, color: color),
+        ],
+      ),
+    );
+    _markerIcons[color] = icon;
+    return icon;
   }
 
   int _nextAvailableStopIndex(int index) {
@@ -168,7 +237,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
           NMarker(
             id: 'boarding_stop_${stop['studentId']}_$locationIndex',
             position: NLatLng(location.latitude!, location.longitude!),
-            iconTintColor: _markerColor(stopIndex),
+            icon: await _markerIcon(context, stopIndex),
             caption: NOverlayCaption(
               text: '${stopIndex + 1}번 정류장 · 보호자 ${locationIndex + 1}',
             ),
@@ -188,7 +257,9 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
         _currentStopIndex = _nextAvailableStopIndex(_currentStopIndex + 1);
       });
       for (final (index, marker) in _stopMarkers.indexed) {
-        marker.setIconTintColor(_markerColor(_stopMarkerStopIndices[index]));
+        marker.setIcon(
+          await _markerIcon(context, _stopMarkerStopIndices[index]),
+        );
       }
       await widget.onStopChanged?.call(_currentStopIndex);
     } else {
@@ -238,9 +309,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       Navigator.of(context).pop(TripExitAction.cancel);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('운행을 취소하지 못했습니다. ($e)')));
+      InAppNotificationBanner.showMessage('운행을 취소하지 못했습니다. ($e)');
     }
   }
 
@@ -284,15 +353,14 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       appBar: _buildAppBar(),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          //상한 설정값 - 접었을 때
           final collapsedSheetSize = (107 / constraints.maxHeight)
               .clamp(0.1, 0.3)
               .toDouble();
-          //올렸을 때
-          final expandedSheetSize = (172 / constraints.maxHeight)
+          final expandedSheetSize = (220 / constraints.maxHeight)
               .clamp(collapsedSheetSize + 0.05, 0.5)
               .toDouble();
           _collapsedSheetSize = collapsedSheetSize;
+          _expandedSheetSize = expandedSheetSize;
           final stopPositions = _stopPositions;
 
           return Stack(
@@ -306,6 +374,8 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                     zoom: stopPositions.isNotEmpty ? 14.5 : 11.5,
                   ),
                   locationButtonEnable: true,
+                  nightModeEnable:
+                      Theme.of(context).brightness == Brightness.dark,
                 ),
                 onMapReady: (controller) async {
                   debugPrint('네이버 지도 로딩 완료');
@@ -346,11 +416,13 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.shadow.withValues(alpha: 0.1),
                           blurRadius: 6,
                           offset: const Offset(0, 3),
                         ),
@@ -362,31 +434,44 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildLegendDot(Colors.red, '출석 대기'),
+                            _buildLegendDot(
+                              Theme.of(context).colorScheme.error,
+                              '출석 대기',
+                            ),
                             const SizedBox(width: 14),
-                            _buildLegendDot(Colors.green, '승차 완료'),
+                            _buildLegendDot(
+                              Theme.of(context).colorScheme.tertiary,
+                              '승차 완료',
+                            ),
                             const SizedBox(width: 14),
-                            _buildLegendDot(Colors.grey, '결석'),
+                            _buildLegendDot(
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                              '결석',
+                            ),
                           ],
                         ),
                         if (stopPositions.isNotEmpty)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               '보호자가 저장한 실제 위치',
                               style: TextStyle(
-                                color: Colors.black54,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                             ),
                           ),
                         if (stopPositions.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
                             child: Text(
                               '보호자 좌표가 없어 기본 위치의 지도를 표시합니다.',
                               style: TextStyle(
-                                color: Colors.black54,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                             ),
@@ -402,12 +487,14 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                   left: 16,
                   right: 16,
                   child: Card(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Text(
                         _mapError!,
-                        style: const TextStyle(color: Colors.red),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -422,12 +509,14 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                     left: 16,
                     right: 16,
                     child: Card(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Text(
                           '네이버 지도 인증에 실패했습니다: $authError\nNCP 콘솔의 Client ID, Dynamic Map 활성화, Android 패키지 등록을 확인해 주세요.',
-                          style: const TextStyle(color: Colors.red),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -440,111 +529,199 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                 initialChildSize: expandedSheetSize,
                 minChildSize: collapsedSheetSize,
                 maxChildSize: expandedSheetSize,
-                snap: true,
-                snapSizes: [collapsedSheetSize, expandedSheetSize],
-                builder: (context, scrollController) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 10,
-                          offset: const Offset(0, -4),
-                        ),
-                      ],
-                    ),
-                    child: ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
-                      children: [
-                        Center(
-                          child: Semantics(
-                            label: '정류장 정보 패널을 위아래로 밀어 지도 보기',
-                            child: Container(
-                              width: 40,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: Colors.blueGrey.shade200,
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
+                builder: (context, _) {
+                  return Padding(
+                    padding: AppTheme.sheetMargin,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onVerticalDragUpdate: (details) =>
+                          _onSheetDragUpdate(details, constraints.maxHeight),
+                      onVerticalDragEnd: _onSheetDragEnd,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          decoration: AppTheme.sheetDecoration(
+                            context,
+                            radius: 20,
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
                           child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      stop['title'],
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    18,
+                                    8,
+                                    18,
+                                    8,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Center(
+                                        child: Semantics(
+                                          button: true,
+                                          label: _isSheetCollapsed
+                                              ? '정류장 정보 패널 펼치기'
+                                              : '정류장 정보 패널 접기',
+                                          child: GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: _toggleSheet,
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              height: 32,
+                                              child: Center(
+                                                child: Container(
+                                                  width: 40,
+                                                  height: 5,
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .outlineVariant,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          3,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: (stop['statusColor'] as Color)
-                                          .withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      stop['status'],
-                                      style: TextStyle(
-                                        color: stop['statusColor'],
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                if (isLast) ...[
+                                                  Icon(
+                                                    Icons.school,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.primary,
+                                                    size: 20,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                ] else ...[
+                                                  Icon(
+                                                    Icons.location_on,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.error,
+                                                    size: 20,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                ],
+                                                Expanded(
+                                                  child: Text(
+                                                    stop['title'],
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        (stop['statusColor']
+                                                                as Color)
+                                                            .withValues(
+                                                              alpha: 0.1,
+                                                            ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    stop['status'],
+                                                    style: TextStyle(
+                                                      color:
+                                                          stop['statusColor'],
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Visibility(
+                                              visible: !_isSheetCollapsed,
+                                              maintainState: true,
+                                              maintainAnimation: true,
+                                              maintainSize: true,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    stop['student'],
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                  if (!isLast) ...[
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      '탑승 버스 : ${widget.busName}',
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                stop['student'],
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade700,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                              if (!isLast) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  '탑승 버스 : ${widget.busName}',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey.shade700,
+                              if (!_isSheetCollapsed)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    18,
+                                    0,
+                                    18,
+                                    10,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                  child: PrimaryButton(
+                                    label: isLast ? '탑승 완료' : '승차 완료',
+                                    onPressed: _nextStop,
+                                  ),
                                 ),
-                              ],
-                              if (!_isSheetCollapsed) ...[
-                                const SizedBox(height: 10),
-                                PrimaryButton(
-                                  label: isLast ? '탑승 완료' : '승차 완료',
-                                  onPressed: _nextStop,
-                                ),
-                              ],
                             ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   );
                 },
