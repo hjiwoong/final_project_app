@@ -14,6 +14,7 @@ import 'bus_trip_mock_store.dart';
 import 'parent_event_mock_store.dart';
 import 'parent_event_test_screen.dart';
 import '../../core/config/env.dart';
+import 'missed_dropoff_alert_screen.dart';
 
 // 학부모 홈: 실제 API 정보와 Mock 테스트 화면 분리
 class ParentHomeScreen extends StatefulWidget {
@@ -441,6 +442,87 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
                                 SizedBox(height: 7),
                                 Text(
                                   '차량 위치 및 운행 상태 확인',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF505A66),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, size: 30),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              Card(
+                margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
+                elevation: 4,
+                shadowColor: const Color(0x30000000),
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MissedDropoffAlertScreen(),
+                      ),
+                    );
+                  },
+                  child: Ink(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFFFAFAFA),
+                          Color(0xFFFAFAFA),
+                          Color(0xFFFFEEEE),
+                        ],
+                        stops: [0.0, 0.65, 1.0],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 27,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 68,
+                            height: 68,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.90),
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: const Icon(
+                              Icons.warning_amber_rounded,
+                              color: Color(0xFFE05252),
+                              size: 36,
+                            ),
+                          ),
+                          const SizedBox(width: 17),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '미하차 안전 알림',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 7),
+                                Text(
+                                  '미하차 의심 경고 및 안전 상태 확인',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Color(0xFF505A66),
