@@ -6,7 +6,6 @@ import '../../core/theme/theme_mode_settings_tile.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/user_role.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
-import '../auth/account_removal_screen.dart';
 import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
 import '../parent/notification_mock_store.dart';
@@ -49,33 +48,42 @@ class _DriverShellState extends State<DriverShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_index],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        elevation: 0,
-        height: 68,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.directions_bus_outlined),
-            selectedIcon: Icon(Icons.directions_bus),
-            label: '',
-          ),
-          NavigationDestination(
-            icon: const UnreadNotificationBadge(
-              icon: Icons.notifications_outlined,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
             ),
-            selectedIcon: const UnreadNotificationBadge(
-              icon: Icons.notifications,
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          elevation: 0,
+          height: 68,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+          destinations: [
+            NavigationDestination(
+              icon: Icon(Icons.directions_bus_outlined),
+              selectedIcon: Icon(Icons.directions_bus),
+              label: '',
             ),
-            label: '',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: '',
-          ),
-        ],
+            NavigationDestination(
+              icon: const UnreadNotificationBadge(
+                icon: Icons.notifications_outlined,
+              ),
+              selectedIcon: const UnreadNotificationBadge(
+                icon: Icons.notifications,
+              ),
+              label: '',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings),
+              label: '',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -91,7 +99,6 @@ class DriverAccountInfoScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const SizedBox(height: 0),
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
@@ -104,6 +111,11 @@ class DriverAccountInfoScreen extends StatelessWidget {
             ),
           ),
           Card(
+            margin: const EdgeInsets.all(4),
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
             child: Column(
               children: [
                 _AccountInfoRow(
@@ -140,6 +152,11 @@ class DriverAccountInfoScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Card(
+            margin: const EdgeInsets.all(4),
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
             child: ListTile(
               leading: const Icon(Icons.logout_rounded, color: AppTheme.danger),
               title: const Text(
@@ -163,33 +180,6 @@ class DriverAccountInfoScreen extends StatelessWidget {
                 Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                   (_) => false,
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(
-                Icons.person_remove_alt_1_rounded,
-                color: AppTheme.danger,
-              ),
-              title: const Text(
-                '계정 삭제',
-                style: TextStyle(
-                  color: AppTheme.danger,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.danger,
-              ),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const AccountRemovalScreen(),
-                  ),
                 );
               },
             ),
@@ -223,9 +213,10 @@ class DriverAccountInfoScreen extends StatelessWidget {
 
   String _signupMethodLabel() {
     return switch (Session.signupMethod?.toUpperCase()) {
-      'APP' => '앱 가입',
-      'GOOGLE' => 'Google 가입',
-      'ADMIN' => '관리자 생성',
+      'APP' => 'App',
+      'GOOGLE' => 'Google Account',
+      'ADMIN' => 'Web',
+      'LEGACY' => '기존 계정 (가입 경로 미기록)',
       _ => '정보 없음',
     };
   }

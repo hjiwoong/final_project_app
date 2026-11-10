@@ -30,6 +30,16 @@ class AppTheme {
   static const Color darkHighestSurface = Color(0xFF303030);
   static const Color darkOnSurfaceVariant = Color(0xFFBDBDBD);
   static const EdgeInsets sheetMargin = EdgeInsets.fromLTRB(12, 8, 12, 12);
+  static const SystemUiOverlayStyle imageViewerSystemUiOverlayStyle =
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarContrastEnforced: false,
+      );
 
   static BoxDecoration sheetDecoration(
     BuildContext context, {
@@ -50,14 +60,16 @@ class AppTheme {
     );
   }
 
-  static String? get systemFontFamily =>
-      defaultTargetPlatform == TargetPlatform.android ? 'sans-serif' : null;
+  static List<String>? get systemCjkFontFallback =>
+      defaultTargetPlatform == TargetPlatform.android
+      ? const ['sans-serif']
+      : null;
 
   static const SystemUiOverlayStyle systemOverlayStyle = SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
     systemNavigationBarColor: surface,
-    systemNavigationBarDividerColor: border,
+    systemNavigationBarDividerColor: surface,
     systemNavigationBarIconBrightness: Brightness.dark,
     systemNavigationBarContrastEnforced: false,
   );
@@ -68,7 +80,7 @@ class AppTheme {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       systemNavigationBarColor: isDark ? darkSurface : surface,
-      systemNavigationBarDividerColor: isDark ? darkBorder : border,
+      systemNavigationBarDividerColor: isDark ? darkSurface : surface,
       systemNavigationBarIconBrightness: isDark
           ? Brightness.light
           : Brightness.dark,
@@ -78,7 +90,7 @@ class AppTheme {
 
   static final ThemeData light = ThemeData(
     useMaterial3: true,
-    fontFamily: systemFontFamily,
+    fontFamilyFallback: systemCjkFontFallback,
     colorScheme: ColorScheme.fromSeed(
       seedColor: primary,
       primary: primary,
@@ -108,15 +120,19 @@ class AppTheme {
     ),
     scaffoldBackgroundColor: surface,
     dividerColor: lightOutlineVariant,
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
       backgroundColor: surface,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: TextStyle(
         color: Color(0xFF171717),
         fontSize: 24,
         fontWeight: FontWeight.w500,
+        fontFamilyFallback: systemCjkFontFallback,
       ),
-      contentTextStyle: TextStyle(color: Color(0xFF171717)),
+      contentTextStyle: TextStyle(
+        color: Color(0xFF171717),
+        fontFamilyFallback: systemCjkFontFallback,
+      ),
     ),
     radioTheme: RadioThemeData(
       fillColor: WidgetStateProperty.resolveWith(
@@ -124,7 +140,7 @@ class AppTheme {
             states.contains(WidgetState.selected) ? primary : lightOutline,
       ),
     ),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: surface,
       foregroundColor: Color(0xFF171717),
       surfaceTintColor: Colors.transparent,
@@ -135,6 +151,7 @@ class AppTheme {
         color: Color(0xFF171717),
         fontSize: 18,
         fontWeight: FontWeight.w700,
+        fontFamilyFallback: systemCjkFontFallback,
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -203,7 +220,7 @@ class AppTheme {
   static final ThemeData dark = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    fontFamily: systemFontFamily,
+    fontFamilyFallback: systemCjkFontFallback,
     colorScheme: ColorScheme.fromSeed(
       seedColor: accent,
       brightness: Brightness.dark,
@@ -236,15 +253,19 @@ class AppTheme {
     ),
     scaffoldBackgroundColor: darkSurface,
     dividerColor: darkBorder,
-    dialogTheme: const DialogThemeData(
+    dialogTheme: DialogThemeData(
       backgroundColor: darkCard,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: TextStyle(
         color: Colors.white,
         fontSize: 24,
         fontWeight: FontWeight.w500,
+        fontFamilyFallback: systemCjkFontFallback,
       ),
-      contentTextStyle: TextStyle(color: Colors.white),
+      contentTextStyle: TextStyle(
+        color: Colors.white,
+        fontFamilyFallback: systemCjkFontFallback,
+      ),
     ),
     radioTheme: RadioThemeData(
       fillColor: WidgetStateProperty.resolveWith(
@@ -260,10 +281,11 @@ class AppTheme {
       elevation: 0,
       centerTitle: false,
       systemOverlayStyle: systemOverlayStyleFor(Brightness.dark),
-      titleTextStyle: const TextStyle(
+      titleTextStyle: TextStyle(
         color: Colors.white,
         fontSize: 18,
         fontWeight: FontWeight.w700,
+        fontFamilyFallback: systemCjkFontFallback,
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(

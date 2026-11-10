@@ -585,6 +585,7 @@ class ApiRepository {
       ),
     );
   }
+
   // 학부모의 자녀가 배정된 버스 운행 현황 조회
   Future<List<Map<String, dynamic>>> getParentBusStatus() async {
     if (Env.useMock || Session.isMockAccount) {
@@ -656,18 +657,16 @@ class ApiRepository {
 
   // 결석 여부 조회 (GET /me/children/{studentId}/attendance)
   Future<bool> getChildAttendance(
-      ChildStudent child, {
-        required DateTime date,
-      }) async {
+    ChildStudent child, {
+    required DateTime date,
+  }) async {
     if (Env.useMock || child.isMock) {
       return child.isAbsent;
     }
 
     final response = await _dio.get(
       '/me/children/${child.id}/attendance',
-      queryParameters: {
-        'date': date.toIso8601String().substring(0, 10),
-      },
+      queryParameters: {'date': date.toIso8601String().substring(0, 10)},
     );
 
     final data = Map<String, dynamic>.from(response.data as Map);
@@ -711,7 +710,8 @@ class ApiRepository {
   }
 
   // 4. 승차 사진 업로드 (POST /trips/{tripId}/boarding-photo)
-  Future<int> uploadBoardingPhoto(int tripId, {XFile? image}) async {
+  Future<({int boardingCount, bool photoDark, String guidance})>
+  uploadBoardingPhoto(int tripId, {XFile? image}) async {
     if (Env.useMock) {
       throw StateError('모의 데이터 분석은 비활성화되어 있습니다. 실제 서버 연결을 사용하세요.');
     }
@@ -732,7 +732,15 @@ class ApiRepository {
         '/trips/$tripId/boarding-photo',
         data: formData,
       );
-      return response.data['boarding_count'] ?? 0;
+      final payload = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : <String, dynamic>{};
+      final count = payload['boarding_count'];
+      return (
+        boardingCount: count is num ? count.toInt() : 0,
+        photoDark: payload['photo_dark'] == true,
+        guidance: payload['guidance'] as String? ?? '',
+      );
     } on DioException catch (e) {
       if (e.response != null) rethrow;
       debugPrint('승차 촬영 서버 연결 실패: $e');
@@ -793,6 +801,7 @@ class ApiRepository {
     int tripId, {
     required bool simulationMode,
     required bool safetyChecked,
+    String? reason,
   }) async {
     if (Env.useMock || Session.currentTripIsMock) return;
     await _dio.post(
@@ -801,6 +810,7 @@ class ApiRepository {
         'method': 'button',
         'simulation_mode': simulationMode,
         'safety_checked': safetyChecked,
+        'reason': ?reason,
       },
     );
   }
@@ -818,6 +828,8 @@ class ApiRepository {
       return NotificationItem(
         id: n['id'],
         title: n['title'],
+        body: n['body'] as String? ?? '',
+        alertLevel: n['alert_level'] as String?,
         busName: '통학버스',
         time: n['sent_at'] ?? '',
         isAlert: n['alert_id'] != null,
@@ -850,6 +862,47 @@ class ApiRepository {
         ? '/me/alerts/$alertId'
         : '/alerts/$alertId';
     final response = await _dio.get(path);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> getChatGreeting() async {
+    final response = await _dio.get('/chat/hello');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> sendChatMessage({
+    required String message,
+    required List<Map<String, String>> history,
+    int? alertId,
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _dio.post(
+      '/chat',
+      data: {
+        'message': message,
+        'history': history.length > 20
+            ? history.sublist(history.length - 20)
+            : history,
+        'alert_id': ?alertId,
+      },
+      cancelToken: cancelToken,
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> askAlertGuidance({
+    required int alertId,
+    String? question,
+  }) async {
+    final response = await _dio.post(
+      '/rag/ask',
+      data: {
+        'alert_id': alertId,
+        if (question != null && question.trim().isNotEmpty)
+          'question': question.trim(),
+      },
+      options: Options(receiveTimeout: const Duration(seconds: 30)),
+    );
     return Map<String, dynamic>.from(response.data as Map);
   }
 }

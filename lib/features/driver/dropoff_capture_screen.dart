@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
+import '../../core/permissions/camera_permission_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 import '../../widgets/primary_button.dart';
@@ -25,6 +27,10 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
   XFile? _selectedImage;
 
   Future<void> _captureFromSource(ImageSource source) async {
+    if (source == ImageSource.camera &&
+        !await CameraPermissionService.requestAccess(context)) {
+      return;
+    }
     setState(() => _loading = true);
     try {
       final tripId = Session.currentTripId ?? 1;
@@ -47,7 +53,9 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      InAppNotificationBanner.showMessage('종점 처리를 완료하지 못했습니다. ($e)');
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(e, fallback: '종점 처리를 완료하지 못했습니다. 다시 시도해 주세요.'),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -100,70 +108,69 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('종점 촬영'),
-        leading: IconButton(
-          tooltip: '뒤로가기',
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
+    return PopScope<Object?>(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text(''),
         ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Icon(
-                        Icons.photo_camera,
-                        size: 96,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Center(
-                      child: Text(
-                        '종점 인원 촬영',
-                        style: TextStyle(
-                          fontSize: 23,
-                          fontWeight: FontWeight.bold,
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Icon(
+                          Icons.photo_camera,
+                          size: 96,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      '모든 탑승객이 하차했는지 확인하기 위해 사진을 선택합니다.\n'
-                      '카메라 또는 사진 앱에서 버스 내부 이미지를 가져와 서버의 YOLO 모델로 분석합니다.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      SizedBox(height: 5),
+                      Center(
+                        child: Text(
+                          '종점 인원 촬영',
+                          style: TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 12),
+                      Text(
+                        '모든 탑승객이 하차했는지 확인하기 위해 사진을 선택합니다.\n'
+                        '카메라 또는 사진 앱에서 버스 내부 이미지를 가져와 서버의 YOLO 모델로 분석합니다.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Text(
-              '사진은 서버에 전송됩니다. 인원 확인 목적으로만 사용되며\n전송을 거부할 순 있지만 이 경우 운행을 종료할 수 없습니다.',
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              Text(
+                '사진은 서버에 전송됩니다. 인원 확인 목적으로만 사용되며\n전송을 거부할 순 있지만 이 경우 운행을 종료할 수 없습니다.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            PrimaryButton(
-              label: '종점 사진 선택',
-              loading: _loading,
-              onPressed: () => _capture(oneRemaining: false),
-            ),
-          ],
+              const SizedBox(height: 8),
+              PrimaryButton(
+                label: '종점 사진 선택',
+                loading: _loading,
+                onPressed: () => _capture(oneRemaining: false),
+              ),
+            ],
+          ),
         ),
       ),
     );

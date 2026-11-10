@@ -379,13 +379,6 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
           const SizedBox(height: 16),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: const SizedBox.shrink(),
-        ),
-      ),
     );
   }
 }
