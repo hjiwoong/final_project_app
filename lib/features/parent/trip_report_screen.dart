@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import 'parent_event_mock_store.dart';
@@ -10,38 +9,30 @@ class TripReportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('운행 리포트'),
-      ),
+      appBar: AppBar(title: const Text('운행 리포트')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
+          Text(
             '오늘의 운행 리포트',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 12),
 
           // 운행 요약 (Mock)
-          const Card(
+          Card(
             child: Column(
               children: [
                 ListTile(
                   leading: Icon(
                     Icons.schedule,
-                    color: Colors.blue,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   title: Text('정시율'),
                   trailing: Text(
                     '95%',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
 
@@ -50,15 +41,12 @@ class TripReportScreen extends StatelessWidget {
                 ListTile(
                   leading: Icon(
                     Icons.shield,
-                    color: Colors.green,
+                    color: Theme.of(context).colorScheme.tertiary,
                   ),
                   title: Text('안전 점수'),
                   trailing: Text(
                     '92점',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -67,12 +55,9 @@ class TripReportScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          const Text(
+          Text(
             '이상 상황 발생 현황',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 8),
@@ -85,9 +70,9 @@ class TripReportScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.warning_amber_rounded,
-                        color: Colors.orange,
+                        color: Theme.of(context).colorScheme.tertiary,
                       ),
                       title: const Text('급정거'),
                       trailing: Text(
@@ -102,9 +87,9 @@ class TripReportScreen extends StatelessWidget {
                     const Divider(height: 1),
 
                     ListTile(
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.speed,
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                       ),
                       title: const Text('과속'),
                       trailing: Text(
@@ -119,9 +104,9 @@ class TripReportScreen extends StatelessWidget {
                     const Divider(height: 1),
 
                     ListTile(
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.alt_route,
-                        color: Colors.deepOrange,
+                        color: Theme.of(context).colorScheme.error,
                       ),
                       title: const Text('경로 이탈'),
                       trailing: Text(
@@ -140,12 +125,9 @@ class TripReportScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          const Text(
+          Text(
             '안전 운행 안내',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 8),
@@ -155,20 +137,20 @@ class TripReportScreen extends StatelessWidget {
               padding: EdgeInsets.all(16),
               child: Text(
                 '운행 중 발생한 급정거, 과속, 경로 이탈 등의 '
-                    '이상 상황을 확인할 수 있습니다.\n\n'
-                    '현재 표시되는 운행 리포트는 테스트 데이터이며 '
-                    '실제 차량 운행 기록과 연결되지 않았습니다.',
+                '이상 상황을 확인할 수 있습니다.\n\n'
+                '현재 표시되는 운행 리포트는 테스트 데이터이며 '
+                '실제 차량 운행 기록과 연결되지 않았습니다.',
               ),
             ),
           ),
 
           const SizedBox(height: 16),
 
-          const Text(
+          Text(
             '※ 정시율과 안전 점수는 고정된 Mock 데이터입니다. '
-                '이상 상황 발생 건수는 테스트 버튼에 따라 변경됩니다.',
+            '이상 상황 발생 건수는 테스트 버튼에 따라 변경됩니다.',
             style: TextStyle(
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,
             ),
           ),

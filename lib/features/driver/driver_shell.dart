@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_mode_settings_tile.dart';
+import '../../data/api/api_repository.dart';
 import '../../data/models/user_role.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
-import '../auth/change_password_screen.dart';
+import '../auth/account_removal_screen.dart';
 import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
+import '../parent/notification_mock_store.dart';
+import '../parent/unread_notification_badge.dart';
 import 'trip_start_screen.dart';
 
 /// 기사(관리자) 하단 탭: 운행 · 알림 · 설정
@@ -19,6 +23,21 @@ class DriverShell extends StatefulWidget {
 
 class _DriverShellState extends State<DriverShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshUnreadCount();
+  }
+
+  Future<void> _refreshUnreadCount() async {
+    try {
+      final count = await ApiRepository.instance.getNotificationUnreadCount();
+      NotificationMockStore.setNotificationUnreadCount(count);
+    } catch (e) {
+      debugPrint('읽지 않은 알림 개수 조회 실패: $e');
+    }
+  }
 
   static final List<Widget> _pages = [
     const TripStartScreen(),
@@ -36,15 +55,19 @@ class _DriverShellState extends State<DriverShell> {
         elevation: 0,
         height: 68,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(Icons.directions_bus_outlined),
             selectedIcon: Icon(Icons.directions_bus),
             label: '',
           ),
           NavigationDestination(
-            icon: Icon(Icons.notifications_outlined),
-            selectedIcon: Icon(Icons.notifications),
+            icon: const UnreadNotificationBadge(
+              icon: Icons.notifications_outlined,
+            ),
+            selectedIcon: const UnreadNotificationBadge(
+              icon: Icons.notifications,
+            ),
             label: '',
           ),
           NavigationDestination(
@@ -69,14 +92,14 @@ class DriverAccountInfoScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           const SizedBox(height: 0),
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               '계정 상세 정보',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.primary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -107,7 +130,68 @@ class DriverAccountInfoScreen extends StatelessWidget {
                   value: _accountRoleLabel(),
                   icon: Icons.admin_panel_settings_outlined,
                 ),
+                _AccountInfoRow(
+                  label: '가입 경로',
+                  value: _signupMethodLabel(),
+                  icon: Icons.how_to_reg_outlined,
+                ),
               ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.logout_rounded, color: AppTheme.danger),
+              title: const Text(
+                '로그아웃',
+                style: TextStyle(
+                  color: AppTheme.danger,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.danger,
+              ),
+              onTap: () async {
+                final shouldLogout = await showLogoutConfirmationDialog(
+                  context,
+                );
+                if (!shouldLogout || !context.mounted) return;
+                await Session.clear();
+                if (!context.mounted) return;
+                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (_) => false,
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(
+                Icons.person_remove_alt_1_rounded,
+                color: AppTheme.danger,
+              ),
+              title: const Text(
+                '계정 삭제',
+                style: TextStyle(
+                  color: AppTheme.danger,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.danger,
+              ),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const AccountRemovalScreen(),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -136,6 +220,15 @@ class DriverAccountInfoScreen extends StatelessWidget {
       },
     };
   }
+
+  String _signupMethodLabel() {
+    return switch (Session.signupMethod?.toUpperCase()) {
+      'APP' => '앱 가입',
+      'GOOGLE' => 'Google 가입',
+      'ADMIN' => '관리자 생성',
+      _ => '정보 없음',
+    };
+  }
 }
 
 class DriverAppInfoScreen extends StatelessWidget {
@@ -143,19 +236,20 @@ class DriverAppInfoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('앱 정보')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               '서비스 소개',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.primary,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -170,11 +264,11 @@ class DriverAppInfoScreen extends StatelessWidget {
                     size: 40,
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'AI 통학버스 안전관리 서비스',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AppTheme.primary,
+                      color: colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -184,7 +278,7 @@ class DriverAppInfoScreen extends StatelessWidget {
                     '어린이의 안전한 통학을 위한 운행 및 승하차 관리 서비스입니다.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.grey.shade700,
+                      color: colorScheme.onSurfaceVariant,
                       fontSize: 13,
                       height: 1.5,
                     ),
@@ -194,14 +288,14 @@ class DriverAppInfoScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
               '앱 상세 정보',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.primary,
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -249,7 +343,7 @@ class _AccountInfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(icon, color: AppTheme.accent, size: 22),
+          Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -257,15 +351,18 @@ class _AccountInfoRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -307,7 +404,7 @@ class DriverSettingsScreen extends StatelessWidget {
             child: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+                  colors: [Color(0xFF42A5F5), Color(0xFF1565C0)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -375,20 +472,22 @@ class DriverSettingsScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
           Card(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               minVerticalPadding: 14,
-              leading: const Icon(
-                Icons.person_outline_rounded,
-                color: AppTheme.accent,
-              ),
+              leading: const Icon(Icons.person_outline_rounded),
               title: const Text(
                 '계정 정보',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              subtitle: const Text('이름, 이메일, 계정 생성일 및 유형을 조회합니다.'),
+              // subtitle: const Text('이름, 이메일, 계정 생성일 및 유형을 조회합니다.'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
                 Navigator.of(context).push(
@@ -399,20 +498,24 @@ class DriverSettingsScreen extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          const ThemeModeSettingsTile(),
+          const SizedBox(height: 12),
           Card(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               minVerticalPadding: 14,
-              leading: const Icon(
-                Icons.info_outline_rounded,
-                color: AppTheme.accent,
-              ),
+              leading: const Icon(Icons.info_outline_rounded),
               title: const Text(
                 '앱 정보',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              subtitle: const Text('서비스 소개, 앱 유형 및 주요 기능을 확인합니다.'),
+              // subtitle: const Text('서비스 소개, 앱 유형 및 주요 기능을 확인합니다.'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
                 Navigator.of(context).push(
@@ -423,57 +526,9 @@ class DriverSettingsScreen extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
-              leading: const Icon(
-                Icons.lock_reset_rounded,
-                color: AppTheme.accent,
-              ),
-              title: const Text(
-                '비밀번호 변경하기',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: const Text('현재 비밀번호와 새 비밀번호를 설정합니다.'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ChangePasswordScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: OutlinedButton.icon(
-            onPressed: () async {
-              final shouldLogout = await showLogoutConfirmationDialog(context);
-              if (!shouldLogout || !context.mounted) return;
-              await Session.clear();
-              if (!context.mounted) return;
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-            icon: const Icon(Icons.logout_rounded, color: AppTheme.danger),
-            label: const Text(
-              '로그아웃',
-              style: TextStyle(
-                color: AppTheme.danger,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ),
+      bottomNavigationBar: const SizedBox.shrink(),
     );
   }
 }

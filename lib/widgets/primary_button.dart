@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_theme.dart';
+
 class PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -16,17 +18,31 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final foregroundColor = switch (color) {
+      null => colorScheme.onPrimary,
+      AppTheme.danger => Colors.white,
+      _ when color == colorScheme.error => colorScheme.onError,
+      _ => colorScheme.onSurface,
+    };
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: FilledButton(
-        style: color == null ? null : FilledButton.styleFrom(backgroundColor: color),
+        style: FilledButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: foregroundColor,
+          shape: const StadiumBorder(),
+        ),
         onPressed: loading ? null : onPressed,
         child: loading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: foregroundColor,
+                ),
               )
             : Text(label, style: const TextStyle(fontSize: 16)),
       ),

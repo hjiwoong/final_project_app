@@ -1,19 +1,13 @@
-
 import 'package:flutter/foundation.dart';
 
-enum BusTripStatus {
-  before,
-  running,
-  finished,
-}
+enum BusTripStatus { before, running, finished }
 
 class BusTripMockStore {
   static final ValueNotifier<BusTripStatus> status =
-  ValueNotifier<BusTripStatus>(BusTripStatus.running);
+      ValueNotifier<BusTripStatus>(BusTripStatus.running);
 
   // 0.0 = 출발지, 1.0 = 학교
-  static final ValueNotifier<double> progress =
-  ValueNotifier<double>(0.5);
+  static final ValueNotifier<double> progress = ValueNotifier<double>(0.5);
 
   static String getStatusText(BusTripStatus value) {
     switch (value) {

@@ -31,15 +31,22 @@ class JudgeResultScreen extends StatelessWidget {
                 aspectRatio: 16 / 9,
                 child: imageSource != null
                     ? (imageSource is File
-                        ? Image.file(imageSource, width: double.infinity, fit: BoxFit.contain)
-                        : Image.network(
-                            imageSource as String,
-                            width: double.infinity,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Center(
-                              child: Icon(Icons.broken_image_outlined, size: 64),
-                            ),
-                          ))
+                          ? Image.file(
+                              imageSource,
+                              width: double.infinity,
+                              fit: BoxFit.contain,
+                            )
+                          : Image.network(
+                              imageSource as String,
+                              width: double.infinity,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Center(
+                                child: Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 64,
+                                ),
+                              ),
+                            ))
                     : Image.asset(
                         'assets/images/testimages/boarding_image.jpg',
                         width: double.infinity,
@@ -53,7 +60,9 @@ class JudgeResultScreen extends StatelessWidget {
               height: 52,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: ok ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                color: ok
+                    ? Theme.of(context).colorScheme.tertiaryContainer
+                    : Theme.of(context).colorScheme.errorContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -61,7 +70,9 @@ class JudgeResultScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: ok ? AppTheme.ok : AppTheme.danger,
+                  color: ok
+                      ? Theme.of(context).colorScheme.onTertiaryContainer
+                      : Theme.of(context).colorScheme.onErrorContainer,
                 ),
               ),
             ),
@@ -69,9 +80,11 @@ class JudgeResultScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FA),
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.border),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -121,7 +134,7 @@ class JudgeResultScreen extends StatelessWidget {
             ],
             PrimaryButton(
               label: '운행 결과 확인',
-              color: ok ? null : Colors.grey,
+              color: ok ? null : Theme.of(context).colorScheme.onSurfaceVariant,
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => TripEndScreen(
@@ -158,11 +171,9 @@ class JudgeResultScreen extends StatelessWidget {
       builder: (context) => SafeArea(
         top: false,
         child: Container(
+          margin: AppTheme.sheetMargin,
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+          decoration: AppTheme.sheetDecoration(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,7 +205,7 @@ class JudgeResultScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   height: 1.5,
-                  color: Colors.grey.shade700,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -210,16 +221,17 @@ class _CountSummary extends StatelessWidget {
     required this.label,
     required this.count,
     required this.icon,
-    this.color = AppTheme.primary,
+    this.color,
   });
 
   final String label;
   final int count;
   final IconData icon;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final color = this.color ?? Theme.of(context).colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
@@ -229,7 +241,10 @@ class _CountSummary extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 16),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 16,
+              ),
             ),
           ),
           Text(

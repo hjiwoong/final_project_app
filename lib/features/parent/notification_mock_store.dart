@@ -1,12 +1,11 @@
-
 import 'package:flutter/foundation.dart';
 
 class NotificationMockStore {
-  static final ValueNotifier<Set<int>> readIds =
-  ValueNotifier<Set<int>>(<int>{});
+  static final ValueNotifier<Set<int>> readIds = ValueNotifier<Set<int>>(
+    <int>{},
+  );
 
-  static final ValueNotifier<int> unreadCount =
-  ValueNotifier<int>(0);
+  static final ValueNotifier<int> unreadCount = ValueNotifier<int>(0);
 
   // 기존 알림의 읽지 않은 개수
   static int _normalUnreadCount = 0;
@@ -16,18 +15,15 @@ class NotificationMockStore {
   static bool _testAlertRead = false;
 
   static void _updateUnreadCount() {
-    unreadCount.value = _normalUnreadCount +
-        (_hasTestAlert && !_testAlertRead ? 1 : 0);
+    unreadCount.value =
+        _normalUnreadCount + (_hasTestAlert && !_testAlertRead ? 1 : 0);
   }
 
   static void updateNotifications(
-      List<int> notificationIds,
-      Set<int> initiallyReadIds,
-      ) {
-    final mergedReadIds = <int>{
-      ...readIds.value,
-      ...initiallyReadIds,
-    };
+    List<int> notificationIds,
+    Set<int> initiallyReadIds,
+  ) {
+    final mergedReadIds = <int>{...readIds.value, ...initiallyReadIds};
 
     readIds.value = mergedReadIds;
 
@@ -35,6 +31,11 @@ class NotificationMockStore {
         .where((id) => !mergedReadIds.contains(id))
         .length;
 
+    _updateUnreadCount();
+  }
+
+  static void setNotificationUnreadCount(int count) {
+    _normalUnreadCount = count;
     _updateUnreadCount();
   }
 
@@ -56,10 +57,7 @@ class NotificationMockStore {
 
   // 모든 일반 알림 및 미하차 테스트 경고 읽음 처리
   static void markAllAsRead(List<int> notificationIds) {
-    readIds.value = {
-      ...readIds.value,
-      ...notificationIds,
-    };
+    readIds.value = {...readIds.value, ...notificationIds};
 
     _normalUnreadCount = 0;
 

@@ -1,4 +1,6 @@
 import '../models/child_student.dart';
+import '../models/child_link_request.dart';
+import '../models/guardian_location.dart';
 import '../models/judge_result.dart';
 import '../models/user_role.dart';
 
@@ -8,11 +10,14 @@ class MockRepository {
   static final MockRepository instance = MockRepository._();
 
   int boardingCount = 0;
-  static const List<ChildStudent> _mockChildren = [
+  GuardianLocation _guardianLocation = const GuardianLocation();
+  final List<ChildStudent> _mockChildren = [
     ChildStudent(id: -1, name: '김하늘', className: '1학년 2반', isMock: true),
     ChildStudent(id: -2, name: '이도윤', className: '3학년 1반', isMock: true),
   ];
   final Map<int, bool> _mockAbsences = {};
+  int _nextChildRequestId = 1;
+  final List<ChildLinkRequest> _childRequests = [];
 
   List<ChildStudent> get children => _mockChildren
       .map(
@@ -25,6 +30,55 @@ class MockRepository {
         ),
       )
       .toList();
+
+  List<ChildLinkRequest> get childRequests => List.unmodifiable(_childRequests);
+
+  GuardianLocation get guardianLocation => _guardianLocation;
+
+  void setGuardianLocation(GuardianLocation location) {
+    _guardianLocation = location;
+  }
+
+  void clearGuardianLocation() {
+    _guardianLocation = const GuardianLocation();
+  }
+
+  Future<void> addChildRequest({
+    required String name,
+    required String className,
+    required String relation,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    _childRequests.insert(
+      0,
+      ChildLinkRequest(
+        id: _nextChildRequestId++,
+        childName: name,
+        className: className,
+        relation: relation,
+        status: 'PENDING',
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  void cancelChildRequest(int requestId) {
+    final requestIndex = _childRequests.indexWhere(
+      (request) => request.id == requestId,
+    );
+    if (requestIndex == -1) {
+      throw StateError('연결 요청을 찾을 수 없습니다.');
+    }
+    if (_childRequests[requestIndex].status != 'PENDING') {
+      throw StateError('이미 처리된 요청은 취소할 수 없습니다.');
+    }
+    _childRequests.removeAt(requestIndex);
+  }
+
+  void unlinkChild(int studentId) {
+    _mockChildren.removeWhere((child) => child.id == studentId);
+    _mockAbsences.remove(studentId);
+  }
 
   void setMockAttendance(int studentId, bool isAbsent) {
     _mockAbsences[studentId] = isAbsent;

@@ -1,7 +1,5 @@
-
 import 'package:flutter/material.dart';
-import '../../core/auth/session.dart';
-import '../../core/config/env.dart';
+
 import '../../data/api/api_repository.dart';
 import '../../data/models/notification_item.dart';
 import 'alert_detail_screen.dart';
@@ -9,16 +7,16 @@ import 'notification_mock_store.dart';
 import 'alert_mock_store.dart';
 import 'parent_event_mock_store.dart';
 
+import '../../core/notifications/in_app_notification_banner.dart';
+
 class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({super.key});
 
   @override
-  State<NotificationListScreen> createState() =>
-      _NotificationListScreenState();
+  State<NotificationListScreen> createState() => _NotificationListScreenState();
 }
 
-class _NotificationListScreenState
-    extends State<NotificationListScreen> {
+class _NotificationListScreenState extends State<NotificationListScreen> {
   bool _loading = true;
   String? _error;
   List<NotificationItem> _items = [];
@@ -42,6 +40,13 @@ class _NotificationListScreenState
         items.map((n) => n.id).toList(),
         items.where((n) => n.read).map((n) => n.id).toSet(),
       );
+      try {
+        final unreadCount = await ApiRepository.instance
+            .getNotificationUnreadCount();
+        NotificationMockStore.setNotificationUnreadCount(unreadCount);
+      } catch (e) {
+        debugPrint('읽지 않은 알림 개수 조회 실패: $e');
+      }
       for (final n in items) {
         n.read = NotificationMockStore.isRead(n.id, n.read);
       }
@@ -62,9 +67,7 @@ class _NotificationListScreenState
     final unreadItems = _items.where((n) => !n.read).toList();
 
     // 기존 일반 알림과 미하차 테스트 경고 읽음 처리
-    NotificationMockStore.markAllAsRead(
-      _items.map((n) => n.id).toList(),
-    );
+    NotificationMockStore.markAllAsRead(_items.map((n) => n.id).toList());
 
     // 승하차 및 이상 상황 Mock 이벤트 읽음 처리
     final events = ParentEventMockStore.events.value;
@@ -92,11 +95,7 @@ class _NotificationListScreenState
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('모든 알림을 확인했습니다.'),
-      ),
-    );
+    InAppNotificationBanner.showMessage('모든 알림을 확인했습니다.');
   }
 
   IconData _getNotificationIcon(NotificationItem n) {
@@ -108,8 +107,7 @@ class _NotificationListScreenState
       return Icons.check_circle_outline;
     }
 
-    if (n.title.contains('승차') ||
-        n.title.contains('탑승')) {
+    if (n.title.contains('승차') || n.title.contains('탑승')) {
       return Icons.directions_bus;
     }
 
@@ -117,20 +115,20 @@ class _NotificationListScreenState
   }
 
   Color _getNotificationColor(NotificationItem n) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (n.isAlert) {
-      return Colors.red;
+      return colorScheme.error;
     }
 
     if (n.title.contains('하차')) {
-      return Colors.green;
+      return colorScheme.tertiary;
     }
 
-    if (n.title.contains('승차') ||
-        n.title.contains('탑승')) {
-      return Colors.blue;
+    if (n.title.contains('승차') || n.title.contains('탑승')) {
+      return colorScheme.primary;
     }
 
-    return Colors.grey;
+    return colorScheme.onSurfaceVariant;
   }
 
   void _showEventDetail(ParentMockEvent event) {
@@ -165,10 +163,7 @@ class _NotificationListScreenState
         actions: [
           TextButton.icon(
             onPressed: _loading ? null : _markAllAsRead,
-            icon: const Icon(
-              Icons.done_all,
-              size: 20,
-            ),
+            icon: const Icon(Icons.done_all, size: 20),
             label: const Text('모두 읽음'),
           ),
           const SizedBox(width: 8),
@@ -181,21 +176,19 @@ class _NotificationListScreenState
           return Column(
             children: [
               // 미하차 의심 경고 (Mock)
-              if ((Env.useMock || Session.isMockAccount) && hasAlert)
+              if (hasAlert)
                 ValueListenableBuilder<int>(
-                  valueListenable:
-                  NotificationMockStore.unreadCount,
+                  valueListenable: NotificationMockStore.unreadCount,
                   builder: (context, count, child) {
-                    final isRead =
-                        NotificationMockStore.isTestAlertRead;
+                    final isRead = NotificationMockStore.isTestAlertRead;
 
                     return Card(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.errorContainer,
                       margin: const EdgeInsets.all(12),
                       child: ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.warning_amber_rounded,
-                          color: Colors.red,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
                         ),
                         title: Text(
                           '미하차 의심 경고 (테스트)',
@@ -205,23 +198,20 @@ class _NotificationListScreenState
                                 : FontWeight.bold,
                           ),
                         ),
-                        subtitle: const Text(
-                          '1호차 · 차량 내 잔류 인원 1명 가정',
-                        ),
+                        subtitle: const Text('1호차 · 차량 내 잔류 인원 1명 가정'),
                         trailing: isRead
                             ? null
-                            : const Icon(
-                          Icons.circle,
-                          color: Colors.red,
-                          size: 10,
-                        ),
+                            : Icon(
+                                Icons.circle,
+                                color: Theme.of(context).colorScheme.error,
+                                size: 10,
+                              ),
                         onTap: () {
                           NotificationMockStore.readTestAlert();
 
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) =>
-                              const AlertDetailScreen(),
+                              builder: (_) => const AlertDetailScreen(),
                             ),
                           );
                         },
@@ -231,28 +221,24 @@ class _NotificationListScreenState
                 ),
 
               // 승하차 및 이상 상황 이벤트 알림 (Mock)
-              if (Env.useMock || Session.isMockAccount)
-                ValueListenableBuilder<List<ParentMockEvent>>(
+              ValueListenableBuilder<List<ParentMockEvent>>(
                 valueListenable: ParentEventMockStore.events,
                 builder: (context, events, child) {
                   return ValueListenableBuilder<Set<int>>(
-                    valueListenable:
-                    ParentEventMockStore.readEventIds,
+                    valueListenable: ParentEventMockStore.readEventIds,
                     builder: (context, readIds, child) {
                       if (events.isEmpty) {
                         return const SizedBox.shrink();
                       }
 
                       return ConstrainedBox(
-                        constraints:
-                        const BoxConstraints(maxHeight: 280),
+                        constraints: const BoxConstraints(maxHeight: 280),
                         child: ListView.builder(
                           shrinkWrap: true,
                           itemCount: events.length,
                           itemBuilder: (context, index) {
                             final event = events[index];
-                            final isRead =
-                            readIds.contains(event.id);
+                            final isRead = readIds.contains(event.id);
 
                             return ListTile(
                               leading: Icon(
@@ -260,8 +246,8 @@ class _NotificationListScreenState
                                     ? Icons.warning_amber_rounded
                                     : Icons.directions_bus,
                                 color: event.isAlert
-                                    ? Colors.red
-                                    : Colors.blue,
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context).colorScheme.primary,
                               ),
                               title: Text(
                                 event.title,
@@ -276,11 +262,13 @@ class _NotificationListScreenState
                               ),
                               trailing: isRead
                                   ? null
-                                  : const Icon(
-                                Icons.circle,
-                                color: Colors.blue,
-                                size: 10,
-                              ),
+                                  : Icon(
+                                      Icons.circle,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      size: 10,
+                                    ),
                               onTap: () {
                                 _showEventDetail(event);
                               },
@@ -296,86 +284,82 @@ class _NotificationListScreenState
               // 기존 알림 목록
               Expanded(
                 child: _loading
-                    ? const Center(
-                  child: CircularProgressIndicator(),
-                )
+                    ? const Center(child: CircularProgressIndicator())
                     : _error != null
                     ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_error!),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed: _fetchNotifications,
-                        child: const Text('다시 시도'),
-                      ),
-                    ],
-                  ),
-                )
-                    : _items.isEmpty
-                    ? const Center(
-                  child: Text('기존 알림이 없습니다.'),
-                )
-                    : ListView.separated(
-                  itemCount: _items.length,
-                  separatorBuilder: (context, index) =>
-                  const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final n = _items[i];
-
-                    return ListTile(
-                      leading: Icon(
-                        _getNotificationIcon(n),
-                        color: _getNotificationColor(n),
-                      ),
-                      title: Text(
-                        n.title,
-                        style: TextStyle(
-                          fontWeight: n.read
-                              ? FontWeight.normal
-                              : FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${n.busName} · ${n.time}',
-                      ),
-                      trailing: n.read
-                          ? null
-                          : const Icon(
-                        Icons.circle,
-                        color: Colors.blue,
-                        size: 10,
-                      ),
-                      onTap: () async {
-                        setState(() {
-                          n.read = true;
-                        });
-
-                        NotificationMockStore.markAsRead(
-                          n.id,
-                        );
-
-                        try {
-                          await ApiRepository.instance.readNotification(n);
-                        } catch (e) {
-                          debugPrint('알림 읽음 처리 실패: $e');
-                        }
-
-                        if (!context.mounted) return;
-
-                        if (n.isAlert) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  AlertDetailScreen(alertId: n.alertId),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_error!),
+                            const SizedBox(height: 12),
+                            OutlinedButton(
+                              onPressed: _fetchNotifications,
+                              child: const Text('다시 시도'),
                             ),
+                          ],
+                        ),
+                      )
+                    : _items.isEmpty
+                    ? const Center(child: Text('기존 알림이 없습니다.'))
+                    : ListView.separated(
+                        itemCount: _items.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
+                        itemBuilder: (context, i) {
+                          final n = _items[i];
+
+                          return ListTile(
+                            leading: Icon(
+                              _getNotificationIcon(n),
+                              color: _getNotificationColor(n),
+                            ),
+                            title: Text(
+                              n.title,
+                              style: TextStyle(
+                                fontWeight: n.read
+                                    ? FontWeight.normal
+                                    : FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text('${n.busName} · ${n.time}'),
+                            trailing: n.read
+                                ? null
+                                : Icon(
+                                    Icons.circle,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    size: 10,
+                                  ),
+                            onTap: () async {
+                              setState(() {
+                                n.read = true;
+                              });
+
+                              NotificationMockStore.markAsRead(n.id);
+
+                              try {
+                                await ApiRepository.instance.readNotification(
+                                  n,
+                                );
+                              } catch (e) {
+                                debugPrint('알림 읽음 처리 실패: $e');
+                              }
+
+                              if (!mounted) return;
+
+                              if (n.isAlert) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        AlertDetailScreen(alertId: n.alertId),
+                                  ),
+                                );
+                              }
+                            },
                           );
-                        }
-                      },
-                    );
-                  },
-                ),
+                        },
+                      ),
               ),
             ],
           );
@@ -384,4 +368,3 @@ class _NotificationListScreenState
     );
   }
 }
-

@@ -1,7 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
+
+import '../../core/notifications/in_app_notification_banner.dart';
 
 class ChildLinkRequestScreen extends StatefulWidget {
   const ChildLinkRequestScreen({required this.email, super.key});
@@ -52,23 +55,24 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
         builder: (context) => SafeArea(
           top: false,
           child: Container(
+            margin: AppTheme.sheetMargin,
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
+            decoration: AppTheme.sheetDecoration(context),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   '연결 요청 완료',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   '자녀 연결 요청을 접수했습니다. 확인 후 연결됩니다.',
-                  style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
@@ -86,9 +90,7 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('자녀 연결 요청 실패: ${_errorMessage(e)}')),
-      );
+      InAppNotificationBanner.showMessage('자녀 연결 요청 실패: ${_errorMessage(e)}');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -107,11 +109,8 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('자녀 연결 요청'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF202329),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
@@ -121,29 +120,33 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              const Text(
+              Text(
                 '자녀 정보를 추가해 주세요',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF202329),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 '요청은 확인 후 계정에 연결됩니다.',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 20),
               ...List.generate(_children.length, (index) {
                 final child = _children[index];
                 return Card(
                   key: ValueKey(child),
-                  color: const Color(0xFFF8F9FA),
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   elevation: 0,
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(
-                    side: const BorderSide(color: Color(0xFFE1E3E6)),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Padding(
@@ -155,9 +158,11 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
                             Expanded(
                               child: Text(
                                 '자녀 ${index + 1}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF202329),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                 ),
                               ),
                             ),
@@ -207,7 +212,7 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
                   icon: const Icon(Icons.add),
                   label: const Text('자녀 추가'),
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF202329),
+                    foregroundColor: Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
@@ -216,19 +221,14 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
                 height: 52,
                 child: FilledButton(
                   onPressed: _loading ? null : _submit,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF202329),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
+                  style: FilledButton.styleFrom(shape: const StadiumBorder()),
                   child: _loading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.onPrimary,
                           ),
                         )
                       : const Text('연결 요청 보내기'),
@@ -247,18 +247,20 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
   InputDecoration _decoration(String label) => InputDecoration(
     labelText: label,
     filled: true,
-    fillColor: Colors.white,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(9),
-      borderSide: const BorderSide(color: Color(0xFFE1E3E6)),
+      borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(9),
-      borderSide: const BorderSide(color: Color(0xFFE1E3E6)),
+      borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(9),
-      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.primary,
+        width: 1.5,
+      ),
     ),
   );
 }

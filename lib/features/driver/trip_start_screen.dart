@@ -10,6 +10,8 @@ import '../../widgets/primary_button.dart';
 import 'boarding_capture_screen.dart';
 import 'boarding_map_screen.dart';
 
+import '../../core/notifications/in_app_notification_banner.dart';
+
 /// 버스 및 운행(Trip) 정보 모델
 class BusTripItem {
   final String tripId;
@@ -219,15 +221,14 @@ class _TripStartScreenState extends State<TripStartScreen> {
     if (!mounted) return;
     await _fetchTodayTrips(showLoading: false);
     if (result == TripExitAction.cancel && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('운행을 취소했습니다.')));
+      InAppNotificationBanner.showMessage('운행을 취소했습니다.');
     }
   }
 
   Future<void> _promptForBoardingRecovery() async {
     if (_boardingRecoveryPromptShown || !mounted) return;
     _boardingRecoveryPromptShown = true;
+    final colorScheme = Theme.of(context).colorScheme;
     final shouldResume = await showModalBottomSheet<bool>(
       context: context,
       isDismissible: false,
@@ -237,11 +238,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
       builder: (context) => SafeArea(
         top: false,
         child: Container(
+          margin: AppTheme.sheetMargin,
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+          decoration: AppTheme.sheetDecoration(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,7 +256,7 @@ class _TripStartScreenState extends State<TripStartScreen> {
                 style: TextStyle(
                   fontSize: 15,
                   height: 1.5,
-                  color: Colors.grey.shade700,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 24),
@@ -265,6 +264,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        shape: const StadiumBorder(),
+                      ),
                       onPressed: () => Navigator.of(context).pop(false),
                       child: const Text('아니요'),
                     ),
@@ -272,6 +274,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        shape: const StadiumBorder(),
+                      ),
                       onPressed: () => Navigator.of(context).pop(true),
                       child: const Text('예'),
                     ),
@@ -293,17 +298,16 @@ class _TripStartScreenState extends State<TripStartScreen> {
     final selectedTrip = _selectedTrip;
     if (selectedTrip == null || _isStartingTrip || _isLoadingTrips) return;
 
+    final colorScheme = Theme.of(context).colorScheme;
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => SafeArea(
         top: false,
         child: Container(
+          margin: AppTheme.sheetMargin,
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
+          decoration: AppTheme.sheetDecoration(context),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,22 +319,37 @@ class _TripStartScreenState extends State<TripStartScreen> {
               const SizedBox(height: 12),
               Text(
                 '${selectedTrip.busName} 운행을 시작하시겠습니까?',
-                style: TextStyle(fontSize: 15, color: Colors.grey.shade700),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('아니요'),
+                    child: SizedBox(
+                      height: 52,
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: OutlinedButton.styleFrom(
+                          shape: const StadiumBorder(),
+                        ),
+                        child: const Text('아니요'),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FilledButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('예'),
+                    child: SizedBox(
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: FilledButton.styleFrom(
+                          shape: const StadiumBorder(),
+                        ),
+                        child: const Text('예'),
+                      ),
                     ),
                   ),
                 ],
@@ -344,9 +363,7 @@ class _TripStartScreenState extends State<TripStartScreen> {
 
     final busId = int.tryParse(selectedTrip.tripId);
     if (busId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('선택한 버스 정보가 올바르지 않아 운행을 시작할 수 없습니다.')),
-      );
+      InAppNotificationBanner.showMessage('선택한 버스 정보가 올바르지 않아 운행을 시작할 수 없습니다.');
       return;
     }
 
@@ -378,7 +395,7 @@ class _TripStartScreenState extends State<TripStartScreen> {
         _activeProgress = progress;
       });
 
-      await Navigator.of(context).push(
+      final result = await Navigator.of(context).push<Object?>(
         MaterialPageRoute(
           builder: (_) => BoardingMapScreen(
             tripId: tripId.toString(),
@@ -395,13 +412,15 @@ class _TripStartScreenState extends State<TripStartScreen> {
           ),
         ),
       );
-      if (mounted) await _fetchTodayTrips(showLoading: false);
+      if (!mounted) return;
+      await _fetchTodayTrips(showLoading: false);
+      if (result == TripExitAction.cancel && mounted) {
+        InAppNotificationBanner.showMessage('운행을 취소했습니다.');
+      }
     } catch (e) {
       debugPrint('운행 시작 실패: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('운행을 시작하지 못했습니다. 다시 시도해 주세요. ($e)')),
-      );
+      InAppNotificationBanner.showMessage('운행을 시작하지 못했습니다. 다시 시도해 주세요. ($e)');
     } finally {
       if (mounted) {
         setState(() => _isStartingTrip = false);
@@ -411,8 +430,11 @@ class _TripStartScreenState extends State<TripStartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      appBar: AppBar(title: const Text('운행 홈')),
+      //운행 홈
+      appBar: AppBar(title: const Text('홈')),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         child: Column(
@@ -421,7 +443,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F6FF),
+                color: isDark
+                    ? AppTheme.darkCard
+                    : colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -430,12 +454,14 @@ class _TripStartScreenState extends State<TripStartScreen> {
                     width: 52,
                     height: 52,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark
+                          ? AppTheme.darkSubtleSurface
+                          : colorScheme.surface,
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.directions_bus_rounded,
-                      color: AppTheme.accent,
+                      color: colorScheme.onSurface,
                       size: 29,
                     ),
                   ),
@@ -444,10 +470,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           '안전한 운행을 시작하세요',
-                          style: TextStyle(
-                            color: AppTheme.primary,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                           ),
@@ -456,7 +481,11 @@ class _TripStartScreenState extends State<TripStartScreen> {
                         Text(
                           '버스를 배정받으면 아래에 목록이 표시됩니다.',
                           style: TextStyle(
-                            color: Colors.grey.shade700,
+                            color: isDark
+                                ? colorScheme.onSurfaceVariant
+                                : colorScheme.onPrimaryContainer.withValues(
+                                    alpha: 0.75,
+                                  ),
                             fontSize: 13,
                           ),
                         ),
@@ -469,20 +498,23 @@ class _TripStartScreenState extends State<TripStartScreen> {
             const SizedBox(height: 22),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     '배정된 버스',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.primary,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                 ),
                 if (!_isLoadingTrips && _loadError == null)
                   Text(
                     '${_trips.length}대',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
                   ),
               ],
             ),
@@ -503,10 +535,10 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.cloud_off,
                                         size: 40,
-                                        color: Colors.grey,
+                                        color: colorScheme.onSurfaceVariant,
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
@@ -551,8 +583,10 @@ class _TripStartScreenState extends State<TripStartScreen> {
 
                                 return Material(
                                   color: isSelected
-                                      ? const Color(0xFFF1F6FF)
-                                      : AppTheme.surface,
+                                      ? isDark
+                                            ? AppTheme.darkSubtleSurface
+                                            : colorScheme.primaryContainer
+                                      : colorScheme.surface,
                                   borderRadius: BorderRadius.circular(14),
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(14),
@@ -567,8 +601,8 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
                                           color: isSelected
-                                              ? AppTheme.accent
-                                              : AppTheme.border,
+                                              ? colorScheme.primary
+                                              : colorScheme.outlineVariant,
                                           width: isSelected ? 2 : 1,
                                         ),
                                       ),
@@ -582,7 +616,7 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                                 Icons.directions_bus_rounded,
                                                 size: 30,
                                                 color: isSelected
-                                                    ? AppTheme.accent
+                                                    ? colorScheme.primary
                                                     : colorScheme
                                                           .onSurfaceVariant,
                                               ),
@@ -594,11 +628,12 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                                   children: [
                                                     Text(
                                                       trip.busName,
-                                                      style: const TextStyle(
+                                                      style: TextStyle(
                                                         fontSize: 17,
                                                         fontWeight:
                                                             FontWeight.w700,
-                                                        color: AppTheme.primary,
+                                                        color: colorScheme
+                                                            .onSurface,
                                                       ),
                                                     ),
                                                     Text(
@@ -614,7 +649,7 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                               if (isSelected)
                                                 Icon(
                                                   Icons.check_circle,
-                                                  color: AppTheme.accent,
+                                                  color: colorScheme.primary,
                                                 )
                                               else
                                                 Icon(
@@ -629,7 +664,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                               Icon(
                                                 Icons.route,
                                                 size: 18,
-                                                color: AppTheme.accent,
+                                                color: isDark
+                                                    ? colorScheme.onSurface
+                                                    : AppTheme.accent,
                                               ),
                                               const SizedBox(width: 8),
                                               Expanded(
@@ -643,7 +680,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                               Icon(
                                                 Icons.people,
                                                 size: 18,
-                                                color: AppTheme.accent,
+                                                color: isDark
+                                                    ? colorScheme.onSurface
+                                                    : AppTheme.accent,
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
@@ -668,8 +707,8 @@ class _TripStartScreenState extends State<TripStartScreen> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
           decoration: BoxDecoration(
-            color: AppTheme.surface,
-            border: Border(top: const BorderSide(color: AppTheme.border)),
+            color: colorScheme.surface,
+            border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
           ),
           child: PrimaryButton(
             label: _activeTrip != null

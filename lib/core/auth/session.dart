@@ -1,4 +1,8 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+
 import '../../data/models/user_role.dart';
+import '../network/api_client.dart';
 import 'trip_progress_storage.dart';
 import 'token_storage.dart';
 
@@ -9,6 +13,7 @@ class Session {
   static String? email;
   static String? name;
   static DateTime? createdAt;
+  static String? signupMethod;
   static int? currentTripId;
   static String? currentTripBusName;
   static int? currentBoardingCount;
@@ -17,11 +22,19 @@ class Session {
   static bool isMockAccount = false;
 
   static Future<void> clear() async {
+    if (!isMockAccount && await TokenStorage.read() != null) {
+      try {
+        await ApiClient.instance.dio.delete('/me/push-token');
+      } on DioException catch (error) {
+        debugPrint('로그아웃 시 푸시 토큰 해제 실패: $error');
+      }
+    }
     role = null;
     accountRole = null;
     email = null;
     name = null;
     createdAt = null;
+    signupMethod = null;
     currentTripId = null;
     currentTripBusName = null;
     currentBoardingCount = null;
