@@ -857,6 +857,22 @@ class ApiRepository {
     await _dio.post('/me/notifications/${notification.id}/read');
   }
 
+
+  // 학부모 미하차 경고 목록 조회 (GET /me/alerts)
+  Future<List<Map<String, dynamic>>> getParentAlerts() async {
+    if (Env.useMock || Session.isMockAccount) {
+      return [];
+    }
+
+    final response = await _dio.get('/me/alerts');
+    final payload = Map<String, dynamic>.from(response.data as Map);
+    final items = payload['items'] as List;
+
+    return items
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
+
   Future<Map<String, dynamic>> getAlertDetail(int alertId) async {
     final path = Session.role == UserRole.parent
         ? '/me/alerts/$alertId'
