@@ -40,7 +40,7 @@ class _DriverShellState extends State<DriverShell> {
 
   static final List<Widget> _pages = [
     const TripStartScreen(),
-    const NotificationListScreen(),
+    const NotificationListScreen(showSettingsButton: false),
     const DriverSettingsScreen(),
   ];
 
@@ -60,7 +60,7 @@ class _DriverShellState extends State<DriverShell> {
           selectedIndex: _index,
           onDestinationSelected: (i) => setState(() => _index = i),
           elevation: 0,
-          height: 68,
+          height: 60,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
           destinations: [
             NavigationDestination(
@@ -112,10 +112,6 @@ class DriverAccountInfoScreen extends StatelessWidget {
           ),
           Card(
             margin: const EdgeInsets.all(4),
-            shape: const RoundedRectangleBorder(
-              side: BorderSide.none,
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
             child: Column(
               children: [
                 _AccountInfoRow(
@@ -153,10 +149,6 @@ class DriverAccountInfoScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             margin: const EdgeInsets.all(4),
-            shape: const RoundedRectangleBorder(
-              side: BorderSide.none,
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
             child: ListTile(
               leading: const Icon(Icons.logout_rounded, color: AppTheme.danger),
               title: const Text(
@@ -465,14 +457,15 @@ class DriverSettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Card(
+            margin: EdgeInsets.zero,
             color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              minVerticalPadding: 0,
               leading: const Icon(Icons.person_outline_rounded),
               title: const Text(
                 '계정 정보',
@@ -489,18 +482,17 @@ class DriverSettingsScreen extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 12),
           const ThemeModeSettingsTile(),
-          const SizedBox(height: 12),
           Card(
+            margin: EdgeInsets.zero,
             color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              minVerticalPadding: 0,
               leading: const Icon(Icons.info_outline_rounded),
               title: const Text(
                 '앱 정보',

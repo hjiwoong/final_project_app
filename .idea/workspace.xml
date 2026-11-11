@@ -9,81 +9,19 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="BackgroundAgentGlobalSettings">
-    <option name="selectedModelId" value="auto" />
+    <option name="selectedModelId" value="grok-4.7" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="73f636d5-7e97-4632-8fb5-d66af541a48e" name="Changes" comment="11/05 일부 디자인 수정, API 적용, 계정삭제, 비밀번호 API 연동 및 기능 구현">
-      <change afterPath="$PROJECT_DIR$/generate_icon.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/dartpad/web_plugin_registrant.dart" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/dartpad/web_plugin_registrant.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_graph.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_graph.json" afterDir="false" />
+    <list default="true" id="73f636d5-7e97-4632-8fb5-d66af541a48e" name="Changes" comment="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/kotlin/com/example/final_project_app/MainActivity.kt" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/kotlin/com/example/final_project_app/MainActivity.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/res/mipmap-hdpi/ic_launcher.png" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/res/mipmap-hdpi/ic_launcher.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/res/mipmap-mdpi/ic_launcher.png" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/res/mipmap-mdpi/ic_launcher.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" beforeDir="false" afterPath="$PROJECT_DIR$/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner.xcodeproj/project.pbxproj" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner.xcodeproj/project.pbxproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ios/Runner/Info.plist" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/Info.plist" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/core/auth/session.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/auth/session.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/core/network/api_client.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/network/api_client.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/core/theme/app_theme.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/theme/app_theme.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/data/api/api_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/api/api_repository.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/data/models/judge_result.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/judge_result.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/data/models/notification_item.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/notification_item.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/auth/child_link_request_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/child_link_request_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/auth/email_login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/email_login_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/auth/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/login_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/auth/signup_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/signup_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/driver/boarding_capture_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/boarding_capture_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/driver/boarding_map_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/boarding_map_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/driver/driver_shell.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/driver_shell.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/driver/dropoff_capture_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/dropoff_capture_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/driver/judge_result_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/judge_result_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/driver/trip_end_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/trip_end_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/driver/trip_start_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/trip_start_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/parent/alert_detail_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/alert_detail_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/parent/attendance_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/attendance_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/parent/notification_list_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/notification_list_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_home_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_home_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_shell.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_shell.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/widgets/primary_button.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/widgets/primary_button.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png" beforeDir="false" afterPath="$PROJECT_DIR$/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/favicon.png" beforeDir="false" afterPath="$PROJECT_DIR$/web/favicon.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/icons/Icon-192.png" beforeDir="false" afterPath="$PROJECT_DIR$/web/icons/Icon-192.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/icons/Icon-512.png" beforeDir="false" afterPath="$PROJECT_DIR$/web/icons/Icon-512.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/icons/Icon-maskable-192.png" beforeDir="false" afterPath="$PROJECT_DIR$/web/icons/Icon-maskable-192.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/icons/Icon-maskable-512.png" beforeDir="false" afterPath="$PROJECT_DIR$/web/icons/Icon-maskable-512.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/web/manifest.json" beforeDir="false" afterPath="$PROJECT_DIR$/web/manifest.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/windows/flutter/generated_plugin_registrant.cc" beforeDir="false" afterPath="$PROJECT_DIR$/windows/flutter/generated_plugin_registrant.cc" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/windows/flutter/generated_plugins.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/windows/flutter/generated_plugins.cmake" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/windows/runner/resources/app_icon.ico" beforeDir="false" afterPath="$PROJECT_DIR$/windows/runner/resources/app_icon.ico" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/main.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/widget_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/widget_test.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -147,12 +85,13 @@
     </option>
     <option name="panelTemplate">
       <template>
-        <option name="ensembleEnabled" value="false" />
+        <option name="ensembleEnabled" value="true" />
+        <option name="ensembleTierId" value="balance" />
         <option name="modeId" value="Agent" />
         <option name="model">
           <model>
             <option name="modelType" value="builtin_id" />
-            <option name="modelValue" value="auto" />
+            <option name="modelValue" value="grok-4.7" />
           </model>
         </option>
         <option name="targetType" value="BACKGROUND" />
@@ -178,13 +117,14 @@
     "cidr.known.project.marker": "true",
     "com.google.services.firebase.aqiPopupShown": "true",
     "copilot.chat.legacySessionMetadata.migrated": "true",
+    "copilot.sensitive.folder.allow.file_read.D:/projects/final_project_api/routers": "true",
     "dart.analysis.tool.window.visible": "false",
     "git-widget-placeholder": "admin-app",
     "io.flutter.project.isFirstOpen": "true",
     "io.flutter.reload.alreadyRun": "true",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "D:/projects/final_project_app",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "settings.editor.selected.configurable": "com.github.copilot.settings.agentHarness.ThirdPartyAgentHarnessConfigurable",
     "show.migrate.to.gradle.popup": "false"
   }
 }]]></component>
@@ -268,7 +208,15 @@
       <option name="project" value="LOCAL" />
       <updated>1793880852218</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더">
+      <option name="closed" value="true" />
+      <created>1794312778613</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1794312778613</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -319,6 +267,7 @@
     <MESSAGE value="10/29 UI 개편, 기능 개선" />
     <MESSAGE value="11/04 일부 디자인 수정, API 적용" />
     <MESSAGE value="11/05 일부 디자인 수정, API 적용, 계정삭제, 비밀번호 API 연동 및 기능 구현" />
-    <option name="LAST_COMMIT_MESSAGE" value="11/05 일부 디자인 수정, API 적용, 계정삭제, 비밀번호 API 연동 및 기능 구현" />
+    <MESSAGE value="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더" />
+    <option name="LAST_COMMIT_MESSAGE" value="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더" />
   </component>
 </project>

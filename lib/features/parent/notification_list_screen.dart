@@ -13,7 +13,9 @@ import '../../core/notifications/in_app_notification_banner.dart';
 enum _NotificationFilter { all, urgent, check }
 
 class NotificationListScreen extends StatefulWidget {
-  const NotificationListScreen({super.key});
+  const NotificationListScreen({super.key, this.showSettingsButton = true});
+
+  final bool showSettingsButton;
 
   @override
   State<NotificationListScreen> createState() => _NotificationListScreenState();
@@ -318,15 +320,16 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
 
         // 모두 읽음 버튼
         actions: [
-          IconButton(
-            tooltip: '알림 설정',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const NotificationSettingsScreen(),
+          if (widget.showSettingsButton)
+            IconButton(
+              tooltip: '알림 설정',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const NotificationSettingsScreen(),
+                ),
               ),
+              icon: const Icon(Icons.settings_outlined),
             ),
-            icon: const Icon(Icons.settings_outlined),
-          ),
           IconButton(
             tooltip: '모두 읽음 처리',
             onPressed: _loading ? null : _markAllAsRead,

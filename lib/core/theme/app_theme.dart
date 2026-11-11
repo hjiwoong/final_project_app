@@ -65,6 +65,9 @@ class AppTheme {
       ? const ['sans-serif']
       : null;
 
+  static String? get systemFontFamily =>
+      defaultTargetPlatform == TargetPlatform.android ? 'sans-serif' : null;
+
   static const SystemUiOverlayStyle systemOverlayStyle = SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -74,14 +77,21 @@ class AppTheme {
     systemNavigationBarContrastEnforced: false,
   );
 
-  static SystemUiOverlayStyle systemOverlayStyleFor(Brightness brightness) {
+  static SystemUiOverlayStyle systemOverlayStyleFor(
+    Brightness brightness, {
+    Color? modalBarrierColor,
+  }) {
     final isDark = brightness == Brightness.dark;
+    final baseNavigationBarColor = isDark ? darkSurface : surface;
+    final navigationBarColor = modalBarrierColor == null
+        ? baseNavigationBarColor
+        : Color.alphaBlend(modalBarrierColor, baseNavigationBarColor);
     return SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-      systemNavigationBarColor: isDark ? darkSurface : surface,
-      systemNavigationBarDividerColor: isDark ? darkSurface : surface,
-      systemNavigationBarIconBrightness: isDark
+      systemNavigationBarColor: navigationBarColor,
+      systemNavigationBarDividerColor: navigationBarColor,
+      systemNavigationBarIconBrightness: modalBarrierColor != null || isDark
           ? Brightness.light
           : Brightness.dark,
       systemNavigationBarContrastEnforced: false,
@@ -90,6 +100,7 @@ class AppTheme {
 
   static final ThemeData light = ThemeData(
     useMaterial3: true,
+    fontFamily: systemFontFamily,
     fontFamilyFallback: systemCjkFontFallback,
     colorScheme: ColorScheme.fromSeed(
       seedColor: primary,
@@ -127,10 +138,12 @@ class AppTheme {
         color: Color(0xFF171717),
         fontSize: 24,
         fontWeight: FontWeight.w500,
+        fontFamily: systemFontFamily,
         fontFamilyFallback: systemCjkFontFallback,
       ),
       contentTextStyle: TextStyle(
         color: Color(0xFF171717),
+        fontFamily: systemFontFamily,
         fontFamilyFallback: systemCjkFontFallback,
       ),
     ),
@@ -151,6 +164,7 @@ class AppTheme {
         color: Color(0xFF171717),
         fontSize: 18,
         fontWeight: FontWeight.w700,
+        fontFamily: systemFontFamily,
         fontFamilyFallback: systemCjkFontFallback,
       ),
     ),
@@ -220,6 +234,7 @@ class AppTheme {
   static final ThemeData dark = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    fontFamily: systemFontFamily,
     fontFamilyFallback: systemCjkFontFallback,
     colorScheme: ColorScheme.fromSeed(
       seedColor: accent,
@@ -260,10 +275,12 @@ class AppTheme {
         color: Colors.white,
         fontSize: 24,
         fontWeight: FontWeight.w500,
+        fontFamily: systemFontFamily,
         fontFamilyFallback: systemCjkFontFallback,
       ),
       contentTextStyle: TextStyle(
         color: Colors.white,
+        fontFamily: systemFontFamily,
         fontFamilyFallback: systemCjkFontFallback,
       ),
     ),
@@ -285,6 +302,7 @@ class AppTheme {
         color: Colors.white,
         fontSize: 18,
         fontWeight: FontWeight.w700,
+        fontFamily: systemFontFamily,
         fontFamilyFallback: systemCjkFontFallback,
       ),
     ),
