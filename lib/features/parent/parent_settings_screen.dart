@@ -43,6 +43,11 @@ class ParentSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark
+        ? theme.colorScheme.surfaceContainerHigh
+        : const Color(0xFFFAFAFA);
     return Scaffold(
       appBar: AppBar(title: const Text('설정')),
       body: ListView(
@@ -50,11 +55,19 @@ class ParentSettingsScreen extends StatelessWidget {
         children: [
           Card(
             margin: EdgeInsets.zero,
+            color: cardColor,
             clipBehavior: Clip.antiAlias,
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFFA5D66A), Color(0xFF43A047)],
+                  colors: [
+                    cardColor,
+                    cardColor,
+                    isDark
+                        ? const Color(0xFFFFF8E6).withValues(alpha: 0.18)
+                        : const Color(0xFFFFF8E6),
+                  ],
+                  stops: const [0.0, 0.65, 1.0],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -64,11 +77,13 @@ class ParentSettingsScreen extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    backgroundColor: Colors.white.withValues(
+                      alpha: isDark ? 0.08 : 0.9,
+                    ),
                     child: const Icon(
                       Icons.person_rounded,
                       size: 32,
-                      color: Colors.white,
+                      color: Color(0xFFFF8A00),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -80,8 +95,8 @@ class ParentSettingsScreen extends StatelessWidget {
                           Session.name?.isNotEmpty == true
                               ? Session.name!
                               : '사용자',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -91,8 +106,8 @@ class ParentSettingsScreen extends StatelessWidget {
                           Session.email?.isNotEmpty == true
                               ? Session.email!
                               : '이메일 정보 없음',
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                         ),
@@ -103,13 +118,15 @@ class ParentSettingsScreen extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
+                            color: const Color(
+                              0xFFFF8A00,
+                            ).withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             _accountRoleLabel(),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -124,14 +141,15 @@ class ParentSettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Card(
+            margin: EdgeInsets.zero,
             color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              minVerticalPadding: 0,
               leading: const Icon(Icons.person_outline_rounded),
               title: const Text(
                 '계정 정보',
@@ -148,18 +166,17 @@ class ParentSettingsScreen extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 12),
           const ThemeModeSettingsTile(),
-          const SizedBox(height: 12),
           Card(
+            margin: EdgeInsets.zero,
             color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              minVerticalPadding: 0,
               leading: const Icon(Icons.child_care_outlined),
               title: const Text(
                 '자녀 관리',
@@ -170,16 +187,16 @@ class ParentSettingsScreen extends StatelessWidget {
               onTap: () => _openChildManagement(context),
             ),
           ),
-          const SizedBox(height: 12),
           Card(
+            margin: EdgeInsets.zero,
             color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              minVerticalPadding: 0,
               leading: const Icon(Icons.event_available_outlined),
               title: const Text(
                 '출석·결석 관리',
@@ -190,16 +207,16 @@ class ParentSettingsScreen extends StatelessWidget {
               onTap: () => _openAttendanceManagement(context),
             ),
           ),
-          const SizedBox(height: 12),
           Card(
+            margin: EdgeInsets.zero,
             color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              minVerticalPadding: 0,
               leading: const Icon(Icons.notifications_none),
               title: const Text(
                 '알림 설정',
@@ -216,16 +233,16 @@ class ParentSettingsScreen extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 12),
           Card(
+            margin: EdgeInsets.zero,
             color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              minVerticalPadding: 0,
               leading: const Icon(Icons.info_outline_rounded),
               title: const Text(
                 '앱 정보',

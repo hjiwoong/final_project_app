@@ -1,4 +1,4 @@
-import 'guardian_location.dart';
+import 'child_location.dart';
 
 class ChildStudent {
   const ChildStudent({
@@ -8,7 +8,7 @@ class ChildStudent {
     this.isAbsent = false,
     this.isMock = false,
     this.guardianUserIds = const [],
-    this.guardianLocations = const [],
+    this.location,
     this.busName,
     this.busStatus,
   });
@@ -19,12 +19,12 @@ class ChildStudent {
   final bool isAbsent;
   final bool isMock;
   final List<int> guardianUserIds;
-  final List<GuardianLocation> guardianLocations;
+  final ChildLocation? location;
   final String? busName;
   final String? busStatus;
 
   factory ChildStudent.fromJson(Map<String, dynamic> json) {
-    final guardianLocations = json['guardian_locations'] as List? ?? const [];
+    final location = json['location'];
     return ChildStudent(
       id: json['id'] as int,
       name: json['name'] as String,
@@ -32,13 +32,9 @@ class ChildStudent {
       isAbsent: json['is_absent'] as bool? ?? false,
       busName: json['bus_name'] as String?,
       busStatus: json['bus_status'] as String?,
-      guardianLocations: guardianLocations
-          .map(
-            (location) => GuardianLocation.fromJson(
-              Map<String, dynamic>.from(location as Map),
-            ),
-          )
-          .toList(),
+      location: location is Map
+          ? ChildLocation.fromJson(Map<String, dynamic>.from(location))
+          : null,
     );
   }
 }

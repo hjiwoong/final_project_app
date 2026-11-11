@@ -8,6 +8,12 @@
       "languageVersion": "3.2"
     },
     {
+      "name": "archive",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/archive-4.6.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "args",
       "rootUri": "file:///D:/pubcache/hosted/pub.dev/args-2.7.0",
       "packageUri": "lib/",
@@ -28,6 +34,18 @@
     {
       "name": "characters",
       "rootUri": "file:///D:/pubcache/hosted/pub.dev/characters-1.4.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "checked_yaml",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/checked_yaml-2.0.4",
+      "packageUri": "lib/",
+      "languageVersion": "3.8"
+    },
+    {
+      "name": "cli_util",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/cli_util-0.4.2",
       "packageUri": "lib/",
       "languageVersion": "3.4"
     },
@@ -186,6 +204,12 @@
       "rootUri": "file:///D:/src/flutter/packages/flutter",
       "packageUri": "lib/",
       "languageVersion": "3.10"
+    },
+    {
+      "name": "flutter_launcher_icons",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/flutter_launcher_icons-0.13.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.18"
     },
     {
       "name": "flutter_lints",
@@ -368,6 +392,12 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "image",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/image-4.12.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "image_picker",
       "rootUri": "file:///D:/pubcache/hosted/pub.dev/image_picker-1.2.4",
       "packageUri": "lib/",
@@ -438,6 +468,12 @@
       "rootUri": "file:///D:/pubcache/hosted/pub.dev/js-0.6.7",
       "packageUri": "lib/",
       "languageVersion": "2.19"
+    },
+    {
+      "name": "json_annotation",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/json_annotation-4.12.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.9"
     },
     {
       "name": "leak_tracker",
@@ -560,6 +596,42 @@
       "languageVersion": "3.2"
     },
     {
+      "name": "permission_handler",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/permission_handler-12.0.3",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "permission_handler_android",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/permission_handler_android-13.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "permission_handler_apple",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/permission_handler_apple-9.6.5",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "permission_handler_html",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/permission_handler_html-0.1.4+1",
+      "packageUri": "lib/",
+      "languageVersion": "3.5"
+    },
+    {
+      "name": "permission_handler_platform_interface",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/permission_handler_platform_interface-4.4.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "permission_handler_windows",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/permission_handler_windows-0.2.4",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
       "name": "petitparser",
       "rootUri": "file:///D:/pubcache/hosted/pub.dev/petitparser-7.0.2",
       "packageUri": "lib/",
@@ -574,6 +646,12 @@
     {
       "name": "plugin_platform_interface",
       "rootUri": "file:///D:/pubcache/hosted/pub.dev/plugin_platform_interface-2.1.8",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "posix",
+      "rootUri": "file:///D:/pubcache/hosted/pub.dev/posix-6.5.4",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     },

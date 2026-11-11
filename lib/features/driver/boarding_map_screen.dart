@@ -3,13 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
 import '../../core/auth/trip_progress_storage.dart';
 import '../../core/maps/naver_map_status.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
-import '../../data/models/guardian_location.dart';
+import '../../data/models/child_location.dart';
 import '../../data/models/trip_exit_action.dart';
 import '../../data/models/trip_progress.dart';
 import '../../widgets/primary_button.dart';
@@ -147,7 +148,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
         _loadingStops = false;
       });
     } catch (e) {
-      debugPrint('탑승 지도 학생/보호자 위치 조회 실패: $e');
+      debugPrint('탑승 지도 학생/자녀 위치 조회 실패: $e');
       if (!mounted) return;
       setState(() {
         _loadError = '탑승 지도 정보를 불러오지 못했습니다. 서버 연결과 위치 설정을 확인해 주세요.';
@@ -171,24 +172,25 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
               : Theme.of(context).colorScheme.tertiary,
           'isAbsent': student.isAbsent,
           'studentId': student.id,
-          'guardianLocations': student.guardianLocations,
+          'location': student.location,
         },
       {
         'title': '종점 도착 · 마지막 정류장',
         'student': '탑승 예정 ${students.length}명',
         'status': '종점',
         'statusColor': Theme.of(context).colorScheme.primary,
-        'guardianLocations': const <GuardianLocation>[],
+        'location': null,
       },
     ];
   }
 
   List<NLatLng> get _stopPositions => [
     for (final stop in _stops)
-      for (final location
-          in stop['guardianLocations'] as List<GuardianLocation>)
-        if (location.hasCoordinates)
-          NLatLng(location.latitude!, location.longitude!),
+      if ((stop['location'] as ChildLocation?)?.hasCoordinates == true)
+        NLatLng(
+          (stop['location'] as ChildLocation).latitude!,
+          (stop['location'] as ChildLocation).longitude!,
+        ),
   ];
 
   Color _markerColor(BuildContext context, int index) {
@@ -230,21 +232,17 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     _stopMarkers.clear();
     _stopMarkerStopIndices.clear();
     for (final (stopIndex, stop) in _stops.indexed) {
-      final locations = stop['guardianLocations'] as List<GuardianLocation>;
-      for (final (locationIndex, location) in locations.indexed) {
-        if (!location.hasCoordinates) continue;
-        _stopMarkers.add(
-          NMarker(
-            id: 'boarding_stop_${stop['studentId']}_$locationIndex',
-            position: NLatLng(location.latitude!, location.longitude!),
-            icon: await _markerIcon(context, stopIndex),
-            caption: NOverlayCaption(
-              text: '${stopIndex + 1}번 정류장 · 보호자 ${locationIndex + 1}',
-            ),
-          ),
-        );
-        _stopMarkerStopIndices.add(stopIndex);
-      }
+      final location = stop['location'] as ChildLocation?;
+      if (location == null || !location.hasCoordinates) continue;
+      _stopMarkers.add(
+        NMarker(
+          id: 'boarding_stop_${stop['studentId']}',
+          position: NLatLng(location.latitude!, location.longitude!),
+          icon: await _markerIcon(context, stopIndex),
+          caption: NOverlayCaption(text: '${stopIndex + 1}번 정류장'),
+        ),
+      );
+      _stopMarkerStopIndices.add(stopIndex);
     }
     if (_stopMarkers.isNotEmpty) {
       await controller.addOverlayAll(_stopMarkers.toSet());
@@ -263,9 +261,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       }
       await widget.onStopChanged?.call(_currentStopIndex);
     } else {
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const BoardingCaptureScreen()));
+      await _confirmPassengerNavigation();
     }
   }
 
@@ -309,7 +305,9 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       Navigator.of(context).pop(TripExitAction.cancel);
     } catch (e) {
       if (!mounted) return;
-      InAppNotificationBanner.showMessage('운행을 취소하지 못했습니다. ($e)');
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(e, fallback: '운행을 취소하지 못했습니다. 다시 시도해 주세요.'),
+      );
     }
   }
 
@@ -353,10 +351,10 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       appBar: _buildAppBar(),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final collapsedSheetSize = (107 / constraints.maxHeight)
+          final collapsedSheetSize = (78 / constraints.maxHeight)
               .clamp(0.1, 0.3)
               .toDouble();
-          final expandedSheetSize = (220 / constraints.maxHeight)
+          final expandedSheetSize = (188 / constraints.maxHeight)
               .clamp(collapsedSheetSize + 0.05, 0.5)
               .toDouble();
           _collapsedSheetSize = collapsedSheetSize;
@@ -454,7 +452,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              '보호자가 저장한 실제 위치',
+                              '등록된 자녀 주소 위치',
                               style: TextStyle(
                                 color: Theme.of(
                                   context,
@@ -467,7 +465,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              '보호자 좌표가 없어 기본 위치의 지도를 표시합니다.',
+                              '자녀 좌표가 없어 기본 위치의 지도를 표시합니다.',
                               style: TextStyle(
                                 color: Theme.of(
                                   context,
@@ -550,7 +548,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                                 child: Padding(
                                   padding: const EdgeInsets.fromLTRB(
                                     18,
-                                    8,
+                                    12,
                                     18,
                                     8,
                                   ),
@@ -558,134 +556,95 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                      Center(
-                                        child: Semantics(
-                                          button: true,
-                                          label: _isSheetCollapsed
-                                              ? '정류장 정보 패널 펼치기'
-                                              : '정류장 정보 패널 접기',
-                                          child: GestureDetector(
-                                            behavior: HitTestBehavior.opaque,
-                                            onTap: _toggleSheet,
-                                            child: SizedBox(
-                                              width: double.infinity,
-                                              height: 32,
-                                              child: Center(
-                                                child: Container(
-                                                  width: 40,
-                                                  height: 5,
-                                                  decoration: BoxDecoration(
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .outlineVariant,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          3,
-                                                        ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 8),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                if (isLast) ...[
-                                                  Icon(
-                                                    Icons.school,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.primary,
-                                                    size: 20,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                ] else ...[
-                                                  Icon(
-                                                    Icons.location_on,
-                                                    color: Theme.of(
-                                                      context,
-                                                    ).colorScheme.error,
-                                                    size: 20,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                ],
-                                                Expanded(
-                                                  child: Text(
-                                                    stop['title'],
-                                                    style: const TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                ),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 4,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        (stop['statusColor']
-                                                                as Color)
-                                                            .withValues(
-                                                              alpha: 0.1,
-                                                            ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                  ),
-                                                  child: Text(
-                                                    stop['status'],
-                                                    style: TextStyle(
-                                                      color:
-                                                          stop['statusColor'],
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            Visibility(
-                                              visible: !_isSheetCollapsed,
-                                              maintainState: true,
-                                              maintainAnimation: true,
-                                              maintainSize: true,
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
+                                      Semantics(
+                                        button: true,
+                                        label: _isSheetCollapsed
+                                            ? '정류장 정보 패널 펼치기'
+                                            : '정류장 정보 패널 접기',
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTap: _toggleSheet,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
                                                 children: [
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    stop['student'],
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurfaceVariant,
+                                                  if (isLast) ...[
+                                                    Icon(
+                                                      Icons.school,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.primary,
+                                                      size: 20,
                                                     ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
+                                                    const SizedBox(width: 4),
+                                                  ] else ...[
+                                                    Icon(
+                                                      Icons.location_on,
+                                                      color: Theme.of(
+                                                        context,
+                                                      ).colorScheme.error,
+                                                      size: 20,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                  ],
+                                                  Expanded(
+                                                    child: Text(
+                                                      stop['title'],
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
                                                   ),
-                                                  if (!isLast) ...[
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          (stop['statusColor']
+                                                                  as Color)
+                                                              .withValues(
+                                                                alpha: 0.1,
+                                                              ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      stop['status'],
+                                                      style: TextStyle(
+                                                        color:
+                                                            stop['statusColor'],
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 12,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              Visibility(
+                                                visible: !_isSheetCollapsed,
+                                                maintainState: true,
+                                                maintainAnimation: true,
+                                                maintainSize: true,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
                                                     const SizedBox(height: 4),
                                                     Text(
-                                                      '탑승 버스 : ${widget.busName}',
+                                                      stop['student'],
                                                       style: TextStyle(
-                                                        fontSize: 13,
+                                                        fontSize: 14,
                                                         color: Theme.of(context)
                                                             .colorScheme
                                                             .onSurfaceVariant,
@@ -694,11 +653,26 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                     ),
+                                                    if (!isLast) ...[
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                        '탑승 버스 : ${widget.busName}',
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ],
                                                   ],
-                                                ],
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -738,6 +712,65 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     title: const Text('탑승 지도'),
     elevation: 0,
   );
+
+  Future<void> _confirmPassengerNavigation() async {
+    final shouldContinue = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: false,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (context) => SafeArea(
+        top: false,
+        child: Container(
+          margin: AppTheme.sheetMargin,
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          decoration: AppTheme.sheetDecoration(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '탑승 완료',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '모든 승객이 전부 탑승했는지 확인해 주세요. 예를 터치하면 돌아갈 수 없습니다.',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('아니요'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('예'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (shouldContinue != true || !mounted) return;
+
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const BoardingCaptureScreen()));
+  }
 
   Widget _buildLegendDot(Color color, String label) {
     return Row(

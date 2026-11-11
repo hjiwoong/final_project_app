@@ -4,30 +4,55 @@ class JudgeResult {
   final int remainingCount;
   final String? imagePath;
   final String? imageUrl;
+  final String? result;
+  final String? message;
+  final String? guidance;
+  final bool? retakeRecommended;
+  final List<String> agentReasons;
+  final int? alertId;
 
   const JudgeResult({
     required this.boardingCount,
     required this.remainingCount,
     this.imagePath,
     this.imageUrl,
+    this.result,
+    this.message,
+    this.guidance,
+    this.retakeRecommended,
+    this.agentReasons = const [],
+    this.alertId,
   });
 
   int get alightedCount => boardingCount - remainingCount;
 
-  /// 잔류 0명이면 정상, 1명 이상이면 미하차 의심
-  bool get isOk => remainingCount == 0;
+  bool get isOk => result == null ? remainingCount == 0 : result == 'OK';
+  bool get isNeedsCheck => result == 'NEEDS_CHECK';
+  bool get shouldRetake => retakeRecommended ?? !isOk;
 
   JudgeResult copyWith({
     int? boardingCount,
     int? remainingCount,
     String? imagePath,
     String? imageUrl,
+    String? result,
+    String? message,
+    String? guidance,
+    bool? retakeRecommended,
+    List<String>? agentReasons,
+    int? alertId,
   }) {
     return JudgeResult(
       boardingCount: boardingCount ?? this.boardingCount,
       remainingCount: remainingCount ?? this.remainingCount,
       imagePath: imagePath ?? this.imagePath,
       imageUrl: imageUrl ?? this.imageUrl,
+      result: result ?? this.result,
+      message: message ?? this.message,
+      guidance: guidance ?? this.guidance,
+      retakeRecommended: retakeRecommended ?? this.retakeRecommended,
+      agentReasons: agentReasons ?? this.agentReasons,
+      alertId: alertId ?? this.alertId,
     );
   }
 
@@ -51,6 +76,18 @@ class JudgeResult {
     return JudgeResult(
       boardingCount: boarding,
       remainingCount: remaining,
+      result: _readString(root, ['result', 'verdict']),
+      message: _readString(root, ['message']),
+      guidance: _readString(root, ['guidance']),
+      retakeRecommended: root['retake_recommended'] is bool
+          ? root['retake_recommended'] as bool
+          : null,
+      agentReasons: root['agent_reasons'] is List
+          ? (root['agent_reasons'] as List).whereType<String>().toList(
+              growable: false,
+            )
+          : const [],
+      alertId: _readInt(root, ['alert_id']),
       imagePath: _readString(root, [
         'image_path',
         'imagePath',

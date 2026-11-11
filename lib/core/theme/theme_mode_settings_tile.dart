@@ -15,6 +15,18 @@ class ThemeModeSettingsTile extends StatelessWidget {
     ThemeMode.dark: '어둡게',
   };
 
+  static const _summaryLabels = {
+    ThemeMode.system: '시스템',
+    ThemeMode.light: '밝게',
+    ThemeMode.dark: '어둡게',
+  };
+
+  static const _icons = {
+    ThemeMode.system: Icons.settings_suggest_outlined,
+    ThemeMode.light: Icons.light_mode_outlined,
+    ThemeMode.dark: Icons.dark_mode_outlined,
+  };
+
   Future<void> _selectThemeMode(BuildContext context) async {
     final controller = ThemeController.instance;
     final selectedMode = await showModalBottomSheet<ThemeMode>(
@@ -30,33 +42,24 @@ class ThemeModeSettingsTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
                   '화면 테마',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  style: Theme.of(
+                    sheetContext,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
-              const SizedBox(height: 8),
-              RadioGroup<ThemeMode>(
-                groupValue: controller.themeMode,
-                onChanged: (value) {
-                  if (value != null) {
-                    Navigator.of(sheetContext).pop(value);
-                  }
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: ThemeMode.values
-                      .map(
-                        (mode) => RadioListTile<ThemeMode>(
-                          value: mode,
-                          title: Text(_labels[mode]!),
-                        ),
-                      )
-                      .toList(),
+              const SizedBox(height: 12),
+              for (final mode in ThemeMode.values)
+                _ThemeModeOption(
+                  label: _labels[mode]!,
+                  icon: _icons[mode]!,
+                  selected: controller.themeMode == mode,
+                  onTap: () => Navigator.of(sheetContext).pop(mode),
                 ),
-              ),
+              const SizedBox(height: 4),
             ],
           ),
         ),
@@ -79,26 +82,107 @@ class ThemeModeSettingsTile extends StatelessWidget {
     return ListenableBuilder(
       listenable: ThemeController.instance,
       builder: (context, _) {
+        final selectedMode = ThemeController.instance.themeMode;
         return Card(
+          margin: EdgeInsets.zero,
           color: Theme.of(context).scaffoldBackgroundColor,
           shape: const RoundedRectangleBorder(
             side: BorderSide.none,
             borderRadius: BorderRadius.all(Radius.circular(12)),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            minVerticalPadding: 14,
-            leading: const Icon(Icons.dark_mode_outlined),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            minVerticalPadding: 0,
+            leading: Icon(_icons[selectedMode]!),
             title: const Text(
               '화면 테마',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
-            subtitle: Text(_labels[ThemeController.instance.themeMode]!),
-            trailing: const Icon(Icons.chevron_right_rounded),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _summaryLabels[selectedMode]!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.more_vert_rounded),
+              ],
+            ),
             onTap: () => _selectThemeMode(context),
           ),
         );
       },
+    );
+  }
+}
+
+class _ThemeModeOption extends StatelessWidget {
+  const _ThemeModeOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final foregroundColor = selected
+        ? colorScheme.primary
+        : colorScheme.onSurface;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Material(
+        color: selected
+            ? colorScheme.primary.withValues(alpha: 0.08)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Semantics(
+            inMutuallyExclusiveGroup: true,
+            selected: selected,
+            button: true,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(icon, size: 22, color: foregroundColor),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: foregroundColor,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  if (selected)
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 20,
+                      color: colorScheme.primary,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

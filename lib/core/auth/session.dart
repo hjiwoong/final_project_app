@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../data/models/user_role.dart';
@@ -24,7 +27,13 @@ class Session {
   static Future<void> clear() async {
     if (!isMockAccount && await TokenStorage.read() != null) {
       try {
-        await ApiClient.instance.dio.delete('/me/push-token');
+        final token = await _currentPushToken();
+        if (token != null) {
+          await ApiClient.instance.dio.delete(
+            '/me/push-token',
+            data: {'push_token': token},
+          );
+        }
       } on DioException catch (error) {
         debugPrint('로그아웃 시 푸시 토큰 해제 실패: $error');
       }
@@ -43,5 +52,16 @@ class Session {
     isMockAccount = false;
     await TokenStorage.clear();
     await TripProgressStorage.clear();
+  }
+
+  static Future<String?> _currentPushToken() async {
+    try {
+      return await FirebaseMessaging.instance
+          .getToken()
+          .timeout(const Duration(seconds: 3));
+    } catch (error) {
+      debugPrint('푸시 토큰 확인 실패: $error');
+      return null;
+    }
   }
 }

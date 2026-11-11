@@ -1,4 +1,10 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+
+import '../../core/notifications/in_app_notification_banner.dart';
+import '../../data/api/api_repository.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -27,9 +33,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   Future<void> _submit() async {
-    final current = _currentPasswordController.text.trim();
-    final next = _newPasswordController.text.trim();
-    final confirm = _confirmPasswordController.text.trim();
+    final current = _currentPasswordController.text;
+    final next = _newPasswordController.text;
+    final confirm = _confirmPasswordController.text;
 
     if (current.isEmpty) {
       setState(() => _error = '현재 비밀번호를 입력해 주세요.');
@@ -38,6 +44,23 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     if (next.length < 8) {
       setState(() => _error = '새 비밀번호는 8자 이상이어야 합니다.');
+      return;
+    }
+
+    const punctuation = r"""!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~""";
+    if (!RegExp(r'[A-Z]').hasMatch(next) ||
+        !next.split('').any(punctuation.contains)) {
+      setState(() => _error = '새 비밀번호에 영문 대문자와 특수문자를 포함해 주세요.');
+      return;
+    }
+
+    if (utf8.encode(next).length > 72) {
+      setState(() => _error = '새 비밀번호가 너무 깁니다. (최대 72바이트)');
+      return;
+    }
+
+    if (next == current) {
+      setState(() => _error = '새 비밀번호는 현재 비밀번호와 달라야 합니다.');
       return;
     }
 
@@ -51,28 +74,69 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       _saving = true;
     });
 
-    await Future<void>.delayed(const Duration(milliseconds: 700));
+    try {
+      await ApiRepository.instance.changePassword(
+        currentPassword: current,
+        newPassword: next,
+      );
+    } on DioException catch (error) {
+      if (!mounted) return;
+      final detail = (error.response?.data is Map)
+          ? (error.response?.data['detail']?.toString() ?? '')
+          : '';
+      setState(() {
+        _error = switch (error.response?.statusCode) {
+          400 => '새 비밀번호는 현재 비밀번호와 달라야 합니다.',
+          401 when detail.contains('현재 비밀번호') => '현재 비밀번호가 올바르지 않습니다.',
+          401 => '로그인이 만료되었습니다. 다시 로그인해 주세요.',
+          403 => '이 계정은 비밀번호 변경을 사용할 수 없습니다.',
+          422 => '새 비밀번호가 서버의 비밀번호 정책에 맞지 않습니다.',
+          _ => '비밀번호 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        };
+        _saving = false;
+      });
+      return;
+    } on StateError catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _saving = false;
+      });
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = '비밀번호 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+        _saving = false;
+      });
+      return;
+    }
 
     if (!mounted) return;
 
     setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('비밀번호가 변경되었습니다.')),
-    );
+    InAppNotificationBanner.showMessage('비밀번호가 변경되었습니다.');
     Navigator.of(context).pop();
   }
 
-  InputDecoration _fieldDecoration(String label, {required bool obscureText, required VoidCallback onToggle}) {
+  InputDecoration _fieldDecoration(
+    String label, {
+    required bool obscureText,
+    required VoidCallback onToggle,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InputDecoration(
       labelText: label,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       filled: true,
-      fillColor: Colors.grey.shade50,
+      fillColor: colorScheme.surfaceContainerHighest,
       suffixIcon: IconButton(
         onPressed: onToggle,
         icon: Icon(
-          obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-          color: Colors.grey,
+          obscureText
+              ? Icons.visibility_outlined
+              : Icons.visibility_off_outlined,
+          color: colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -88,11 +152,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 '비밀번호를 입력해 주세요.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 20),
@@ -102,7 +166,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 decoration: _fieldDecoration(
                   '현재 비밀번호',
                   obscureText: _obscureCurrent,
-                  onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
+                  onToggle: () =>
+                      setState(() => _obscureCurrent = !_obscureCurrent),
                 ),
               ),
               const SizedBox(height: 16),
@@ -122,7 +187,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 decoration: _fieldDecoration(
                   '새 비밀번호 확인',
                   obscureText: _obscureConfirm,
-                  onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                  onToggle: () =>
+                      setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
               ),
               if (_error != null) ...[
@@ -131,13 +197,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: Theme.of(context).colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.shade200),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                   child: Text(
                     _error!,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
                   ),
                 ),
               ],
@@ -146,20 +216,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 alignment: Alignment.centerLeft,
                 child: TextButton(
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('비밀번호 재설정은 관리자에게 문의해 주세요.')),
+                    InAppNotificationBanner.showMessage(
+                      '비밀번호 재설정은 관리자에게 문의해 주세요.',
                     );
                   },
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text(
+                  child: Text(
                     '비밀번호를 잊으셨나요?',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Colors.blue,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ),
@@ -171,10 +241,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 child: FilledButton.icon(
                   onPressed: _saving ? null : _submit,
                   icon: _saving
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
                         )
                       : const Icon(Icons.lock_reset_rounded),
                   label: Text(_saving ? '변경 중...' : '비밀번호 변경'),

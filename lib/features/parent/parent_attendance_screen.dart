@@ -64,7 +64,9 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
     });
 
     try {
-      final children = await ApiRepository.instance.getChildren();
+      final children = await ApiRepository.instance.getChildren(
+        date: date ?? _selectedDate,
+      );
       if (!mounted) return;
 
       setState(() {
@@ -139,6 +141,7 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                 icon: const Icon(Icons.calendar_today_outlined),
                 label: Text(_formatDate(_selectedDate)),
               ),
+              const SizedBox(height: 20),
               const Text(
                 '자녀별 출석 상태',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),

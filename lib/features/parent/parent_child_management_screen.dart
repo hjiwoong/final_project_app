@@ -4,6 +4,7 @@ import '../../core/auth/session.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
 import '../auth/child_link_request_screen.dart';
+import '../../widgets/settings_menu_tile.dart';
 import 'child_link_request_status_screen.dart';
 import 'child_unlink_screen.dart';
 
@@ -43,14 +44,14 @@ class ParentChildManagementScreen extends StatelessWidget {
             subtitle: '계정에 연결된 자녀 정보를 확인합니다.',
             onTap: () => _openChildList(context),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _ChildManagementMenuTile(
             icon: Icons.person_add_alt_1_outlined,
             title: '자녀 연결 요청',
             subtitle: '자녀 정보를 입력해 연결을 신청합니다.',
             onTap: () => _requestChildLink(context),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _ChildManagementMenuTile(
             icon: Icons.pending_actions_outlined,
             title: '연결 요청 상태 확인',
@@ -61,7 +62,7 @@ class ParentChildManagementScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _ChildManagementMenuTile(
             icon: Icons.link_off_outlined,
             title: '자녀 연결 해제',
@@ -86,22 +87,13 @@ class _ChildManagementMenuTile extends StatelessWidget {
 
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String subtitle; // 메뉴 설명 (현재 화면에는 표시하지 않음)
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: const RoundedRectangleBorder(side: BorderSide.none),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Icon(icon),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        // subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right_rounded),
-        onTap: onTap,
-      ),
-    );
+    // 설정 화면과 같은 공통 메뉴 줄 디자인 사용
+    return SettingsMenuTile(icon: icon, title: title, onTap: onTap);
   }
 }
 
@@ -146,7 +138,7 @@ class _ChildListScreenState extends State<_ChildListScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.error_outline, size: 40),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     const Text('자녀 정보를 불러오지 못했습니다.'),
                     const SizedBox(height: 8),
                     OutlinedButton.icon(

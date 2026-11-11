@@ -1,6 +1,6 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 
@@ -97,13 +97,10 @@ class _ChildLinkRequestScreenState extends State<ChildLinkRequestScreen> {
   }
 
   String _errorMessage(Object error) {
-    if (error is DioException) {
-      final response = error.response?.data;
-      if (response is Map && response['detail'] != null) {
-        return response['detail'].toString();
-      }
-    }
-    return error.toString();
+    return AppErrorMessage.from(
+      error,
+      fallback: '자녀 연결 요청을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.',
+    );
   }
 
   @override

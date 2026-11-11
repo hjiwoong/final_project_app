@@ -1,3 +1,4 @@
+import '../../widgets/settings_menu_tile.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
@@ -6,7 +7,6 @@ import '../../core/theme/theme_mode_settings_tile.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/user_role.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
-import '../auth/account_removal_screen.dart';
 import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
 import '../parent/notification_mock_store.dart';
@@ -41,7 +41,7 @@ class _DriverShellState extends State<DriverShell> {
 
   static final List<Widget> _pages = [
     const TripStartScreen(),
-    const NotificationListScreen(),
+    const NotificationListScreen(showSettingsButton: false),
     const DriverSettingsScreen(),
   ];
 
@@ -49,33 +49,42 @@ class _DriverShellState extends State<DriverShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_index],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        elevation: 0,
-        height: 68,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.directions_bus_outlined),
-            selectedIcon: Icon(Icons.directions_bus),
-            label: '',
-          ),
-          NavigationDestination(
-            icon: const UnreadNotificationBadge(
-              icon: Icons.notifications_outlined,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
             ),
-            selectedIcon: const UnreadNotificationBadge(
-              icon: Icons.notifications,
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          elevation: 0,
+          height: 60,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+          destinations: [
+            NavigationDestination(
+              icon: Icon(Icons.directions_bus_outlined),
+              selectedIcon: Icon(Icons.directions_bus),
+              label: '',
             ),
-            label: '',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: '',
-          ),
-        ],
+            NavigationDestination(
+              icon: const UnreadNotificationBadge(
+                icon: Icons.notifications_outlined,
+              ),
+              selectedIcon: const UnreadNotificationBadge(
+                icon: Icons.notifications,
+              ),
+              label: '',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings),
+              label: '',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -91,7 +100,6 @@ class DriverAccountInfoScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const SizedBox(height: 0),
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
             child: Text(
@@ -104,6 +112,11 @@ class DriverAccountInfoScreen extends StatelessWidget {
             ),
           ),
           Card(
+            margin: const EdgeInsets.all(4),
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
             child: Column(
               children: [
                 _AccountInfoRow(
@@ -139,62 +152,22 @@ class DriverAccountInfoScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.logout_rounded, color: AppTheme.danger),
-              title: const Text(
-                '로그아웃',
-                style: TextStyle(
-                  color: AppTheme.danger,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.danger,
-              ),
-              onTap: () async {
-                final shouldLogout = await showLogoutConfirmationDialog(
-                  context,
-                );
-                if (!shouldLogout || !context.mounted) return;
-                await Session.clear();
-                if (!context.mounted) return;
-                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (_) => false,
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(
-                Icons.person_remove_alt_1_rounded,
-                color: AppTheme.danger,
-              ),
-              title: const Text(
-                '계정 삭제',
-                style: TextStyle(
-                  color: AppTheme.danger,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.danger,
-              ),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const AccountRemovalScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+          SettingsMenuTile(
+            icon: Icons.logout_rounded,
+            title: '로그아웃',
+            color: AppTheme.danger,
+            showChevron: false,
+            onTap: () async {
+              final shouldLogout = await showLogoutConfirmationDialog(context);
+              if (!shouldLogout || !context.mounted) return;
+              await Session.clear();
+              if (!context.mounted) return;
+              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
+            },
+          ),        ],
       ),
     );
   }
@@ -223,9 +196,10 @@ class DriverAccountInfoScreen extends StatelessWidget {
 
   String _signupMethodLabel() {
     return switch (Session.signupMethod?.toUpperCase()) {
-      'APP' => '앱 가입',
-      'GOOGLE' => 'Google 가입',
-      'ADMIN' => '관리자 생성',
+      'APP' => 'App',
+      'GOOGLE' => 'Google Account',
+      'ADMIN' => 'Web',
+      'LEGACY' => '기존 계정 (가입 경로 미기록)',
       _ => '정보 없음',
     };
   }
@@ -393,6 +367,11 @@ class DriverSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark
+        ? theme.colorScheme.surfaceContainerHigh
+        : const Color(0xFFFAFAFA);
     return Scaffold(
       appBar: AppBar(title: const Text('설정')),
       body: ListView(
@@ -400,11 +379,19 @@ class DriverSettingsScreen extends StatelessWidget {
         children: [
           Card(
             margin: EdgeInsets.zero,
+            color: cardColor,
             clipBehavior: Clip.antiAlias,
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF42A5F5), Color(0xFF1565C0)],
+                  colors: [
+                    cardColor,
+                    cardColor,
+                    isDark
+                        ? const Color(0xFFFFF8E6).withValues(alpha: 0.18)
+                        : const Color(0xFFFFF8E6),
+                  ],
+                  stops: const [0.0, 0.65, 1.0],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -414,11 +401,13 @@ class DriverSettingsScreen extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    backgroundColor: Colors.white.withValues(
+                      alpha: isDark ? 0.08 : 0.9,
+                    ),
                     child: const Icon(
                       Icons.person_rounded,
                       size: 32,
-                      color: Colors.white,
+                      color: Color(0xFFFF8A00),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -430,8 +419,8 @@ class DriverSettingsScreen extends StatelessWidget {
                           Session.name?.isNotEmpty == true
                               ? Session.name!
                               : '사용자',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -441,8 +430,8 @@ class DriverSettingsScreen extends StatelessWidget {
                           Session.email?.isNotEmpty == true
                               ? Session.email!
                               : '이메일 정보 없음',
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                         ),
@@ -453,13 +442,15 @@ class DriverSettingsScreen extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
+                            color: const Color(
+                              0xFFFF8A00,
+                            ).withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             _accountRoleLabel(),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -474,14 +465,15 @@ class DriverSettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Card(
+            margin: EdgeInsets.zero,
             color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              minVerticalPadding: 0,
               leading: const Icon(Icons.person_outline_rounded),
               title: const Text(
                 '계정 정보',
@@ -498,18 +490,17 @@ class DriverSettingsScreen extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 12),
           const ThemeModeSettingsTile(),
-          const SizedBox(height: 12),
           Card(
+            margin: EdgeInsets.zero,
             color: Theme.of(context).scaffoldBackgroundColor,
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              minVerticalPadding: 14,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              minVerticalPadding: 0,
               leading: const Icon(Icons.info_outline_rounded),
               title: const Text(
                 '앱 정보',

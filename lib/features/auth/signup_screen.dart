@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../data/api/api_repository.dart';
-import 'child_link_request_screen.dart';
+import '../parent/parent_shell.dart';
 
 import '../../core/notifications/in_app_notification_banner.dart';
 
@@ -78,7 +78,10 @@ class _SignupScreenState extends State<SignupScreen> {
         name: _nameController.text.trim(),
       );
       if (!mounted) return;
-      setState(() => _step = 3);
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const ParentShell()),
+        (_) => false,
+      );
     } catch (e) {
       if (!mounted) return;
       InAppNotificationBanner.showMessage('회원가입 실패: ${_errorMessage(e)}');
@@ -88,31 +91,14 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   String _errorMessage(Object error) {
-    if (error is DioException) {
-      final response = error.response?.data;
-      if (response is Map && response['detail'] != null) {
-        return response['detail'].toString();
-      }
-    }
-    return error.toString();
-  }
-
-  Future<void> _addChildNow() async {
-    final added = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) =>
-            ChildLinkRequestScreen(email: _emailController.text.trim()),
-      ),
+    return AppErrorMessage.from(
+      error,
+      fallback: '회원가입을 완료하지 못했습니다. 입력 정보를 확인하고 다시 시도해 주세요.',
     );
-    if (added == true && mounted) {
-      InAppNotificationBanner.showMessage('자녀 연결 요청을 추가했습니다.');
-    }
   }
-
-  void _finishSignup() => Navigator.of(context).pop();
 
   void _goBack() {
-    if (_step == 0 || _step == 3) {
+    if (_step == 0) {
       Navigator.of(context).pop();
     } else {
       setState(() => _step -= 1);
@@ -121,7 +107,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isCompletion = _step == 3;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -129,7 +114,6 @@ class _SignupScreenState extends State<SignupScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           tooltip: '뒤로가기',
         ),
-        //title: Text(isCompletion ? '가입 완료' : ''),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
@@ -141,71 +125,68 @@ class _SignupScreenState extends State<SignupScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
             children: [
-              if (!isCompletion) ...[
-                _ProgressIndicator(step: _step),
-                const SizedBox(height: 28),
-                Text(
-                  _stepTitle,
-                  style: TextStyle(
-                    fontSize: 22,
-                    height: 1.3,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
+              _ProgressIndicator(step: _step),
+              const SizedBox(height: 28),
+              Text(
+                _stepTitle,
+                style: TextStyle(
+                  fontSize: 22,
+                  height: 1.3,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _stepDescription,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _stepDescription,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(height: 30),
-                ..._buildCurrentStepFields(),
-                const SizedBox(height: 28),
-                SizedBox(
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: _loading || !_canContinue
-                        ? null
-                        : switch (_step) {
-                            0 => _nextFromEmail,
-                            1 => _nextFromPassword,
-                            _ => _createAccount,
-                          },
-                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
-                    child: _loading
-                        ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          )
-                        : Text(
-                            _step == 2 ? '계정 만들기' : '다음',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
+              ),
+              const SizedBox(height: 30),
+              ..._buildCurrentStepFields(),
+              const SizedBox(height: 28),
+              SizedBox(
+                height: 52,
+                child: FilledButton(
+                  onPressed: _loading || !_canContinue
+                      ? null
+                      : switch (_step) {
+                          0 => _nextFromEmail,
+                          1 => _nextFromPassword,
+                          _ => _createAccount,
+                        },
+                  style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                  child: _loading
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.onPrimary,
                           ),
+                        )
+                      : Text(
+                          _step == 2 ? '계정 만들기' : '다음',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_step == 0)
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.primary,
+                    ),
+                    child: const Text('이미 계정이 있으신가요? 로그인'),
                   ),
                 ),
-                const SizedBox(height: 16),
-                if (_step == 0)
-                  Center(
-                    child: TextButton(
-                      onPressed: _finishSignup,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Theme.of(context).colorScheme.primary,
-                      ),
-                      child: const Text('이미 계정이 있으신가요? 로그인'),
-                    ),
-                  ),
-              ] else
-                _buildCompletion(),
             ],
           ),
         ),
@@ -337,69 +318,6 @@ class _SignupScreenState extends State<SignupScreen> {
         ];
     }
   }
-
-  Widget _buildCompletion() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const SizedBox(height: 24),
-      Icon(
-        Icons.check_circle_rounded,
-        size: 64,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-      const SizedBox(height: 20),
-      Text(
-        '계정 가입이 완료되었습니다',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 21,
-          fontWeight: FontWeight.w700,
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
-      const SizedBox(height: 10),
-      Text(
-        '${_nameController.text.trim()}님, 환영합니다.\n자녀 연결은 지금 요청하거나 나중에 추가할 수 있어요.',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 14,
-          height: 1.6,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-      const SizedBox(height: 32),
-      SizedBox(
-        height: 52,
-        child: FilledButton(
-          onPressed: _addChildNow,
-          style: FilledButton.styleFrom(shape: const StadiumBorder()),
-          child: const Text('자녀 연결 요청 추가'),
-        ),
-      ),
-      const SizedBox(height: 12),
-      SizedBox(
-        height: 50,
-        child: OutlinedButton(
-          onPressed: _finishSignup,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Theme.of(context).colorScheme.primary,
-            side: BorderSide(color: Theme.of(context).colorScheme.outline),
-            shape: const StadiumBorder(),
-          ),
-          child: const Text('나중에 하기'),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Text(
-        '자녀 정보는 가입 후에도 홈 화면에서 언제든 추가할 수 있습니다.',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-    ],
-  );
 
   Widget _fieldLabel(String label) => Padding(
     padding: const EdgeInsets.only(bottom: 2),

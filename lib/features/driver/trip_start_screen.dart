@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
 import '../../core/auth/trip_progress_storage.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/trip_exit_action.dart';
 import '../../data/models/trip_progress.dart';
-import '../../widgets/primary_button.dart';
 import 'boarding_capture_screen.dart';
 import 'boarding_map_screen.dart';
 
@@ -62,7 +62,6 @@ class _TripStartScreenState extends State<TripStartScreen> {
   bool _isStartingTrip = false;
   String? _loadError;
   List<BusTripItem> _trips = [];
-  BusTripItem? _selectedTrip;
   BusTripItem? _activeTrip;
   TripProgress? _activeProgress;
   bool _boardingRecoveryPromptShown = false;
@@ -79,7 +78,6 @@ class _TripStartScreenState extends State<TripStartScreen> {
       if (showLoading) {
         _isLoadingTrips = true;
         _trips = [];
-        _selectedTrip = null;
         _activeTrip = null;
       }
       _loadError = null;
@@ -164,16 +162,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
 
       if (!mounted) return;
       setState(() {
-        final selectedId = _selectedTrip?.tripId;
         _trips = loadedTrips;
         _activeTrip = activeTrip;
         _activeProgress = activeProgress;
-        _selectedTrip = loadedTrips.isEmpty
-            ? null
-            : loadedTrips
-                      .where((trip) => trip.tripId == selectedId)
-                      .firstOrNull ??
-                  loadedTrips.first;
         _isLoadingTrips = false;
       });
       if (activeProgress?.boardingCount != null) {
@@ -202,7 +193,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
     final result = await Navigator.of(context).push<Object?>(
       MaterialPageRoute(
         builder: (_) => progress.boardingCount != null
-            ? const BoardingCaptureScreen()
+            ? BoardingCaptureScreen(
+                initialPhotoGuidance: progress.boardingPhotoGuidance,
+              )
             : BoardingMapScreen(
                 tripId: progress.tripId.toString(),
                 busId: progress.busId,
@@ -294,9 +287,8 @@ class _TripStartScreenState extends State<TripStartScreen> {
   }
 
   /// ② 운행 시작 요청 (POST /trips)
-  Future<void> _startTrip() async {
-    final selectedTrip = _selectedTrip;
-    if (selectedTrip == null || _isStartingTrip || _isLoadingTrips) return;
+  Future<void> _startTrip(BusTripItem selectedTrip) async {
+    if (_activeTrip != null || _isStartingTrip || _isLoadingTrips) return;
 
     final colorScheme = Theme.of(context).colorScheme;
     final confirmed = await showModalBottomSheet<bool>(
@@ -321,6 +313,15 @@ class _TripStartScreenState extends State<TripStartScreen> {
                 '${selectedTrip.busName} 운행을 시작하시겠습니까?',
                 style: TextStyle(
                   fontSize: 15,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${selectedTrip.busNumber} · 탑승 예정 학생 ${selectedTrip.studentCount}명'
+                '${selectedTrip.isSimulationBus ? ' · 테스트 운행' : ''}',
+                style: TextStyle(
+                  fontSize: 13,
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -420,7 +421,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
     } catch (e) {
       debugPrint('운행 시작 실패: $e');
       if (!mounted) return;
-      InAppNotificationBanner.showMessage('운행을 시작하지 못했습니다. 다시 시도해 주세요. ($e)');
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(e, fallback: '운행을 시작하지 못했습니다. 다시 시도해 주세요.'),
+      );
     } finally {
       if (mounted) {
         setState(() => _isStartingTrip = false);
@@ -495,6 +498,53 @@ class _TripStartScreenState extends State<TripStartScreen> {
                 ],
               ),
             ),
+            if (_activeTrip != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppTheme.darkSubtleSurface
+                      : colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: colorScheme.primary),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '진행 중인 운행',
+                      style: TextStyle(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${_activeTrip!.busName} · ${_activeTrip!.busNumber}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '현재 운행을 재개하거나 종료한 뒤 새 운행을 시작할 수 있습니다.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _isStartingTrip ? null : _resumeTrip,
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('운행 재개'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 22),
             Row(
               children: [
@@ -575,35 +625,24 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                   const SizedBox(height: 10),
                               itemBuilder: (context, index) {
                                 final trip = _trips[index];
-                                final isSelected =
-                                    _selectedTrip?.tripId == trip.tripId;
                                 final colorScheme = Theme.of(
                                   context,
                                 ).colorScheme;
 
                                 return Material(
-                                  color: isSelected
-                                      ? isDark
-                                            ? AppTheme.darkSubtleSurface
-                                            : colorScheme.primaryContainer
-                                      : colorScheme.surface,
+                                  color: colorScheme.surface,
                                   borderRadius: BorderRadius.circular(14),
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(14),
-                                    onTap: () =>
-                                        setState(() => _selectedTrip = trip),
-                                    child: AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 180,
-                                      ),
+                                    onTap: _activeTrip != null || _isStartingTrip
+                                        ? null
+                                        : () => _startTrip(trip),
+                                    child: Container(
                                       padding: const EdgeInsets.all(17),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
-                                          color: isSelected
-                                              ? colorScheme.primary
-                                              : colorScheme.outlineVariant,
-                                          width: isSelected ? 2 : 1,
+                                          color: colorScheme.outlineVariant,
                                         ),
                                       ),
                                       child: Column(
@@ -615,10 +654,8 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                               Icon(
                                                 Icons.directions_bus_rounded,
                                                 size: 30,
-                                                color: isSelected
-                                                    ? colorScheme.primary
-                                                    : colorScheme
-                                                          .onSurfaceVariant,
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
                                               ),
                                               const SizedBox(width: 12),
                                               Expanded(
@@ -646,16 +683,10 @@ class _TripStartScreenState extends State<TripStartScreen> {
                                                   ],
                                                 ),
                                               ),
-                                              if (isSelected)
-                                                Icon(
-                                                  Icons.check_circle,
-                                                  color: colorScheme.primary,
-                                                )
-                                              else
-                                                Icon(
-                                                  Icons.radio_button_unchecked,
-                                                  color: colorScheme.outline,
-                                                ),
+                                              Icon(
+                                                Icons.chevron_right_rounded,
+                                                color: colorScheme.outline,
+                                              ),
                                             ],
                                           ),
                                           const Divider(height: 24),
@@ -700,31 +731,6 @@ class _TripStartScreenState extends State<TripStartScreen> {
                     ),
             ),
           ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
-          ),
-          child: PrimaryButton(
-            label: _activeTrip != null
-                ? '${_activeTrip!.busName} 운행 재개'
-                : _selectedTrip == null
-                ? '버스를 선택해 주세요'
-                : '${_selectedTrip!.busName} 운행 시작',
-            loading: _isStartingTrip,
-            onPressed: _isLoadingTrips || _loadError != null || _isStartingTrip
-                ? null
-                : _activeTrip != null
-                ? _resumeTrip
-                : _trips.isEmpty
-                ? null
-                : _startTrip,
-          ),
         ),
       ),
     );
