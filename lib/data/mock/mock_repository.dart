@@ -1,6 +1,6 @@
 import '../models/child_student.dart';
 import '../models/child_link_request.dart';
-import '../models/guardian_location.dart';
+import '../models/child_location.dart';
 import '../models/judge_result.dart';
 import '../models/user_role.dart';
 
@@ -10,7 +10,7 @@ class MockRepository {
   static final MockRepository instance = MockRepository._();
 
   int boardingCount = 0;
-  GuardianLocation _guardianLocation = const GuardianLocation();
+  final Map<int, ChildLocation> _childLocations = {};
   final List<ChildStudent> _mockChildren = [
     ChildStudent(id: -1, name: '김하늘', className: '1학년 2반', isMock: true),
     ChildStudent(id: -2, name: '이도윤', className: '3학년 1반', isMock: true),
@@ -27,20 +27,57 @@ class MockRepository {
           className: child.className,
           isAbsent: _mockAbsences[child.id] ?? child.isAbsent,
           isMock: true,
+          location: _childLocations[child.id],
         ),
       )
       .toList();
 
   List<ChildLinkRequest> get childRequests => List.unmodifiable(_childRequests);
 
-  GuardianLocation get guardianLocation => _guardianLocation;
+  ChildLocation childLocation(int childId) =>
+      _childLocations[childId] ?? const ChildLocation();
 
-  void setGuardianLocation(GuardianLocation location) {
-    _guardianLocation = location;
+  void setChildLocation(int childId, ChildLocation location) {
+    _childLocations[childId] = location;
   }
 
-  void clearGuardianLocation() {
-    _guardianLocation = const GuardianLocation();
+  void clearChildLocation(int childId) {
+    _childLocations.remove(childId);
+  }
+
+  List<AddressCandidate> searchAddress(String query) {
+    const samples = [
+      AddressCandidate(
+        name: '광운대학교',
+        address: '서울특별시 노원구 광운로 20',
+        latitude: 37.6199,
+        longitude: 127.0577,
+      ),
+      AddressCandidate(
+        address: '서울특별시 중구 세종대로 110',
+        roadAddress: '서울특별시 중구 세종대로 110',
+        jibunAddress: '서울특별시 중구 태평로1가 31',
+        latitude: 37.5663174,
+        longitude: 126.9779692,
+      ),
+      AddressCandidate(
+        address: '서울특별시 종로구 세종대로 175',
+        roadAddress: '서울특별시 종로구 세종대로 175',
+        jibunAddress: '서울특별시 종로구 세종로 1-68',
+        latitude: 37.5724,
+        longitude: 126.9769,
+      ),
+    ];
+    final normalized = query.replaceAll(' ', '');
+    return samples
+        .where(
+          (item) =>
+              (item.name ?? '').replaceAll(' ', '').contains(normalized) ||
+              item.address.replaceAll(' ', '').contains(normalized) ||
+              normalized.contains('세종') ||
+              normalized.contains('서울'),
+        )
+        .toList();
   }
 
   Future<void> addChildRequest({

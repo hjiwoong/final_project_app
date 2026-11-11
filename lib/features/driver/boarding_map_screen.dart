@@ -10,7 +10,7 @@ import '../../core/maps/naver_map_status.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
-import '../../data/models/guardian_location.dart';
+import '../../data/models/child_location.dart';
 import '../../data/models/trip_exit_action.dart';
 import '../../data/models/trip_progress.dart';
 import '../../widgets/primary_button.dart';
@@ -148,7 +148,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
         _loadingStops = false;
       });
     } catch (e) {
-      debugPrint('탑승 지도 학생/보호자 위치 조회 실패: $e');
+      debugPrint('탑승 지도 학생/자녀 위치 조회 실패: $e');
       if (!mounted) return;
       setState(() {
         _loadError = '탑승 지도 정보를 불러오지 못했습니다. 서버 연결과 위치 설정을 확인해 주세요.';
@@ -172,24 +172,25 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
               : Theme.of(context).colorScheme.tertiary,
           'isAbsent': student.isAbsent,
           'studentId': student.id,
-          'guardianLocations': student.guardianLocations,
+          'location': student.location,
         },
       {
         'title': '종점 도착 · 마지막 정류장',
         'student': '탑승 예정 ${students.length}명',
         'status': '종점',
         'statusColor': Theme.of(context).colorScheme.primary,
-        'guardianLocations': const <GuardianLocation>[],
+        'location': null,
       },
     ];
   }
 
   List<NLatLng> get _stopPositions => [
     for (final stop in _stops)
-      for (final location
-          in stop['guardianLocations'] as List<GuardianLocation>)
-        if (location.hasCoordinates)
-          NLatLng(location.latitude!, location.longitude!),
+      if ((stop['location'] as ChildLocation?)?.hasCoordinates == true)
+        NLatLng(
+          (stop['location'] as ChildLocation).latitude!,
+          (stop['location'] as ChildLocation).longitude!,
+        ),
   ];
 
   Color _markerColor(BuildContext context, int index) {
@@ -231,21 +232,17 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     _stopMarkers.clear();
     _stopMarkerStopIndices.clear();
     for (final (stopIndex, stop) in _stops.indexed) {
-      final locations = stop['guardianLocations'] as List<GuardianLocation>;
-      for (final (locationIndex, location) in locations.indexed) {
-        if (!location.hasCoordinates) continue;
-        _stopMarkers.add(
-          NMarker(
-            id: 'boarding_stop_${stop['studentId']}_$locationIndex',
-            position: NLatLng(location.latitude!, location.longitude!),
-            icon: await _markerIcon(context, stopIndex),
-            caption: NOverlayCaption(
-              text: '${stopIndex + 1}번 정류장 · 보호자 ${locationIndex + 1}',
-            ),
-          ),
-        );
-        _stopMarkerStopIndices.add(stopIndex);
-      }
+      final location = stop['location'] as ChildLocation?;
+      if (location == null || !location.hasCoordinates) continue;
+      _stopMarkers.add(
+        NMarker(
+          id: 'boarding_stop_${stop['studentId']}',
+          position: NLatLng(location.latitude!, location.longitude!),
+          icon: await _markerIcon(context, stopIndex),
+          caption: NOverlayCaption(text: '${stopIndex + 1}번 정류장'),
+        ),
+      );
+      _stopMarkerStopIndices.add(stopIndex);
     }
     if (_stopMarkers.isNotEmpty) {
       await controller.addOverlayAll(_stopMarkers.toSet());
@@ -455,7 +452,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              '보호자가 저장한 실제 위치',
+                              '등록된 자녀 주소 위치',
                               style: TextStyle(
                                 color: Theme.of(
                                   context,
@@ -468,7 +465,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
-                              '보호자 좌표가 없어 기본 위치의 지도를 표시합니다.',
+                              '자녀 좌표가 없어 기본 위치의 지도를 표시합니다.',
                               style: TextStyle(
                                 color: Theme.of(
                                   context,

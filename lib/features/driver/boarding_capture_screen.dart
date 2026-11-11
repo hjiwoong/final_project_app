@@ -17,7 +17,9 @@ import '../../core/notifications/in_app_notification_banner.dart';
 
 /// ③ 승차 촬영: POST /trips/{id}/boarding-photo → YOLO 승차 인원
 class BoardingCaptureScreen extends StatefulWidget {
-  const BoardingCaptureScreen({super.key});
+  const BoardingCaptureScreen({super.key, this.initialPhotoGuidance});
+
+  final String? initialPhotoGuidance;
 
   @override
   State<BoardingCaptureScreen> createState() => _BoardingCaptureScreenState();
@@ -27,6 +29,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
   bool _loading = false;
   int? _count = Session.currentBoardingCount;
   XFile? _selectedImage;
+  late String? _photoGuidance = widget.initialPhotoGuidance;
   final Object _imageHeroTag = Object();
 
   Future<void> _captureFromSource(ImageSource source) async {
@@ -43,21 +46,25 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
         return;
       }
 
-      setState(() => _selectedImage = image);
-
       final analysis = await ApiRepository.instance.uploadBoardingPhoto(
         Session.currentTripId ?? 1,
         image: image,
       );
       if (!mounted) return;
       final count = analysis.boardingCount;
+      final guidance = analysis.photoDark
+          ? (analysis.guidance.trim().isNotEmpty
+                ? analysis.guidance.trim()
+                : '사진이 어두워 인원 분석이 정확하지 않을 수 있습니다. 실내등을 켜고 다시 촬영해 주세요.')
+          : null;
       Session.currentBoardingCount = count;
-      setState(() => _count = count);
-      if (analysis.photoDark && analysis.guidance.isNotEmpty) {
-        InAppNotificationBanner.showMessage(analysis.guidance);
-      }
+      setState(() {
+        _count = count;
+        _selectedImage = image;
+        _photoGuidance = guidance;
+      });
       try {
-        await _saveBoardingCount(count);
+        await _saveBoardingCount(count, guidance);
       } catch (e) {
         await _showBoardingSaveError(e);
       }
@@ -130,6 +137,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       setState(() {
         _count = null;
         _selectedImage = null;
+        _photoGuidance = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -139,12 +147,18 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
     }
   }
 
-  Future<void> _saveBoardingCount(int count) async {
+  Future<void> _saveBoardingCount(int count, String? guidance) async {
     final progress = await TripProgressStorage.read();
     if (progress == null) {
       throw StateError('진행 중인 운행 정보를 찾을 수 없습니다.');
     }
-    await TripProgressStorage.save(progress.copyWith(boardingCount: count));
+    await TripProgressStorage.save(
+      progress.copyWith(
+        boardingCount: count,
+        boardingPhotoGuidance: guidance,
+        clearBoardingPhotoGuidance: guidance == null,
+      ),
+    );
   }
 
   Future<void> _showBoardingSaveError(Object error) async {
@@ -341,8 +355,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                           ],
                         ),
                       )
-                    : Align(
-                        alignment: Alignment.topCenter,
+                    : SingleChildScrollView(
                         child: Padding(
                           padding: const EdgeInsets.only(top: 12),
                           child: Column(
@@ -451,6 +464,33 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                                   ),
                                 ],
                               ),
+                              if (_photoGuidance != null) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _photoGuidance!,
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         ),

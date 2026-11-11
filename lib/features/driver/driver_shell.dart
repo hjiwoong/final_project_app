@@ -1,3 +1,4 @@
+import '../../widgets/settings_menu_tile.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
@@ -112,6 +113,10 @@ class DriverAccountInfoScreen extends StatelessWidget {
           ),
           Card(
             margin: const EdgeInsets.all(4),
+            shape: const RoundedRectangleBorder(
+              side: BorderSide.none,
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
             child: Column(
               children: [
                 _AccountInfoRow(
@@ -147,36 +152,22 @@ class DriverAccountInfoScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Card(
-            margin: const EdgeInsets.all(4),
-            child: ListTile(
-              leading: const Icon(Icons.logout_rounded, color: AppTheme.danger),
-              title: const Text(
-                '로그아웃',
-                style: TextStyle(
-                  color: AppTheme.danger,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              trailing: const Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.danger,
-              ),
-              onTap: () async {
-                final shouldLogout = await showLogoutConfirmationDialog(
-                  context,
-                );
-                if (!shouldLogout || !context.mounted) return;
-                await Session.clear();
-                if (!context.mounted) return;
-                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (_) => false,
-                );
-              },
-            ),
-          ),
-        ],
+          SettingsMenuTile(
+            icon: Icons.logout_rounded,
+            title: '로그아웃',
+            color: AppTheme.danger,
+            showChevron: false,
+            onTap: () async {
+              final shouldLogout = await showLogoutConfirmationDialog(context);
+              if (!shouldLogout || !context.mounted) return;
+              await Session.clear();
+              if (!context.mounted) return;
+              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
+            },
+          ),        ],
       ),
     );
   }
@@ -376,6 +367,11 @@ class DriverSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark
+        ? theme.colorScheme.surfaceContainerHigh
+        : const Color(0xFFFAFAFA);
     return Scaffold(
       appBar: AppBar(title: const Text('설정')),
       body: ListView(
@@ -383,11 +379,19 @@ class DriverSettingsScreen extends StatelessWidget {
         children: [
           Card(
             margin: EdgeInsets.zero,
+            color: cardColor,
             clipBehavior: Clip.antiAlias,
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF42A5F5), Color(0xFF1565C0)],
+                  colors: [
+                    cardColor,
+                    cardColor,
+                    isDark
+                        ? const Color(0xFFFFF8E6).withValues(alpha: 0.18)
+                        : const Color(0xFFFFF8E6),
+                  ],
+                  stops: const [0.0, 0.65, 1.0],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -397,11 +401,13 @@ class DriverSettingsScreen extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    backgroundColor: Colors.white.withValues(
+                      alpha: isDark ? 0.08 : 0.9,
+                    ),
                     child: const Icon(
                       Icons.person_rounded,
                       size: 32,
-                      color: Colors.white,
+                      color: Color(0xFFFF8A00),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -413,8 +419,8 @@ class DriverSettingsScreen extends StatelessWidget {
                           Session.name?.isNotEmpty == true
                               ? Session.name!
                               : '사용자',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -424,8 +430,8 @@ class DriverSettingsScreen extends StatelessWidget {
                           Session.email?.isNotEmpty == true
                               ? Session.email!
                               : '이메일 정보 없음',
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                         ),
@@ -436,13 +442,15 @@ class DriverSettingsScreen extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
+                            color: const Color(
+                              0xFFFF8A00,
+                            ).withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             _accountRoleLabel(),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),

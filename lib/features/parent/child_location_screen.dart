@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
@@ -8,30 +7,38 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import '../../core/errors/app_error_message.dart';
 
 import '../../data/api/api_repository.dart';
-import '../../data/models/guardian_location.dart';
+import '../../data/models/child_location.dart';
+import '../../data/models/child_student.dart';
+import '../../widgets/address_search_field.dart';
 
 import '../../core/notifications/in_app_notification_banner.dart';
 
-class GuardianLocationScreen extends StatefulWidget {
-  const GuardianLocationScreen({super.key});
+class ChildLocationScreen extends StatefulWidget {
+  const ChildLocationScreen({super.key, this.initialChildId});
+
+  final int? initialChildId;
 
   @override
-  State<GuardianLocationScreen> createState() => _GuardianLocationScreenState();
+  State<ChildLocationScreen> createState() => _ChildLocationScreenState();
 }
 
-class _GuardianLocationScreenState extends State<GuardianLocationScreen> {
+class _ChildLocationScreenState extends State<ChildLocationScreen> {
   final _addressController = TextEditingController();
-  GuardianLocation? _location;
-  String? _coordinatesForAddress;
+  List<ChildStudent> _children = const [];
+  ChildStudent? _child;
+  ChildLocation? _location;
   String? _error;
   bool _loading = true;
   bool _saving = false;
   bool _deleting = false;
+  int _loadId = 0;
+
+  bool get _busy => _saving || _deleting;
 
   @override
   void initState() {
     super.initState();
-    _loadLocation();
+    _loadChildren();
   }
 
   @override
@@ -40,22 +47,56 @@ class _GuardianLocationScreenState extends State<GuardianLocationScreen> {
     super.dispose();
   }
 
-  Future<void> _loadLocation() async {
+  Future<void> _loadChildren() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final location = await ApiRepository.instance.getMyLocation();
+      final children = await ApiRepository.instance.getChildren();
       if (!mounted) return;
+      if (children.isEmpty) {
+        setState(() {
+          _children = children;
+          _child = null;
+          _loading = false;
+        });
+        return;
+      }
+      final initial = children.firstWhere(
+        (child) => child.id == widget.initialChildId,
+        orElse: () => children.first,
+      );
+      _children = children;
+      await _selectChild(initial);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = _errorMessage(error);
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _selectChild(ChildStudent child) async {
+    final loadId = ++_loadId;
+    setState(() {
+      _child = child;
+      _location = null;
+      _addressController.clear();
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final location = await ApiRepository.instance.getChildLocation(child.id);
+      if (!mounted || loadId != _loadId) return;
       setState(() {
         _location = location;
         _addressController.text = location.address ?? '';
-        _coordinatesForAddress = location.address;
         _loading = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || loadId != _loadId) return;
       setState(() {
         _error = _errorMessage(error);
         _loading = false;
@@ -70,12 +111,30 @@ class _GuardianLocationScreenState extends State<GuardianLocationScreen> {
     );
   }
 
+  void _onCandidateSelected(AddressCandidate candidate) {
+    setState(() {
+      _location = ChildLocation(
+        address: candidate.address,
+        latitude: candidate.latitude,
+        longitude: candidate.longitude,
+      );
+      _error = null;
+    });
+  }
+
+  // 주소를 직접 고치면 이전에 선택한 좌표는 더 이상 이 주소와 맞지 않는다.
+  void _onAddressEdited() {
+    if (_location?.hasCoordinates == true) {
+      setState(() => _location = ChildLocation(address: _location?.address));
+    }
+  }
+
   Future<void> _chooseCoordinates() async {
     final latitude = _location?.latitude;
     final longitude = _location?.longitude;
     final selected = await Navigator.of(context).push<NLatLng>(
       MaterialPageRoute(
-        builder: (_) => _GuardianLocationPickerScreen(
+        builder: (_) => _ChildLocationPickerScreen(
           initialPosition: latitude != null && longitude != null
               ? NLatLng(latitude, longitude)
               : null,
@@ -85,16 +144,17 @@ class _GuardianLocationScreenState extends State<GuardianLocationScreen> {
     );
     if (selected == null || !mounted) return;
     setState(() {
-      _location = GuardianLocation(
-        address: _location?.address,
+      _location = ChildLocation(
+        address: _addressController.text.trim(),
         latitude: selected.latitude,
         longitude: selected.longitude,
       );
-      _coordinatesForAddress = _addressController.text.trim();
     });
   }
 
   Future<void> _save() async {
+    final child = _child;
+    if (child == null) return;
     final address = _addressController.text.trim();
     if (address.isEmpty) {
       setState(() => _error = '주소를 입력해 주세요.');
@@ -105,21 +165,20 @@ class _GuardianLocationScreenState extends State<GuardianLocationScreen> {
       _error = null;
     });
 
-    final shouldUseCoordinates =
-        _coordinatesForAddress == address && _location?.hasCoordinates == true;
+    final useCoordinates = _location?.hasCoordinates == true;
     try {
-      final location = await ApiRepository.instance.saveMyLocation(
+      final location = await ApiRepository.instance.saveChildLocation(
+        child.id,
         address: address,
-        latitude: shouldUseCoordinates ? _location!.latitude : null,
-        longitude: shouldUseCoordinates ? _location!.longitude : null,
+        latitude: useCoordinates ? _location!.latitude : null,
+        longitude: useCoordinates ? _location!.longitude : null,
       );
-      if (!mounted) return;
+      if (!mounted || _child?.id != child.id) return;
       setState(() {
         _location = location;
-        _coordinatesForAddress = location.address;
         _saving = false;
       });
-      InAppNotificationBanner.showMessage('주소와 위치를 저장했습니다.');
+      InAppNotificationBanner.showMessage('${child.name}의 주소와 위치를 저장했습니다.');
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -130,11 +189,13 @@ class _GuardianLocationScreenState extends State<GuardianLocationScreen> {
   }
 
   Future<void> _delete() async {
+    final child = _child;
+    if (child == null) return;
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('위치 정보 삭제'),
-        content: const Text('저장된 주소와 좌표를 삭제할까요?'),
+        content: Text('${child.name}의 저장된 주소와 좌표를 삭제할까요?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -153,12 +214,11 @@ class _GuardianLocationScreenState extends State<GuardianLocationScreen> {
       _error = null;
     });
     try {
-      await ApiRepository.instance.clearMyLocation();
-      if (!mounted) return;
+      await ApiRepository.instance.clearChildLocation(child.id);
+      if (!mounted || _child?.id != child.id) return;
       setState(() {
-        _location = const GuardianLocation();
+        _location = const ChildLocation();
         _addressController.clear();
-        _coordinatesForAddress = null;
         _deleting = false;
       });
       InAppNotificationBanner.showMessage('위치 정보를 삭제했습니다.');
@@ -173,141 +233,170 @@ class _GuardianLocationScreenState extends State<GuardianLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasLocation = _location?.address?.isNotEmpty == true;
+    final colors = Theme.of(context).colorScheme;
     final hasCoordinates = _location?.hasCoordinates == true;
+    final hasSavedLocation =
+        _location?.address?.isNotEmpty == true || hasCoordinates;
+    final address = _addressController.text.trim();
+
+    Widget body;
+    if (_loading && _child == null) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_child == null) {
+      body = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _error ?? '연결된 자녀가 없습니다. 자녀를 먼저 연결해 주세요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _error != null ? colors.error : null),
+              ),
+              if (_error != null)
+                TextButton(
+                  onPressed: _loadChildren,
+                  child: const Text('다시 시도'),
+                ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      body = ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            '자녀의 승하차 위치를 확인하기 위해 자녀 주소를 등록합니다.',
+            style: TextStyle(color: colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '주소를 입력하면 후보가 자동으로 표시됩니다. 후보를 선택하면 좌표가 함께 저장되며, 지도에서 위치를 직접 보정할 수도 있습니다.',
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+          if (_children.length > 1) ...[
+            DropdownButtonFormField<int>(
+              initialValue: _child!.id,
+              decoration: const InputDecoration(
+                labelText: '자녀',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final child in _children)
+                  DropdownMenuItem(value: child.id, child: Text(child.name)),
+              ],
+              onChanged: _busy
+                  ? null
+                  : (id) {
+                      final next = _children.firstWhere((c) => c.id == id);
+                      if (next.id != _child!.id) _selectChild(next);
+                    },
+            ),
+            const SizedBox(height: 16),
+          ] else ...[
+            Text(
+              _child!.name,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else ...[
+            AddressSearchField(
+              controller: _addressController,
+              maxLines: 2,
+              onSelected: _onCandidateSelected,
+              onEdited: _onAddressEdited,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _chooseCoordinates,
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('지도에서 위치 지정 / 보정'),
+            ),
+            const SizedBox(height: 12),
+            if (hasCoordinates)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.location_on_outlined),
+                  title: const Text('선택한 좌표'),
+                  subtitle: Text(
+                    '${_location!.latitude!.toStringAsFixed(7)}, '
+                    '${_location!.longitude!.toStringAsFixed(7)}',
+                    style: TextStyle(color: colors.onSurface),
+                  ),
+                  trailing: IconButton(
+                    onPressed: () => setState(() {
+                      _location = ChildLocation(address: _location?.address);
+                    }),
+                    icon: const Icon(Icons.close),
+                    tooltip: '좌표 지우기',
+                  ),
+                ),
+              )
+            else
+              Text(
+                address.isEmpty
+                    ? '주소를 입력하고 후보를 선택해 주세요.'
+                    : '후보를 선택하지 않으면 저장할 때 주소를 기준으로 좌표를 자동 검색합니다.',
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+              ),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: TextStyle(color: colors.error)),
+          ],
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 52,
+            child: FilledButton(
+              onPressed: _busy || _loading ? null : _save,
+              style: FilledButton.styleFrom(shape: const StadiumBorder()),
+              child: _saving
+                  ? SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.onPrimary,
+                      ),
+                    )
+                  : const Text('주소 저장'),
+            ),
+          ),
+          if (hasSavedLocation) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: _busy || _loading ? null : _delete,
+              child: _deleting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('저장된 주소 삭제'),
+            ),
+          ],
+        ],
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('보호자 주소 및 위치')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                Text(
-                  '통학 관련 위치 확인을 위해 보호자 주소를 등록합니다.',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '주소는 관리자 화면에서 확인할 수 있습니다. 주소를 저장하면 서버에서 좌표를 검색하며, 지도를 눌러 위치를 직접 보정할 수 있습니다.',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _addressController,
-                  maxLength: 500,
-                  minLines: 2,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: '주소',
-                    hintText: '도로명 주소를 입력해 주세요.',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _saving || _deleting ? null : _chooseCoordinates,
-                  icon: const Icon(Icons.map_outlined),
-                  label: const Text('지도에서 위치 지정 / 보정'),
-                ),
-                if (hasCoordinates) ...[
-                  const SizedBox(height: 12),
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.location_on_outlined),
-                      title: const Text('선택한 좌표'),
-                      subtitle: Text(
-                        '${_location!.latitude!.toStringAsFixed(7)}, '
-                        '${_location!.longitude!.toStringAsFixed(7)}',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      trailing: IconButton(
-                        onPressed: () => setState(() {
-                          _location = GuardianLocation(
-                            address: _location?.address,
-                          );
-                          _coordinatesForAddress = null;
-                        }),
-                        icon: const Icon(Icons.close),
-                        tooltip: '지도 좌표 지우기',
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '지도를 선택하지 않으면 주소를 기준으로 좌표를 자동 검색합니다.',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                  if (_location == null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: _loadLocation,
-                        child: const Text('다시 시도'),
-                      ),
-                    ),
-                ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: _saving || _deleting ? null : _save,
-                    style: FilledButton.styleFrom(shape: const StadiumBorder()),
-                    child: _saving
-                        ? SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          )
-                        : const Text('주소 저장'),
-                  ),
-                ),
-                if (hasLocation) ...[
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: _saving || _deleting ? null : _delete,
-                    child: _deleting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('저장된 주소 삭제'),
-                  ),
-                ],
-              ],
-            ),
+      appBar: AppBar(title: const Text('자녀 주소 및 위치')),
+      body: body,
     );
   }
 }
 
-class _GuardianLocationPickerScreen extends StatefulWidget {
-  const _GuardianLocationPickerScreen({
+class _ChildLocationPickerScreen extends StatefulWidget {
+  const _ChildLocationPickerScreen({
     this.initialPosition,
     this.initialAddress,
   });
@@ -316,12 +405,12 @@ class _GuardianLocationPickerScreen extends StatefulWidget {
   final String? initialAddress;
 
   @override
-  State<_GuardianLocationPickerScreen> createState() =>
-      _GuardianLocationPickerScreenState();
+  State<_ChildLocationPickerScreen> createState() =>
+      _ChildLocationPickerScreenState();
 }
 
-class _GuardianLocationPickerScreenState
-    extends State<_GuardianLocationPickerScreen> {
+class _ChildLocationPickerScreenState
+    extends State<_ChildLocationPickerScreen> {
   static const _defaultPosition = NLatLng(37.5665, 126.9780);
 
   NaverMapController? _controller;
@@ -330,7 +419,6 @@ class _GuardianLocationPickerScreenState
   late final TextEditingController _searchController = TextEditingController(
     text: widget.initialAddress,
   );
-  bool _searching = false;
   bool _locating = false;
 
   @override
@@ -352,43 +440,13 @@ class _GuardianLocationPickerScreenState
     );
   }
 
-  Future<void> _searchAddress() async {
-    final address = _searchController.text.trim();
-    if (address.isEmpty) {
-      _showMessage('검색할 주소나 장소명을 입력해 주세요.');
-      return;
-    }
-
-    setState(() => _searching = true);
-    try {
-      final result = await ApiRepository.instance.searchLocationAddress(
-        address,
-      );
-      if (!mounted || !result.hasCoordinates) return;
-      final position = NLatLng(result.latitude!, result.longitude!);
-      await _setPosition(position);
-      await _controller?.updateCamera(
-        NCameraUpdate.scrollAndZoomTo(target: position, zoom: 16),
-      );
-    } on DioException catch (error) {
-      _showMessage(
-        AppErrorMessage.from(
-          error,
-          fallback: '주소 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-        ),
-      );
-    } catch (error) {
-      _showMessage(
-        AppErrorMessage.from(
-          error,
-          fallback: '주소 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _searching = false);
-    }
+  Future<void> _onCandidateSelected(AddressCandidate candidate) async {
+    final position = NLatLng(candidate.latitude, candidate.longitude);
+    await _setPosition(position);
+    await _controller?.updateCamera(
+      NCameraUpdate.scrollAndZoomTo(target: position, zoom: 16),
+    );
   }
-
   Future<void> _findCurrentLocation() async {
     if (_locating) return;
     setState(() => _locating = true);
@@ -454,9 +512,9 @@ class _GuardianLocationPickerScreenState
     final marker = _marker;
     if (marker == null) {
       final newMarker = NMarker(
-        id: 'guardian_location_selection',
+        id: 'child_location_selection',
         position: position,
-        caption: const NOverlayCaption(text: '보호자 위치'),
+        caption: const NOverlayCaption(text: '자녀 위치'),
       );
       _marker = newMarker;
       await controller.addOverlay(newMarker);
@@ -500,31 +558,12 @@ class _GuardianLocationPickerScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
+                    AddressSearchField(
                       controller: _searchController,
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) => _searchAddress(),
-                      decoration: InputDecoration(
-                        hintText: '도로명 주소 검색',
-                        prefixIcon: const Icon(Icons.search),
-                        border: const OutlineInputBorder(),
-                        isDense: true,
-                        suffixIcon: IconButton(
-                          tooltip: '주소 검색',
-                          onPressed: _searching ? null : _searchAddress,
-                          icon: _searching
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.arrow_forward),
-                        ),
-                      ),
-                    ),
-                    Align(
+                      labelText: '주소 검색',
+                      hintText: '도로명 주소를 입력하세요',
+                      onSelected: _onCandidateSelected,
+                    ),                    Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
                         onPressed: _locating ? null : _findCurrentLocation,

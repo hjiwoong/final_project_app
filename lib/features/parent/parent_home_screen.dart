@@ -5,15 +5,24 @@ import '../../core/config/env.dart';
 import '../../core/notifications/in_app_notification_banner.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
+import '../../widgets/logout_confirmation_dialog.dart';
 import '../auth/child_link_request_screen.dart';
 import '../auth/login_screen.dart';
 import 'alert_mock_store.dart';
 import 'bus_status_screen.dart';
+import 'bus_trip_mock_store.dart';
 import 'missed_dropoff_alert_screen.dart';
+import 'notification_mock_store.dart';
+import 'parent_event_mock_store.dart';
 import 'parent_event_test_screen.dart';
 import 'trip_report_screen.dart';
 
 // 학부모 홈: 실제 API 정보와 Mock 테스트 화면 분리
+Color _homeCardColor(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? Theme.of(context).colorScheme.surfaceContainerHigh
+    : const Color(0xFFFAFAFA);
+
 class ParentHomeScreen extends StatefulWidget {
   const ParentHomeScreen({super.key});
 
@@ -110,7 +119,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
 
   Widget _buildChildCard(ChildStudent child) {
     return Card(
-      color: const Color(0xFFFAFAFA),
+      color: _homeCardColor(context),
       child: ListTile(
         leading: const Icon(Icons.child_care),
         title: Text(child.name),
@@ -133,13 +142,17 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
     required String name,
     required String grade,
     required String status,
-    required bool isAbsent,
+    required bool? isAbsent,
     required String emoji,
   }) {
-    final displayStatus = isAbsent ? '오늘 결석' : status;
-    final isChecking = status == '상태 확인 중' && !isAbsent;
+    final displayStatus = isAbsent == null
+        ? '결석 여부 확인 불가'
+        : isAbsent
+        ? '오늘 결석'
+        : status;
+    final isChecking = isAbsent == null || (status == '상태 확인 중' && !isAbsent);
 
-    final Color statusColor = isAbsent
+    final Color statusColor = isAbsent == true
         ? Colors.orange.shade100
         : status == '하차 완료'
         ? Colors.green.shade100
@@ -148,7 +161,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
         : Colors.blue.shade50;
 
     return Card(
-      color: const Color(0xFFFAFAFA),
+      color: _homeCardColor(context),
       child: ListTile(
         leading: Text(emoji, style: const TextStyle(fontSize: 28)),
         title: Text(name),
@@ -188,7 +201,9 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
       elevation: 4,
-      shadowColor: const Color(0x30000000),
+      shadowColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.transparent
+          : const Color(0x30000000),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
@@ -198,7 +213,13 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
         child: Ink(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [const Color(0xFFFAFAFA), const Color(0xFFFAFAFA), accent],
+              colors: [
+                _homeCardColor(context),
+                _homeCardColor(context),
+                Theme.of(context).brightness == Brightness.dark
+                    ? accent.withValues(alpha: 0.18)
+                    : accent,
+              ],
               stops: const [0.0, 0.65, 1.0],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -212,7 +233,9 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
                   width: 68,
                   height: 68,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.90),
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.white.withValues(alpha: 0.90),
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Icon(icon, color: iconColor, size: 36),
@@ -232,9 +255,9 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
                       const SizedBox(height: 7),
                       Text(
                         subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF505A66),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -294,7 +317,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
 
         if (snapshot.hasError) {
           return Card(
-            color: const Color(0xFFFAFAFA),
+            color: _homeCardColor(context),
             child: ListTile(
               leading: const Icon(Icons.error_outline),
               title: const Text('자녀 정보를 불러오지 못했습니다.'),
@@ -310,8 +333,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
         final children = snapshot.data ?? const <ChildStudent>[];
 
         if (children.isEmpty) {
-          return const Card(
-            color: Color(0xFFFAFAFA),
+          return Card(
+            color: _homeCardColor(context),
             child: ListTile(
               leading: Icon(Icons.child_care),
               title: Text('연결된 자녀가 없습니다.'),
@@ -368,7 +391,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
           children: [
             for (final bus in buses)
               Card(
-                color: const Color(0xFFFAFAFA),
+                color: _homeCardColor(context),
                 child: ListTile(
                   leading: const Icon(Icons.directions_bus, color: Colors.blue),
                   title: Text(bus['name']?.toString() ?? '버스'),
@@ -457,7 +480,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
                 status: ParentEventMockStore.getChildStatusText(
                   statuses['김하늘'] ?? ChildBoardingStatus.waiting,
                 ),
-                isAbsent: absent['김하늘'] ?? false,
+                isAbsent: absent['김하늘'],
                 emoji: '👧',
               ),
               _buildMockChildCard(
@@ -466,7 +489,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
                 status: ParentEventMockStore.getChildStatusText(
                   statuses['이도윤'] ?? ChildBoardingStatus.waiting,
                 ),
-                isAbsent: absent['이도윤'] ?? false,
+                isAbsent: absent['이도윤'],
                 emoji: '👦',
               ),
             ],
@@ -482,7 +505,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
       valueListenable: BusTripMockStore.status,
       builder: (context, status, _) {
         return Card(
-          color: const Color(0xFFFAFAFA),
+          color: _homeCardColor(context),
           child: Column(
             children: [
               ListTile(
@@ -562,9 +585,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         automaticallyImplyLeading: false,
         title: const Text('학부모 홈'),
         actions: [
@@ -583,9 +604,13 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
           ),
         ],
       ),
-      body: ValueListenableBuilder<Map<String, bool>>(
-        valueListenable: AttendanceMockStore.absent,
-        builder: (context, absent, _) {
+      body: FutureBuilder<List<ChildStudent>>(
+        future: _children,
+        builder: (context, snapshot) {
+          final absent = <String, bool>{
+            for (final child in snapshot.data ?? <ChildStudent>[])
+              child.name: child.isAbsent,
+          };
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [

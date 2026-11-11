@@ -218,6 +218,8 @@ class AccountRemovalScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final foregroundColor = isDark ? Colors.white : Colors.black;
     return Scaffold(
       appBar: AppBar(title: const Text('계정 삭제')),
       body: ListView(
@@ -234,25 +236,19 @@ class AccountRemovalScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Card(
             margin: EdgeInsets.zero,
+            color: isDark ? Colors.black : Colors.white,
             clipBehavior: Clip.antiAlias,
             child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF424242), Color(0xFF212121)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    child: const Icon(
+                    backgroundColor: foregroundColor.withValues(alpha: 0.1),
+                    child: Icon(
                       Icons.person_rounded,
                       size: 32,
-                      color: Colors.white,
+                      color: foregroundColor,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -264,8 +260,8 @@ class AccountRemovalScreen extends StatelessWidget {
                           Session.name?.isNotEmpty == true
                               ? Session.name!
                               : '사용자',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: foregroundColor,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
@@ -275,8 +271,8 @@ class AccountRemovalScreen extends StatelessWidget {
                           Session.email?.isNotEmpty == true
                               ? Session.email!
                               : '이메일 정보 없음',
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: foregroundColor.withValues(alpha: 0.7),
                             fontSize: 13,
                           ),
                         ),
@@ -287,13 +283,13 @@ class AccountRemovalScreen extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
+                            color: foregroundColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             _roleLabel(),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: foregroundColor,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
