@@ -87,11 +87,12 @@ class _ChildManagementMenuTile extends StatelessWidget {
 
   final IconData icon;
   final String title;
-  final String subtitle;
+  final String subtitle; // 메뉴 설명 (현재 화면에는 표시하지 않음)
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    // 설정 화면과 같은 공통 메뉴 줄 디자인 사용
     return SettingsMenuTile(icon: icon, title: title, onTap: onTap);
   }
 }
