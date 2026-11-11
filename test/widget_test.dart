@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:final_project_app/core/auth/session.dart';
 import 'package:final_project_app/data/mock/mock_repository.dart';
 import 'package:final_project_app/features/auth/signup_screen.dart';
+import 'package:final_project_app/features/parent/parent_shell.dart';
+import 'package:final_project_app/data/models/user_role.dart';
 import 'package:final_project_app/main.dart';
 
 void main() {
@@ -31,7 +34,7 @@ void main() {
     expect(find.byType(AppBar), findsOneWidget);
   });
 
-  testWidgets('회원가입은 계정 완료 후 자녀 연결을 선택할 수 있다', (WidgetTester tester) async {
+  testWidgets('회원가입이 완료되면 자동 로그인되어 학부모 홈으로 이동한다', (WidgetTester tester) async {
     final requestCount = MockRepository.instance.signupRequests.length;
     await tester.pumpWidget(const MaterialApp(home: SignupScreen()));
 
@@ -63,9 +66,9 @@ void main() {
     await tester.tap(find.text('계정 만들기'));
     await tester.pumpAndSettle();
 
-    expect(find.text('계정 가입이 완료되었습니다'), findsOneWidget);
-    expect(find.text('자녀 연결 요청 추가'), findsOneWidget);
-    expect(find.text('나중에 하기'), findsOneWidget);
+    expect(find.byType(ParentShell), findsOneWidget);
+    expect(Session.role, UserRole.parent);
+    expect(Session.accountRole, 'PARENT');
     expect(
       MockRepository.instance.signupRequests[requestCount].children,
       isEmpty,

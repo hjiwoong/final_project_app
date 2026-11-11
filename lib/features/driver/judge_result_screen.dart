@@ -198,7 +198,7 @@ class JudgeResultScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
-                          Icons.support_agent,
+                          Icons.info_outline,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: 12),

@@ -69,7 +69,7 @@ class _ParentShellState extends State<ParentShell> {
             _index = i;
           }),
           elevation: 0,
-          height: 68,
+          height: 60,
           destinations: [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
@@ -88,7 +88,7 @@ class _ParentShellState extends State<ParentShell> {
             NavigationDestination(
               icon: Icon(Icons.auto_awesome_outlined),
               selectedIcon: Icon(Icons.auto_awesome),
-              label: 'AI 상담',
+              label: 'AI 채팅',
             ),
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
