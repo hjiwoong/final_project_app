@@ -10,7 +10,7 @@ import '../../core/network/api_client.dart';
 import '../../core/notifications/push_notification_service.dart';
 import '../../data/models/child_student.dart';
 import '../../data/models/child_link_request.dart';
-import '../../data/models/guardian_location.dart';
+import '../../data/models/child_location.dart';
 import '../../data/models/account_deletion_schedule.dart';
 import '../../data/mock/mock_repository.dart';
 import '../../data/models/judge_result.dart';
@@ -171,34 +171,47 @@ class ApiRepository {
     await _dio.delete('/me/child-requests/${request.id}');
   }
 
-  Future<GuardianLocation> getMyLocation() async {
-    if (Env.useMock || Session.isMockAccount) {
-      return MockRepository.instance.guardianLocation;
+  bool _useMock(int childId) =>
+      Env.useMock || Session.isMockAccount || childId < 0;
+
+  Future<ChildLocation> getChildLocation(int childId) async {
+    if (_useMock(childId)) {
+      return MockRepository.instance.childLocation(childId);
     }
 
-    final response = await _dio.get('/me/location');
-    return GuardianLocation.fromJson(
+    final response = await _dio.get('/me/children/$childId/location');
+    return ChildLocation.fromJson(
       Map<String, dynamic>.from(response.data as Map),
     );
   }
 
-  Future<GuardianLocation> searchLocationAddress(String address) async {
-    final normalizedAddress = address.trim();
-    if (normalizedAddress.isEmpty) {
-      throw ArgumentError('검색할 주소를 입력해 주세요.');
+  /// 입력 중인 주소의 후보 목록 (자동완성). 결과가 없으면 빈 목록.
+  Future<List<AddressCandidate>> searchAddressCandidates(
+    String address, {
+    CancelToken? cancelToken,
+  }) async {
+    final query = address.trim();
+    if (query.length < 2) return const [];
+    if (Env.useMock || Session.isMockAccount) {
+      return MockRepository.instance.searchAddress(query);
     }
 
     final response = await _dio.get(
       '/me/location/search',
-      queryParameters: {'address': normalizedAddress},
+      queryParameters: {'address': query},
+      cancelToken: cancelToken,
     );
-    return GuardianLocation.fromJson({
-      ...Map<String, dynamic>.from(response.data as Map),
-      'address': normalizedAddress,
-    });
+    return (response.data as List)
+        .map(
+          (item) => AddressCandidate.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
+        .toList();
   }
 
-  Future<GuardianLocation> saveMyLocation({
+  Future<ChildLocation> saveChildLocation(
+    int childId, {
     required String address,
     double? latitude,
     double? longitude,
@@ -206,13 +219,13 @@ class ApiRepository {
     if ((latitude == null) != (longitude == null)) {
       throw ArgumentError('위도와 경도는 함께 입력해야 합니다.');
     }
-    if (Env.useMock || Session.isMockAccount) {
-      final location = GuardianLocation(
+    if (_useMock(childId)) {
+      final location = ChildLocation(
         address: address,
         latitude: latitude,
         longitude: longitude,
       );
-      MockRepository.instance.setGuardianLocation(location);
+      MockRepository.instance.setChildLocation(childId, location);
       return location;
     }
 
@@ -220,21 +233,20 @@ class ApiRepository {
     if (latitude != null) data['latitude'] = latitude;
     if (longitude != null) data['longitude'] = longitude;
 
-    final response = await _dio.put('/me/location', data: data);
-    return GuardianLocation.fromJson(
+    final response = await _dio.put('/me/children/$childId/location', data: data);
+    return ChildLocation.fromJson(
       Map<String, dynamic>.from(response.data as Map),
     );
   }
 
-  Future<void> clearMyLocation() async {
-    if (Env.useMock || Session.isMockAccount) {
-      MockRepository.instance.clearGuardianLocation();
+  Future<void> clearChildLocation(int childId) async {
+    if (_useMock(childId)) {
+      MockRepository.instance.clearChildLocation(childId);
       return;
     }
 
-    await _dio.delete('/me/location');
+    await _dio.delete('/me/children/$childId/location');
   }
-
   Future<void> unlinkChild(ChildStudent child) async {
     if (Env.useMock || Session.isMockAccount || child.isMock) {
       MockRepository.instance.unlinkChild(child.id);

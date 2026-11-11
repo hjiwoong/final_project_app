@@ -9,7 +9,8 @@ import '../../widgets/primary_button.dart';
 import '../auth/change_password_screen.dart';
 import '../auth/login_screen.dart';
 import '../auth/account_removal_screen.dart';
-import 'guardian_location_screen.dart';
+import '../../widgets/settings_menu_tile.dart';
+import 'child_location_screen.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
 
 import '../../core/notifications/in_app_notification_banner.dart';
@@ -324,110 +325,47 @@ class ParentAccountInfoScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Card(
-            margin: const EdgeInsets.all(4),
-            shape: const RoundedRectangleBorder(
-              side: BorderSide.none,
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
-            child: ListTile(
-              leading: const Icon(Icons.location_on_outlined),
-              title: const Text('보호자 주소 및 위치'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const GuardianLocationScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            margin: const EdgeInsets.all(4),
-            shape: const RoundedRectangleBorder(
-              side: BorderSide.none,
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
-            child: ListTile(
-              leading: const Icon(Icons.lock_reset_rounded),
-              title: const Text('비밀번호 변경하기'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ChangePasswordScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            margin: const EdgeInsets.all(4),
-            shape: const RoundedRectangleBorder(
-              side: BorderSide.none,
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
-            child: ListTile(
-              leading: Icon(
-                Icons.logout_rounded,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                '로그아웃',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              onTap: () async {
-                final shouldLogout = await showLogoutConfirmationDialog(
-                  context,
-                );
-                if (!shouldLogout || !context.mounted) return;
-                await Session.clear();
-                if (!context.mounted) return;
-                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (_) => false,
-                );
-              },
+          SettingsMenuTile(
+            icon: Icons.location_on_outlined,
+            title: '자녀 주소 및 위치',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ChildLocationScreen()),
             ),
           ),
           const SizedBox(height: 8),
-          Card(
-            shape: const RoundedRectangleBorder(
-              side: BorderSide.none,
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
-            child: ListTile(
-              leading: Icon(
-                Icons.person_remove_alt_1_rounded,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                '계정 삭제',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              trailing: Icon(
-                Icons.chevron_right,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const AccountRemovalScreen(),
-                  ),
-                );
-              },
+          SettingsMenuTile(
+            icon: Icons.lock_reset_rounded,
+            title: '비밀번호 변경하기',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
             ),
           ),
-        ],
+          const SizedBox(height: 8),
+          SettingsMenuTile(
+            icon: Icons.logout_rounded,
+            title: '로그아웃',
+            color: Theme.of(context).colorScheme.error,
+            showChevron: false,
+            onTap: () async {
+              final shouldLogout = await showLogoutConfirmationDialog(context);
+              if (!shouldLogout || !context.mounted) return;
+              await Session.clear();
+              if (!context.mounted) return;
+              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          SettingsMenuTile(
+            icon: Icons.person_remove_alt_1_rounded,
+            title: '계정 삭제',
+            color: Theme.of(context).colorScheme.error,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AccountRemovalScreen()),
+            ),
+          ),        ],
       ),
     );
   }
@@ -446,33 +384,31 @@ class _AccountInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+      minVerticalPadding: 0,
+      leading: Icon(
+        icon,
+        color: Theme.of(context).colorScheme.primary,
+        size: 22,
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

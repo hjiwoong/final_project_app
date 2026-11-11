@@ -35,6 +35,11 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer>
   @override
   void initState() {
     super.initState();
+    // 이미지가 하단 홈 인디케이터(내비게이션 바) 영역까지 겹치도록 전체 화면 사용
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setSystemUIOverlayStyle(
+      AppTheme.imageViewerSystemUiOverlayStyle,
+    );
     _zoomAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
@@ -44,6 +49,10 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer>
 
   @override
   void dispose() {
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
     _zoomAnimationController.dispose();
     _transformationController.dispose();
     super.dispose();
@@ -151,9 +160,6 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer>
       child: Scaffold(
         extendBody: true,
         backgroundColor: Colors.black,
-        bottomNavigationBar: SizedBox(
-          height: MediaQuery.paddingOf(context).bottom,
-        ),
         body: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: _onPointerDown,
@@ -163,7 +169,8 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Center(
+              // 화면 전체(상태바·홈 인디케이터 영역 포함)를 확대/이동 영역으로 사용
+              SizedBox.expand(
                 child: GestureDetector(
                   onDoubleTapDown: (details) {
                     _doubleTapPosition = details.localPosition;
@@ -175,7 +182,11 @@ class _FullscreenImageViewerState extends State<FullscreenImageViewer>
                     maxScale: 4,
                     panEnabled: !_isAtInitialScale,
                     onInteractionUpdate: _onInteractionUpdate,
-                    child: Hero(tag: widget.heroTag, child: widget.child),
+                    child: SizedBox.expand(
+                      child: Center(
+                        child: Hero(tag: widget.heroTag, child: widget.child),
+                      ),
+                    ),
                   ),
                 ),
               ),

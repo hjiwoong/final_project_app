@@ -193,7 +193,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
     final result = await Navigator.of(context).push<Object?>(
       MaterialPageRoute(
         builder: (_) => progress.boardingCount != null
-            ? const BoardingCaptureScreen()
+            ? BoardingCaptureScreen(
+                initialPhotoGuidance: progress.boardingPhotoGuidance,
+              )
             : BoardingMapScreen(
                 tripId: progress.tripId.toString(),
                 busId: progress.busId,

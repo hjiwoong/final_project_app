@@ -8,6 +8,7 @@ class TripProgress {
     required this.currentStopIndex,
     this.simulationMode = false,
     this.boardingCount,
+    this.boardingPhotoGuidance,
   });
 
   final int tripId;
@@ -18,12 +19,15 @@ class TripProgress {
   final int currentStopIndex;
   final bool simulationMode;
   final int? boardingCount;
+  final String? boardingPhotoGuidance;
 
   TripProgress copyWith({
     int? currentStopIndex,
     bool? simulationMode,
     int? boardingCount,
+    String? boardingPhotoGuidance,
     bool clearBoardingCount = false,
+    bool clearBoardingPhotoGuidance = false,
   }) => TripProgress(
     tripId: tripId,
     busId: busId,
@@ -35,6 +39,9 @@ class TripProgress {
     boardingCount: clearBoardingCount
         ? null
         : boardingCount ?? this.boardingCount,
+    boardingPhotoGuidance: clearBoardingCount || clearBoardingPhotoGuidance
+        ? null
+        : boardingPhotoGuidance ?? this.boardingPhotoGuidance,
   );
 
   Map<String, dynamic> toJson() => {
@@ -46,6 +53,7 @@ class TripProgress {
     'current_stop_index': currentStopIndex,
     'simulation_mode': simulationMode,
     'boarding_count': boardingCount,
+    'boarding_photo_guidance': boardingPhotoGuidance,
   };
 
   factory TripProgress.fromJson(Map<String, dynamic> json) => TripProgress(
@@ -57,5 +65,6 @@ class TripProgress {
     currentStopIndex: json['current_stop_index'] as int,
     simulationMode: json['simulation_mode'] as bool? ?? false,
     boardingCount: json['boarding_count'] as int?,
+    boardingPhotoGuidance: json['boarding_photo_guidance'] as String?,
   );
 }

@@ -319,7 +319,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
         ],
         const SizedBox(height: 12),
         _detailCard(
-          icon: Icons.support_agent,
+          icon: Icons.info_outline_rounded,
           title: '추가 확인이 필요하신가요?',
           description:
               '자동 감지 결과만으로 자녀의 미하차가 확인된 것은 아닙니다. '
