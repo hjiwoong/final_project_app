@@ -12,26 +12,9 @@
     <option name="selectedModelId" value="claude-sonnet-5.5" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="73f636d5-7e97-4632-8fb5-d66af541a48e" name="Changes" comment="new">
+    <list default="true" id="73f636d5-7e97-4632-8fb5-d66af541a48e" name="Changes" comment="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/data/api/api_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/api/api_repository.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/data/mock/mock_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/mock/mock_repository.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/data/models/child_student.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/child_student.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/data/models/guardian_location.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/child_location.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/data/models/trip_progress.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/trip_progress.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/auth/account_removal_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/account_removal_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/auth/change_password_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/change_password_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/driver/boarding_capture_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/boarding_capture_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/driver/boarding_map_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/boarding_map_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/driver/driver_shell.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/driver_shell.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/driver/trip_start_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/trip_start_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/parent/alert_detail_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/alert_detail_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/parent/attendance_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/attendance_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/parent/guardian_location_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/child_location_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_child_management_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_child_management_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_home_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_home_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_settings_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_settings_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/widgets/fullscreen_image_viewer.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/widgets/fullscreen_image_viewer.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/alert_chat_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/alert_chat_screen.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -81,12 +64,12 @@
   <component name="ProjectSessionTemplates">
     <option name="inlineTemplate">
       <template>
-        <option name="ensembleEnabled" value="true" />
+        <option name="ensembleEnabled" value="false" />
         <option name="modeId" value="Agent" />
         <option name="model">
           <model>
             <option name="modelType" value="builtin_id" />
-            <option name="modelValue" value="ensemble" />
+            <option name="modelValue" value="auto" />
           </model>
         </option>
         <option name="targetType" value="BACKGROUND" />
@@ -226,15 +209,7 @@
       <option name="project" value="LOCAL" />
       <updated>1794312778613</updated>
     </task>
-    <task id="LOCAL-00010" summary="new">
-      <option name="closed" value="true" />
-      <created>1794388202063</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1794388202063</updated>
-    </task>
-    <option name="localTasksCounter" value="11" />
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -286,7 +261,6 @@
     <MESSAGE value="11/04 일부 디자인 수정, API 적용" />
     <MESSAGE value="11/05 일부 디자인 수정, API 적용, 계정삭제, 비밀번호 API 연동 및 기능 구현" />
     <MESSAGE value="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더" />
-    <MESSAGE value="new" />
-    <option name="LAST_COMMIT_MESSAGE" value="new" />
+    <option name="LAST_COMMIT_MESSAGE" value="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더" />
   </component>
 </project>
