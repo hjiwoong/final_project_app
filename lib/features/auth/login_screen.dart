@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
 import '../../core/config/env.dart';
 import '../../core/theme/app_theme.dart';
@@ -44,7 +45,10 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (error) {
       if (!mounted) return;
       InAppNotificationBanner.showMessage(
-        '로그인 상태를 확인하지 못했습니다. 다시 시도해 주세요. ($error)',
+        AppErrorMessage.from(
+          error,
+          fallback: '로그인 상태를 확인하지 못했습니다. 다시 시도해 주세요.',
+        ),
       );
     }
     if (!mounted) return;
@@ -95,18 +99,33 @@ class _LoginScreenState extends State<LoginScreen> {
         } catch (statusError) {
           if (mounted) {
             InAppNotificationBanner.showMessage(
-              '계정 삭제 진행 상태를 확인하지 못했습니다. 다시 시도해 주세요. ($statusError)',
+              AppErrorMessage.from(
+                statusError,
+                fallback: '계정 삭제 진행 상태를 확인하지 못했습니다. 다시 시도해 주세요.',
+              ),
             );
           }
         }
         return null;
       }
       if (!mounted) return null;
-      InAppNotificationBanner.showMessage('Google 로그인을 실패했습니다.: $error');
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(
+          error,
+          fallback: 'Google 로그인을 완료하지 못했습니다. 다시 시도해 주세요.',
+          isLogin: true,
+        ),
+      );
       return null;
     } catch (e) {
       if (!mounted) return null;
-      InAppNotificationBanner.showMessage('Google 로그인을 실패했습니다.: $e');
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(
+          e,
+          fallback: 'Google 로그인을 완료하지 못했습니다. 다시 시도해 주세요.',
+          isLogin: true,
+        ),
+      );
       return null;
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -180,12 +199,18 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<UserRole?> _loginWithTestAccount(String email) async {
     setState(() => _loading = true);
     try {
-      final role = await ApiRepository.instance.login(email, '1234');
+      final role = await ApiRepository.instance.login(email, '1234567890H#');
       Session.role = role;
       return role;
     } catch (e) {
       if (!mounted) return null;
-      InAppNotificationBanner.showMessage('테스트 계정 로그인 실패: $e');
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(
+          e,
+          fallback: '테스트 계정 로그인에 실패했습니다. 다시 시도해 주세요.',
+          isLogin: true,
+        ),
+      );
       return null;
     } finally {
       if (mounted) setState(() => _loading = false);

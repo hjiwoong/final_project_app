@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../data/api/api_repository.dart';
 import 'child_link_request_screen.dart';
 
@@ -88,13 +88,10 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   String _errorMessage(Object error) {
-    if (error is DioException) {
-      final response = error.response?.data;
-      if (response is Map && response['detail'] != null) {
-        return response['detail'].toString();
-      }
-    }
-    return error.toString();
+    return AppErrorMessage.from(
+      error,
+      fallback: '회원가입을 완료하지 못했습니다. 입력 정보를 확인하고 다시 시도해 주세요.',
+    );
   }
 
   Future<void> _addChildNow() async {

@@ -6,6 +6,7 @@ import '../../core/auth/session.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/judge_result.dart';
 import '../../widgets/primary_button.dart';
+import '../../widgets/fullscreen_image_viewer.dart';
 import 'trip_end_screen.dart';
 
 /// ⑤ 판정 결과: 정상 / 미하차 의심 / 재촬영
@@ -17,41 +18,103 @@ class JudgeResultScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ok = result.isOk;
+    final needsCheck = result.isNeedsCheck;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final imageSource = _buildImageProvider();
+    final imageHeroTag = result;
 
     return Scaffold(
       appBar: AppBar(title: const Text('판정 결과 · 종점')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: imageSource != null
-                    ? (imageSource is File
-                          ? Image.file(
-                              imageSource,
-                              width: double.infinity,
-                              fit: BoxFit.contain,
-                            )
-                          : Image.network(
-                              imageSource as String,
-                              width: double.infinity,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Center(
-                                child: Icon(
-                                  Icons.broken_image_outlined,
-                                  size: 64,
+              child: Semantics(
+                button: true,
+                label: '이미지 미리보기. 탭하여 자세히 보기',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => Navigator.of(context).push(
+                      PageRouteBuilder<void>(
+                        transitionDuration: const Duration(milliseconds: 420),
+                        reverseTransitionDuration: const Duration(
+                          milliseconds: 320,
+                        ),
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            FullscreenImageViewer(
+                              heroTag: imageHeroTag,
+                              child: _buildResultImage(imageSource),
+                            ),
+                        transitionsBuilder:
+                            (context, animation, secondaryAnimation, child) =>
+                                FadeTransition(
+                                  opacity: CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeInOutCubic,
+                                  ),
+                                  child: child,
+                                ),
+                      ),
+                    ),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ColoredBox(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                            child: Hero(
+                              tag: imageHeroTag,
+                              child: _buildResultImage(imageSource),
+                            ),
+                          ),
+                          Positioned(
+                            right: 12,
+                            bottom: 12,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.zoom_in_rounded,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      '자세히 보기',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ))
-                    : Image.asset(
-                        'assets/images/testimages/boarding_image.jpg',
-                        width: double.infinity,
-                        fit: BoxFit.contain,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -62,16 +125,24 @@ class JudgeResultScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: ok
                     ? Theme.of(context).colorScheme.tertiaryContainer
+                    : needsCheck
+                    ? Theme.of(context).colorScheme.secondaryContainer
                     : Theme.of(context).colorScheme.errorContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                ok ? '하차 확인 완료' : '미하차 의심 ${result.remainingCount}명',
+                ok
+                    ? '하차 확인 완료'
+                    : needsCheck
+                    ? '확인 필요'
+                    : '미하차 의심 ${result.remainingCount}명',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: ok
                       ? Theme.of(context).colorScheme.onTertiaryContainer
+                      : needsCheck
+                      ? Theme.of(context).colorScheme.onSecondaryContainer
                       : Theme.of(context).colorScheme.onErrorContainer,
                 ),
               ),
@@ -116,6 +187,51 @@ class JudgeResultScreen extends StatelessWidget {
                 ],
               ),
             ),
+            if (result.guidance != null && result.guidance!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.support_agent,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                needsCheck ? '확인 안내' : '기사 안내',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                result.guidance!,
+                                softWrap: true,
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -124,27 +240,40 @@ class JudgeResultScreen extends StatelessWidget {
                 label: const Text('분석 및 동작 방법에 대해'),
               ),
             ),
-            const Spacer(),
-            if (!ok) ...[
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (result.shouldRetake) ...[
+                PrimaryButton(
+                  label: '재촬영',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                const SizedBox(height: 12),
+              ],
               PrimaryButton(
-                label: '재촬영',
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              const SizedBox(height: 12),
-            ],
-            PrimaryButton(
-              label: '운행 결과 확인',
-              color: ok ? null : Theme.of(context).colorScheme.onSurfaceVariant,
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => TripEndScreen(
-                    result: result,
-                    busName: Session.currentTripBusName ?? '운행 차량',
+                label: '운행 결과 확인',
+                color: ok ? null : (isDarkMode ? Colors.white : Colors.black),
+                foregroundColor: ok
+                    ? null
+                    : (isDarkMode ? Colors.black : Colors.white),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => TripEndScreen(
+                      result: result,
+                      busName: Session.currentTripBusName ?? '운행 차량',
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -185,7 +314,7 @@ class JudgeResultScreen extends StatelessWidget {
                       '분석 및 동작 방법',
                       style: TextStyle(
                         fontSize: 23,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -214,6 +343,33 @@ class JudgeResultScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildResultImage(Object? imageSource) {
+  if (imageSource is File) {
+    return Image.file(
+      imageSource,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.contain,
+    );
+  }
+  if (imageSource is String) {
+    return Image.network(
+      imageSource,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.contain,
+      errorBuilder: (_, _, _) =>
+          const Center(child: Icon(Icons.broken_image_outlined, size: 64)),
+    );
+  }
+  return Image.asset(
+    'assets/images/testimages/boarding_image.jpg',
+    width: double.infinity,
+    height: double.infinity,
+    fit: BoxFit.contain,
+  );
 }
 
 class _CountSummary extends StatelessWidget {

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/user_role.dart';
@@ -78,16 +79,31 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
         } catch (statusError) {
           if (!mounted) return;
           InAppNotificationBanner.showMessage(
-            '계정 삭제 진행 상태를 확인하지 못했습니다. 다시 시도해 주세요. ($statusError)',
+            AppErrorMessage.from(
+              statusError,
+              fallback: '계정 삭제 진행 상태를 확인하지 못했습니다. 다시 시도해 주세요.',
+            ),
           );
           return;
         }
       }
       if (!mounted) return;
-      InAppNotificationBanner.showMessage('로그인 실패: $error');
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(
+          error,
+          fallback: '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+          isLogin: true,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      InAppNotificationBanner.showMessage('로그인 실패: $e');
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(
+          e,
+          fallback: '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+          isLogin: true,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }

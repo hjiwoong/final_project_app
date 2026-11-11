@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
@@ -91,7 +92,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       InAppNotificationBanner.showMessage('출석 상태를 저장했습니다.');
     } catch (e) {
       if (!mounted) return;
-      InAppNotificationBanner.showMessage('출석 상태를 저장하지 못했습니다. ($e)');
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(e, fallback: '출석 상태를 저장하지 못했습니다. 다시 시도해 주세요.'),
+      );
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -254,9 +257,10 @@ class ParentAccountInfoScreen extends StatelessWidget {
 
   String _signupMethodLabel() {
     return switch (Session.signupMethod?.toUpperCase()) {
-      'APP' => '앱 가입',
-      'GOOGLE' => 'Google 가입',
-      'ADMIN' => '관리자 생성',
+      'APP' => 'App',
+      'GOOGLE' => 'Google Account',
+      'ADMIN' => 'Web',
+      'LEGACY' => '기존 계정 (가입 경로 미기록)',
       _ => '정보 없음',
     };
   }
@@ -280,6 +284,7 @@ class ParentAccountInfoScreen extends StatelessWidget {
             ),
           ),
           Card(
+            margin: const EdgeInsets.all(4),
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -320,6 +325,7 @@ class ParentAccountInfoScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Card(
+            margin: const EdgeInsets.all(4),
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -339,6 +345,7 @@ class ParentAccountInfoScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Card(
+            margin: const EdgeInsets.all(4),
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -358,6 +365,7 @@ class ParentAccountInfoScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Card(
+            margin: const EdgeInsets.all(4),
             shape: const RoundedRectangleBorder(
               side: BorderSide.none,
               borderRadius: BorderRadius.all(Radius.circular(12)),
