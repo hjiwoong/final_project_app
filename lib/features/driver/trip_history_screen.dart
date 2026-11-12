@@ -141,7 +141,8 @@ class _TripHistoryScreenState extends State<TripHistoryScreen> {
     String? lastHeader;
     for (final trip in trips) {
       final date = TripFormat.parse(trip['started_at']);
-      final dateKey = '${date!.year}-${date.month}-${date.day}';
+      final dateKey =
+          date == null ? 'unknown' : '${date.year}-${date.month}-${date.day}';
       final header = TripFormat.dateHeader(date);
       if (header != lastHeader) {
         widgets.add(
@@ -206,7 +207,7 @@ class _TripHistoryScreenState extends State<TripHistoryScreen> {
           '${selectedDate.year}-${selectedDate.month}-${selectedDate.day}';
       await WidgetsBinding.instance.endOfFrame;
       final targetContext = _dateSectionKeys[dateKey]?.currentContext;
-      if (targetContext != null) {
+      if (targetContext != null && targetContext.mounted) {
         await Scrollable.ensureVisible(
           targetContext,
           duration: const Duration(milliseconds: 350),

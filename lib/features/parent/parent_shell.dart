@@ -37,8 +37,8 @@ class _ParentShellState extends State<ParentShell> {
 
   static const _pages = [
     ParentHomeScreen(),
-    NotificationListScreen(),
     AlertChatScreen(),
+    NotificationListScreen(),
     ParentSettingsScreen(),
   ];
 
@@ -71,11 +71,19 @@ class _ParentShellState extends State<ParentShell> {
           elevation: 0,
           height: 60,
           destinations: [
+            // 홈
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home_rounded),
               label: '홈',
             ),
+            //AI 채팅
+            NavigationDestination(
+              icon: Icon(Icons.auto_awesome_outlined),
+              selectedIcon: Icon(Icons.auto_awesome),
+              label: 'AI 채팅',
+            ),
+            // 알림
             NavigationDestination(
               icon: const UnreadNotificationBadge(
                 icon: Icons.notifications_outlined,
@@ -85,11 +93,7 @@ class _ParentShellState extends State<ParentShell> {
               ),
               label: '알림',
             ),
-            NavigationDestination(
-              icon: Icon(Icons.auto_awesome_outlined),
-              selectedIcon: Icon(Icons.auto_awesome),
-              label: 'AI 채팅',
-            ),
+            //설정
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
               selectedIcon: Icon(Icons.settings),
