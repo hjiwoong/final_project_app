@@ -19,3 +19,9 @@ workspace.xml
 *.log
 *.lock
 .DS_Store
+
+.idea/workspace.xml
+flutter_build_log.txt
+*.bak.idea/workspace.xml
+flutter_build_log.txt
+*.bak

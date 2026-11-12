@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -23,7 +21,6 @@ class DropoffCaptureScreen extends StatefulWidget {
 
 class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
   bool _loading = false;
-  XFile? _selectedImage;
 
   Future<void> _captureFromSource(ImageSource source) async {
     if (source == ImageSource.camera &&
@@ -44,7 +41,6 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
         return;
       }
 
-      setState(() => _selectedImage = image);
       final result = await ApiRepository.instance.uploadDropoffPhoto(
         tripId,
         image: image,
