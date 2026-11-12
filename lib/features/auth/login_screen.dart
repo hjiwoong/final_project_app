@@ -574,21 +574,3 @@ class _SheetSurface extends StatelessWidget {
     );
   }
 }
-
-class _SheetHandle extends StatelessWidget {
-  const _SheetHandle();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 36,
-        height: 4,
-        decoration: BoxDecoration(
-          color: const Color(0xFFD9DDE2),
-          borderRadius: BorderRadius.circular(4),
-        ),
-      ),
-    );
-  }
-}
