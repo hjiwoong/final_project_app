@@ -30,6 +30,29 @@ class JudgeResult {
   bool get isNeedsCheck => result == 'NEEDS_CHECK';
   bool get shouldRetake => retakeRecommended ?? !isOk;
 
+  /// 판정 화면 제목. 미하차 의심이면 서버 판정 문구를 그대로 쓴다.
+  /// (서버는 확실한 잔류만 세고, 약한 검출은 "(추가 확인 필요 N명)"으로 따로 붙인다)
+  String get headline {
+    if (isOk) return '하차 확인 완료';
+    if (isNeedsCheck) return '확인 필요';
+    final serverMessage = message?.trim();
+    if (serverMessage != null && serverMessage.startsWith('미하차')) {
+      return serverMessage;
+    }
+    return '미하차 의심 $remainingCount명';
+  }
+
+  /// '확인 필요' 판정의 이유 (예: 사진이 어두워 잔류 인원을 확인할 수 없습니다).
+  /// 서버 문구 "확인 필요: <이유> · <조치>" 에서 이유 부분만 꺼낸다.
+  String? get checkReason {
+    if (!isNeedsCheck) return null;
+    var text = message?.trim();
+    if (text == null || text.isEmpty) return null;
+    text = text.replaceFirst(RegExp(r'^확인\s*필요\s*[:：]\s*'), '');
+    final reason = text.split(' · ').first.trim();
+    return reason.isEmpty ? null : reason;
+  }
+
   JudgeResult copyWith({
     int? boardingCount,
     int? remainingCount,

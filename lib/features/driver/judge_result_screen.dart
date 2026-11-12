@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
+import '../../data/api/api_repository.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/judge_result.dart';
 import '../../widgets/primary_button.dart';
@@ -120,7 +122,8 @@ class JudgeResultScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Container(
               width: double.infinity,
-              height: 52,
+              constraints: const BoxConstraints(minHeight: 52),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: ok
@@ -131,11 +134,8 @@ class JudgeResultScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                ok
-                    ? '하차 확인 완료'
-                    : needsCheck
-                    ? '확인 필요'
-                    : '미하차 의심 ${result.remainingCount}명',
+                result.headline,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -147,6 +147,29 @@ class JudgeResultScreen extends StatelessWidget {
                 ),
               ),
             ),
+            if (result.checkReason != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.help_outline_rounded,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '이유: ${result.checkReason}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -231,6 +254,10 @@ class JudgeResultScreen extends StatelessWidget {
                   ),
                 ),
               ),
+            ],
+            if (result.alertId != null) ...[
+              const SizedBox(height: 4),
+              _AlertSummaryCard(alertId: result.alertId!),
             ],
             Align(
               alignment: Alignment.centerLeft,
@@ -416,6 +443,118 @@ class _CountSummary extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 경고의 AI 상황 요약 (alert.llm_summary).
+/// 서버는 템플릿 한 줄을 먼저 저장하고, 응답 후 백그라운드에서 LLM 문장(감지 위치·확인할 곳)을
+/// 덧붙인다. 그래서 몇 번 다시 불러와 보강된 요약이 오면 바꿔 보여준다.
+class _AlertSummaryCard extends StatefulWidget {
+  const _AlertSummaryCard({required this.alertId});
+
+  final int alertId;
+
+  @override
+  State<_AlertSummaryCard> createState() => _AlertSummaryCardState();
+}
+
+class _AlertSummaryCardState extends State<_AlertSummaryCard> {
+  static const _retryDelays = [
+    Duration(seconds: 3),
+    Duration(seconds: 6),
+    Duration(seconds: 10),
+  ];
+
+  String? _summary;
+  bool _failed = false;
+  bool _enriched = false;
+  int _attempt = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final alert = await ApiRepository.instance.getAlertDetail(widget.alertId);
+      if (!mounted) return;
+      final summary = (alert['llm_summary'] as String?)?.trim();
+      setState(() {
+        _summary = (summary == null || summary.isEmpty) ? null : summary;
+        // LLM 보강이 끝나면 템플릿 첫 줄 뒤에 줄이 더 붙는다.
+        _enriched = _summary?.contains('\n') ?? false;
+        _failed = false;
+      });
+    } catch (e) {
+      debugPrint('경고 AI 요약 조회 실패: $e');
+      if (mounted && _summary == null) setState(() => _failed = true);
+    }
+    if (!mounted || _enriched || _attempt >= _retryDelays.length) return;
+    _timer = Timer(_retryDelays[_attempt++], _load);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed && _summary == null) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+    final waiting = !_enriched && _attempt < _retryDelays.length;
+
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.auto_awesome, color: colors.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'AI 상황 요약',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        if (waiting)
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _summary ?? 'AI 요약을 불러오는 중입니다.',
+                      softWrap: true,
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
