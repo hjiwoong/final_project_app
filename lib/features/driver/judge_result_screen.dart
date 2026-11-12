@@ -364,11 +364,15 @@ Widget _buildResultImage(Object? imageSource) {
           const Center(child: Icon(Icons.broken_image_outlined, size: 64)),
     );
   }
-  return Image.asset(
-    'assets/images/testimages/boarding_image.jpg',
-    width: double.infinity,
-    height: double.infinity,
-    fit: BoxFit.contain,
+  return const Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.image_not_supported_outlined, size: 64),
+        SizedBox(height: 8),
+        Text('분석에 사용한 사진을 표시할 수 없습니다.'),
+      ],
+    ),
   );
 }
 

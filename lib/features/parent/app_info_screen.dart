@@ -161,18 +161,14 @@ class AppInfoScreen extends StatelessWidget {
 
                 Divider(height: 1),
 
-                ListTile(title: Text('개발 상태'), trailing: Text('API 테스트')),
-
-                Divider(height: 1),
-
-                ListTile(title: Text('앱 버전'), trailing: Text('개발 버전')),
+                ListTile(title: Text('앱 버전'), trailing: Text('1.0.0')),
               ],
             ),
           ),
 
           const SizedBox(height: 24),
 
-          // 테스트 안내
+          // 서비스 안내
           Card(
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -187,9 +183,9 @@ class AppInfoScreen extends StatelessWidget {
 
                   Expanded(
                     child: Text(
-                      '현재 앱은 프로젝트 개발 및 테스트 단계입니다. '
-                      '일부 기능은 Mock 데이터를 사용하며 '
-                      '실제 차량 운행 정보와 연결되지 않았습니다.',
+                      'AI 미하차 경고는 기사의 하차 확인 의무를 대신하지 않는 '
+                      '보조 수단입니다. 경고를 받으면 기관과 기사가 차량 내부를 '
+                      '직접 확인한 뒤 조치 결과를 알려 드립니다.',
                       style: TextStyle(
                         fontSize: 13,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

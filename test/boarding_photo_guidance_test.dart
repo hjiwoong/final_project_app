@@ -11,7 +11,6 @@ void main() {
     busId: 2,
     busName: '버스',
     busNumber: '1',
-    isMock: false,
     currentStopIndex: 0,
     boardingCount: 3,
     boardingPhotoGuidance: guidance,

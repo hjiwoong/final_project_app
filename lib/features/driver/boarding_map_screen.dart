@@ -23,7 +23,6 @@ import '../../core/notifications/in_app_notification_banner.dart';
 class BoardingMapScreen extends StatefulWidget {
   final String tripId;
   final int busId;
-  final bool isMock;
   final String busName;
   final String busNumber;
   final int initialStopIndex;
@@ -35,7 +34,6 @@ class BoardingMapScreen extends StatefulWidget {
     required this.busId,
     required this.busName,
     required this.busNumber,
-    this.isMock = false,
     this.initialStopIndex = 0,
     this.onStopChanged,
   });
@@ -136,7 +134,6 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     try {
       final students = await ApiRepository.instance.getTripBoardingMapStudents(
         int.parse(widget.tripId),
-        isMock: widget.isMock,
       );
       if (!mounted) return;
       setState(() {
@@ -279,9 +276,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
           busId: widget.busId,
           busName: widget.busName,
           busNumber: widget.busNumber,
-          isMock: widget.isMock,
           currentStopIndex: _currentStopIndex,
-          simulationMode: Session.currentTripSimulationMode,
         ),
       );
       setState(() => _allowPop = true);
@@ -297,8 +292,6 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       Session.currentTripId = null;
       Session.currentTripBusName = null;
       Session.currentBoardingCount = null;
-      Session.currentTripIsMock = false;
-      Session.currentTripSimulationMode = false;
       setState(() => _allowPop = true);
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;

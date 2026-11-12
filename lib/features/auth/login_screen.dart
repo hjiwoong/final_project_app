@@ -4,7 +4,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/errors/app_error_message.dart';
-import '../../core/auth/session.dart';
 import '../../core/config/env.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
@@ -150,12 +149,6 @@ class _LoginScreenState extends State<LoginScreen> {
         },
         onEmailLogin: () =>
             Navigator.of(sheetContext).pop(_LoginSheetResult.email),
-        onTestLogin: (email) async {
-          final role = await _loginWithTestAccount(email);
-          if (role != null && sheetContext.mounted) {
-            Navigator.of(sheetContext).pop(_resultFor(role));
-          }
-        },
       ),
     );
     if (!mounted || result == null) return;
@@ -195,27 +188,6 @@ class _LoginScreenState extends State<LoginScreen> {
   _LoginSheetResult _resultFor(UserRole role) => role == UserRole.driver
       ? _LoginSheetResult.driver
       : _LoginSheetResult.parent;
-
-  Future<UserRole?> _loginWithTestAccount(String email) async {
-    setState(() => _loading = true);
-    try {
-      final role = await ApiRepository.instance.login(email, '1234567890H#');
-      Session.role = role;
-      return role;
-    } catch (e) {
-      if (!mounted) return null;
-      InAppNotificationBanner.showMessage(
-        AppErrorMessage.from(
-          e,
-          fallback: '테스트 계정 로그인에 실패했습니다. 다시 시도해 주세요.',
-          isLogin: true,
-        ),
-      );
-      return null;
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
 
   void _navigateToRole(UserRole role) {
     Navigator.of(context).pushAndRemoveUntil(
@@ -521,13 +493,11 @@ class _LoginOptionsSheet extends StatelessWidget {
     required this.loading,
     required this.onGoogleLogin,
     required this.onEmailLogin,
-    required this.onTestLogin,
   });
 
   final bool loading;
   final Future<void> Function() onGoogleLogin;
   final VoidCallback onEmailLogin;
-  final Future<void> Function(String email) onTestLogin;
 
   @override
   Widget build(BuildContext context) {
@@ -579,105 +549,7 @@ class _LoginOptionsSheet extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Row(
-              children: [
-                Expanded(child: Divider()),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    '테스트 목적으로만 사용',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                Expanded(child: Divider()),
-              ],
-            ),
-          ),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '빠른 테스트 계정(서버가 오프라인일 때만 로그인 가능)',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _TestAccountButton(
-                  icon: Icons.directions_bus_rounded,
-                  title: '기사(관리자) 계정',
-                  email: 'driver@school.kr',
-                  color: Theme.of(context).colorScheme.primary,
-                  onPressed: loading
-                      ? null
-                      : () => onTestLogin('driver@school.kr'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _TestAccountButton(
-                  icon: Icons.family_restroom_rounded,
-                  title: '학부모 계정',
-                  email: 'parent@school.kr',
-                  color: const Color(0xFF22A06B),
-                  onPressed: loading
-                      ? null
-                      : () => onTestLogin('parent@school.kr'),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 18),
-        ],
-      ),
-    );
-  }
-}
-
-class _TestAccountButton extends StatelessWidget {
-  const _TestAccountButton({
-    required this.icon,
-    required this.title,
-    required this.email,
-    required this.color,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String title;
-  final String email;
-  final Color color;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        side: BorderSide(color: color.withValues(alpha: 0.45)),
-        shape: const StadiumBorder(),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 6),
-          Text(title, style: const TextStyle(fontSize: 12)),
-          const SizedBox(height: 2),
-          Text(
-            email,
-            style: TextStyle(
-              fontSize: 10,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
         ],
       ),
     );

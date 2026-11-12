@@ -14,7 +14,6 @@ import 'judge_result_screen.dart';
 import '../../core/notifications/in_app_notification_banner.dart';
 
 /// ④ 종점 촬영: POST /trips/{id}/dropoff-photo → 잔류 카운트 · 판정
-/// mock 단계에서는 시연 시나리오 두 가지를 버튼으로 고름
 class DropoffCaptureScreen extends StatefulWidget {
   const DropoffCaptureScreen({super.key});
 
@@ -31,9 +30,13 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
         !await CameraPermissionService.requestAccess(context)) {
       return;
     }
+    final tripId = Session.currentTripId;
+    if (tripId == null) {
+      InAppNotificationBanner.showMessage('진행 중인 운행 정보를 찾을 수 없습니다. 운행을 다시 시작해 주세요.');
+      return;
+    }
     setState(() => _loading = true);
     try {
-      final tripId = Session.currentTripId ?? 1;
       final image = await ApiRepository.instance.pickImage(source: source);
       if (image == null) {
         if (!mounted) return;
@@ -44,7 +47,6 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
       setState(() => _selectedImage = image);
       final result = await ApiRepository.instance.uploadDropoffPhoto(
         tripId,
-        oneRemaining: false,
         image: image,
       );
       if (!mounted) return;
@@ -96,14 +98,6 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
 
     if (source == null || !mounted) return;
     await _captureFromSource(source);
-  }
-
-  Future<void> _capture({required bool oneRemaining}) async {
-    if (oneRemaining) {
-      await _choosePhoto();
-      return;
-    }
-    await _choosePhoto();
   }
 
   @override
@@ -167,7 +161,7 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
               PrimaryButton(
                 label: '종점 사진 선택',
                 loading: _loading,
-                onPressed: () => _capture(oneRemaining: false),
+                onPressed: _choosePhoto,
               ),
             ],
           ),

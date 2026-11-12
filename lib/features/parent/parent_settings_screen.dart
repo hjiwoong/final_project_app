@@ -248,7 +248,7 @@ class ParentSettingsScreen extends StatelessWidget {
                 '앱 정보',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              // subtitle: const Text('서비스 소개 및 테스트 버전 안내를 확인합니다.'),
+              // subtitle: const Text('서비스 소개를 확인합니다.'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
                 Navigator.of(context).push(

@@ -9,7 +9,7 @@ import '../../data/models/user_role.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
 import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
-import '../parent/notification_mock_store.dart';
+import '../parent/unread_notification_store.dart';
 import '../parent/unread_notification_badge.dart';
 import 'trip_start_screen.dart';
 
@@ -33,7 +33,7 @@ class _DriverShellState extends State<DriverShell> {
   Future<void> _refreshUnreadCount() async {
     try {
       final count = await ApiRepository.instance.getNotificationUnreadCount();
-      NotificationMockStore.setNotificationUnreadCount(count);
+      UnreadNotificationStore.setCount(count);
     } catch (e) {
       debugPrint('읽지 않은 알림 개수 조회 실패: $e');
     }

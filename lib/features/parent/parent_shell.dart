@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/api/api_repository.dart';
-import 'notification_mock_store.dart';
+import 'unread_notification_store.dart';
 import 'notification_list_screen.dart';
 import 'parent_home_screen.dart';
 import 'parent_settings_screen.dart';
@@ -29,7 +29,7 @@ class _ParentShellState extends State<ParentShell> {
   Future<void> _refreshUnreadCount() async {
     try {
       final count = await ApiRepository.instance.getNotificationUnreadCount();
-      NotificationMockStore.setNotificationUnreadCount(count);
+      UnreadNotificationStore.setCount(count);
     } catch (e) {
       debugPrint('읽지 않은 알림 개수 조회 실패: $e');
     }

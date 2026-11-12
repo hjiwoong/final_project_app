@@ -6,9 +6,9 @@ class ChildStudent {
     required this.name,
     required this.className,
     this.isAbsent = false,
-    this.isMock = false,
     this.guardianUserIds = const [],
     this.location,
+    this.busId,
     this.busName,
     this.busStatus,
   });
@@ -17,9 +17,9 @@ class ChildStudent {
   final String name;
   final String? className;
   final bool isAbsent;
-  final bool isMock;
   final List<int> guardianUserIds;
   final ChildLocation? location;
+  final int? busId;
   final String? busName;
   final String? busStatus;
 
@@ -30,6 +30,7 @@ class ChildStudent {
       name: json['name'] as String,
       className: json['class_name'] as String?,
       isAbsent: json['is_absent'] as bool? ?? false,
+      busId: json['bus_id'] as int?,
       busName: json['bus_name'] as String?,
       busStatus: json['bus_status'] as String?,
       location: location is Map
