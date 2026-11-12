@@ -12,6 +12,7 @@ import '../../widgets/logout_confirmation_dialog.dart';
 import '../auth/child_link_request_screen.dart';
 import '../auth/login_screen.dart';
 import 'bus_status_screen.dart';
+import 'bus_trip_simulation.dart';
 import 'missed_dropoff_alert_screen.dart';
 import 'trip_report_screen.dart';
 
@@ -520,6 +521,35 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   }
 
   // 실제 배정 버스 + 운행 상태
+  // 테스트 운행(버스 위치 시뮬레이션) 요약 카드 → 버스 운행 현황으로 이동
+  Widget _buildTestRunCard() {
+    return ValueListenableBuilder<BusTripStatus>(
+      valueListenable: BusTripSimulation.status,
+      builder: (context, status, _) {
+        return ValueListenableBuilder<double>(
+          valueListenable: BusTripSimulation.progress,
+          builder: (context, _, _) {
+            return Card(
+              color: _homeCardColor(context),
+              child: ListTile(
+                leading: const Icon(Icons.route, color: Colors.blue),
+                title: const Text('버스 위치 (테스트 운행)'),
+                subtitle: Text(
+                  '${BusTripSimulation.statusText(status)} · '
+                  '도착 예정 ${BusTripSimulation.etaText(status)}',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const BusStatusScreen()),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildBusSection() {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _buses,
@@ -655,6 +685,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
 
             _buildBusSection(),
 
+            _buildTestRunCard(),
+
             const SizedBox(height: 24),
 
             _buildNavCard(
@@ -662,7 +694,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
               iconColor: const Color(0xFFFF8A00),
               accent: const Color(0xFFFFF8E6),
               title: '버스 운행 현황',
-              subtitle: '배정 버스 운행 단계와 탑승 예정 자녀 확인',
+              subtitle: '버스 위치(테스트 운행)와 실제 운행 상태 확인',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const BusStatusScreen()),
               ),

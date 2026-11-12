@@ -6,6 +6,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import '../../core/maps/naver_map_status.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
+import 'bus_trip_simulation.dart';
 import 'child_location_screen.dart';
 
 /// 오늘 기준 버스 하나의 운행 단계
@@ -29,9 +30,10 @@ class _BusStatusItem {
   final List<ChildStudent> children;
 }
 
-/// 학부모 버스 운행 현황 (GET /me/bus-status + GET /me/children)
-/// 지도에는 학부모가 등록한 자녀 탑승 위치를 표시한다.
-/// (서버에 버스 실시간 GPS 데이터가 없으므로 버스 위치는 표시하지 않는다)
+/// 학부모 버스 운행 현황
+/// - 버스 위치·도착 예정 시간: 테스트 운행(시뮬레이션). 서버에 버스 실시간 GPS 가 없음
+/// - 운행 상태·탑승 예정 자녀: 서버 실제 데이터 (GET /me/bus-status + GET /me/children)
+/// - 지도에는 테스트 운행 버스와 학부모가 등록한 자녀 탑승 위치를 함께 표시
 class BusStatusScreen extends StatefulWidget {
   const BusStatusScreen({super.key});
 
@@ -241,17 +243,233 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
     );
   }
 
-  Widget _scrollableMessage(Widget child) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      children: [const SizedBox(height: 160), Center(child: child)],
+  Widget _messageCard({required IconData icon, required String text, Widget? action}) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(text),
+        trailing: action,
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text, {Widget? trailing}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ?trailing,
+        ],
+      ),
+    );
+  }
+
+  // ---------- 테스트 운행 (버스 위치 시뮬레이션) ----------
+  Widget _buildTestRunSection() {
+    final colors = Theme.of(context).colorScheme;
+    return ValueListenableBuilder<BusTripStatus>(
+      valueListenable: BusTripSimulation.status,
+      builder: (context, status, _) {
+        return ValueListenableBuilder<double>(
+          valueListenable: BusTripSimulation.progress,
+          builder: (context, progress, _) {
+            final hasStarted = status != BusTripStatus.before;
+            final isRunning = status == BusTripStatus.running;
+            final isFinished = status == BusTripStatus.finished;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _sectionTitle(
+                  '현재 차량 위치',
+                  trailing: Chip(
+                    label: const Text('테스트 운행'),
+                    visualDensity: VisualDensity.compact,
+                    backgroundColor: colors.secondaryContainer,
+                  ),
+                ),
+                _TestRunMap(children: _children, progress: progress),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(value: progress, minHeight: 6),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: ListTile(
+                    leading: Icon(Icons.access_time, color: colors.primary),
+                    title: const Text('예상 도착 시간'),
+                    subtitle: const Text('학교 도착까지'),
+                    trailing: Text(
+                      BusTripSimulation.etaText(status),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Icon(
+                          hasStarted
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: hasStarted
+                              ? colors.tertiary
+                              : colors.onSurfaceVariant,
+                        ),
+                        title: const Text('운행 시작'),
+                        subtitle: Text(
+                          hasStarted && BusTripSimulation.startedAt != null
+                              ? '${_formatTime(BusTripSimulation.startedAt)} 출발'
+                              : '운행 시작 대기',
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(
+                          isRunning
+                              ? Icons.directions_bus
+                              : isFinished
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: isRunning
+                              ? colors.primary
+                              : isFinished
+                              ? colors.tertiary
+                              : colors.onSurfaceVariant,
+                        ),
+                        title: Text(isFinished ? '운행 완료' : '현재 운행 중'),
+                        subtitle: Text(
+                          isRunning
+                              ? '학교로 이동 중 · ${(progress * 100).round()}%'
+                              : isFinished
+                              ? '운행이 종료되었습니다'
+                              : '운행 시작 대기',
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(
+                          isFinished
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: isFinished
+                              ? colors.tertiary
+                              : colors.onSurfaceVariant,
+                        ),
+                        title: const Text('학교 도착'),
+                        subtitle: Text(isFinished ? '도착 완료' : '도착 대기'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (status == BusTripStatus.before)
+                  FilledButton.icon(
+                    onPressed: BusTripSimulation.startTrip,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('테스트 운행 시작'),
+                  ),
+                if (isRunning) ...[
+                  FilledButton.icon(
+                    onPressed: BusTripSimulation.moveBus,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text('버스 위치 이동'),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton.tonalIcon(
+                    onPressed: BusTripSimulation.finishTrip,
+                    icon: const Icon(Icons.stop),
+                    label: const Text('테스트 운행 종료'),
+                  ),
+                ],
+                if (hasStarted) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: BusTripSimulation.resetTrip,
+                    child: const Text('테스트 운행 초기화'),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  '※ 차량 위치와 도착 예정 시간은 테스트 운행(시뮬레이션) 데이터입니다. '
+                  '아래 운행 상태는 서버의 실제 운행 정보입니다.',
+                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ---------- 실제 운행 상태 (서버) ----------
+  Widget _buildRealStatusSection(AsyncSnapshot<List<_BusStatusItem>> snapshot) {
+    final colors = Theme.of(context).colorScheme;
+    final children = <Widget>[_sectionTitle('운행 상태')];
+
+    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+      children.add(
+        const Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    } else if (snapshot.hasError) {
+      children.add(
+        _messageCard(
+          icon: Icons.error_outline,
+          text: '운행 현황을 불러오지 못했습니다.',
+          action: IconButton(
+            tooltip: '다시 시도',
+            onPressed: _refresh,
+            icon: const Icon(Icons.refresh),
+          ),
+        ),
+      );
+    } else {
+      final buses = snapshot.data ?? const <_BusStatusItem>[];
+      if (buses.isEmpty) {
+        children.add(
+          _messageCard(
+            icon: Icons.directions_bus_outlined,
+            text: '자녀에게 배정된 버스가 없습니다.',
+          ),
+        );
+      } else {
+        children.addAll(buses.map(_buildBusCard));
+      }
+      if (_updatedAt != null) {
+        children.add(
+          Text(
+            '마지막 업데이트 ${_formatTime(_updatedAt)} · 30초마다 자동 갱신',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+          ),
+        );
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('버스 운행 현황'),
@@ -268,48 +486,13 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
         child: FutureBuilder<List<_BusStatusItem>>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return _scrollableMessage(
-                Column(
-                  children: [
-                    const Text('운행 현황을 불러오지 못했습니다.'),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: _refresh,
-                      child: const Text('다시 시도'),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final buses = snapshot.data ?? const <_BusStatusItem>[];
-            if (buses.isEmpty) {
-              return _scrollableMessage(
-                const Text('자녀에게 배정된 버스가 없습니다.'),
-              );
-            }
-
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
-                _ChildLocationMap(children: _children),
-                const SizedBox(height: 16),
-                ...buses.map(_buildBusCard),
-                if (_updatedAt != null)
-                  Text(
-                    '마지막 업데이트 ${_formatTime(_updatedAt)} · 30초마다 자동 갱신',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colors.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                  ),
+                _buildTestRunSection(),
+                const SizedBox(height: 24),
+                _buildRealStatusSection(snapshot),
               ],
             );
           },
@@ -319,26 +502,25 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
   }
 }
 
-/// 네이버 지도: 등록된 자녀 탑승 위치 마커
-class _ChildLocationMap extends StatefulWidget {
-  const _ChildLocationMap({required this.children});
+/// 네이버 지도: 테스트 운행 경로·버스 위치 + 등록된 자녀 탑승 위치
+class _TestRunMap extends StatefulWidget {
+  const _TestRunMap({required this.children, required this.progress});
 
   final List<ChildStudent> children;
+  final double progress;
 
   @override
-  State<_ChildLocationMap> createState() => _ChildLocationMapState();
+  State<_TestRunMap> createState() => _TestRunMapState();
 }
 
-class _ChildLocationMapState extends State<_ChildLocationMap> {
-  static const _defaultPosition = NLatLng(37.5665, 126.9780);
-
+class _TestRunMapState extends State<_TestRunMap> {
   NaverMapController? _controller;
+  NMarker? _busMarker;
 
   List<ChildStudent> get _located => widget.children
       .where((child) => child.location?.hasCoordinates ?? false)
       .toList();
 
-  // 자동 갱신 때마다 카메라가 되돌아가지 않도록 위치가 바뀐 경우에만 다시 그린다.
   static String _signature(List<ChildStudent> children) => children
       .where((child) => child.location?.hasCoordinates ?? false)
       .map(
@@ -348,23 +530,49 @@ class _ChildLocationMapState extends State<_ChildLocationMap> {
       .join('|');
 
   @override
-  void didUpdateWidget(covariant _ChildLocationMap oldWidget) {
+  void didUpdateWidget(covariant _TestRunMap oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_signature(oldWidget.children) != _signature(widget.children)) {
-      _updateOverlays();
+      _drawOverlays();
+    } else if (oldWidget.progress != widget.progress) {
+      _busMarker?.setPosition(BusTripSimulation.busPosition(widget.progress));
     }
   }
 
-  Future<void> _updateOverlays() async {
+  Future<void> _drawOverlays() async {
     final controller = _controller;
     if (controller == null) return;
-    final located = _located;
 
     await controller.clearOverlays();
-    if (!mounted || _controller != controller || located.isEmpty) return;
+    if (!mounted || _controller != controller) return;
+
+    final route = BusTripSimulation.route;
+    final bus = NMarker(
+      id: 'test_bus',
+      position: BusTripSimulation.busPosition(widget.progress),
+      caption: const NOverlayCaption(text: '버스 (테스트 운행)'),
+      iconTintColor: Colors.blue,
+    );
+    _busMarker = bus;
 
     await controller.addOverlayAll({
-      for (final child in located)
+      NPolylineOverlay(
+        id: 'test_route',
+        coords: route,
+        color: Colors.blue,
+        width: 5,
+      ),
+      NMarker(
+        id: 'route_start',
+        position: route.first,
+        caption: const NOverlayCaption(text: '출발지'),
+      ),
+      NMarker(
+        id: 'route_school',
+        position: route.last,
+        caption: const NOverlayCaption(text: '학교'),
+      ),
+      for (final child in _located)
         NMarker(
           id: 'child_${child.id}',
           position: NLatLng(
@@ -372,71 +580,52 @@ class _ChildLocationMapState extends State<_ChildLocationMap> {
             child.location!.longitude!,
           ),
           caption: NOverlayCaption(text: '${child.name} 탑승 위치'),
+          iconTintColor: Colors.green,
         ),
+      bus,
     });
-
-    final first = located.first.location!;
-    await controller.updateCamera(
-      NCameraUpdate.scrollAndZoomTo(
-        target: NLatLng(first.latitude!, first.longitude!),
-        zoom: 15,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final located = _located;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          '자녀 탑승 위치',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
         ValueListenableBuilder<String?>(
           valueListenable: naverMapAuthError,
           builder: (context, authError, _) {
             if (authError != null) {
-              return Card(
+              return const Card(
                 child: ListTile(
-                  leading: const Icon(Icons.map_outlined),
-                  title: const Text('지도를 불러오지 못했습니다.'),
-                  subtitle: const Text('네이버 지도 인증 설정을 확인해 주세요.'),
+                  leading: Icon(Icons.map_outlined),
+                  title: Text('지도를 불러오지 못했습니다.'),
+                  subtitle: Text('네이버 지도 인증 설정을 확인해 주세요.'),
                 ),
               );
             }
             return SizedBox(
-              height: 240,
+              height: 260,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: NaverMap(
-                  options: NaverMapViewOptions(
+                  options: const NaverMapViewOptions(
                     initialCameraPosition: NCameraPosition(
-                      target: located.isEmpty
-                          ? _defaultPosition
-                          : NLatLng(
-                              located.first.location!.latitude!,
-                              located.first.location!.longitude!,
-                            ),
-                      zoom: located.isEmpty ? 11 : 15,
+                      target: NLatLng(37.5605, 126.9745),
+                      zoom: 13.5,
                     ),
                     locationButtonEnable: false,
                   ),
                   onMapReady: (controller) async {
                     _controller = controller;
-                    await _updateOverlays();
+                    await _drawOverlays();
                   },
                 ),
               ),
             );
           },
         ),
-        if (located.isEmpty) ...[
-          const SizedBox(height: 8),
+        if (_located.isEmpty)
           Row(
             children: [
               Expanded(
@@ -455,7 +644,6 @@ class _ChildLocationMapState extends State<_ChildLocationMap> {
               ),
             ],
           ),
-        ],
       ],
     );
   }
