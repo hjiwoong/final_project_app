@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 
+import '../../core/maps/naver_map_status.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
+import 'child_location_screen.dart';
 
 /// 오늘 기준 버스 하나의 운행 단계
 enum _TripStage { notStarted, running, finished }
@@ -27,6 +30,8 @@ class _BusStatusItem {
 }
 
 /// 학부모 버스 운행 현황 (GET /me/bus-status + GET /me/children)
+/// 지도에는 학부모가 등록한 자녀 탑승 위치를 표시한다.
+/// (서버에 버스 실시간 GPS 데이터가 없으므로 버스 위치는 표시하지 않는다)
 class BusStatusScreen extends StatefulWidget {
   const BusStatusScreen({super.key});
 
@@ -38,6 +43,7 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
   static const _autoRefreshInterval = Duration(seconds: 30);
 
   late Future<List<_BusStatusItem>> _future;
+  List<ChildStudent> _children = const [];
   Timer? _timer;
   DateTime? _updatedAt;
 
@@ -61,6 +67,7 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
     ]);
     final statuses = results[0] as List<Map<String, dynamic>>;
     final children = results[1] as List<ChildStudent>;
+    _children = children;
 
     final items = statuses.map((bus) {
       final busId = bus['bus_id'] as int?;
@@ -291,6 +298,8 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
+                _ChildLocationMap(children: _children),
+                const SizedBox(height: 16),
                 ...buses.map(_buildBusCard),
                 if (_updatedAt != null)
                   Text(
@@ -306,6 +315,148 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// 네이버 지도: 등록된 자녀 탑승 위치 마커
+class _ChildLocationMap extends StatefulWidget {
+  const _ChildLocationMap({required this.children});
+
+  final List<ChildStudent> children;
+
+  @override
+  State<_ChildLocationMap> createState() => _ChildLocationMapState();
+}
+
+class _ChildLocationMapState extends State<_ChildLocationMap> {
+  static const _defaultPosition = NLatLng(37.5665, 126.9780);
+
+  NaverMapController? _controller;
+
+  List<ChildStudent> get _located => widget.children
+      .where((child) => child.location?.hasCoordinates ?? false)
+      .toList();
+
+  // 자동 갱신 때마다 카메라가 되돌아가지 않도록 위치가 바뀐 경우에만 다시 그린다.
+  static String _signature(List<ChildStudent> children) => children
+      .where((child) => child.location?.hasCoordinates ?? false)
+      .map(
+        (child) =>
+            '${child.id}:${child.location!.latitude}:${child.location!.longitude}',
+      )
+      .join('|');
+
+  @override
+  void didUpdateWidget(covariant _ChildLocationMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_signature(oldWidget.children) != _signature(widget.children)) {
+      _updateOverlays();
+    }
+  }
+
+  Future<void> _updateOverlays() async {
+    final controller = _controller;
+    if (controller == null) return;
+    final located = _located;
+
+    await controller.clearOverlays();
+    if (!mounted || _controller != controller || located.isEmpty) return;
+
+    await controller.addOverlayAll({
+      for (final child in located)
+        NMarker(
+          id: 'child_${child.id}',
+          position: NLatLng(
+            child.location!.latitude!,
+            child.location!.longitude!,
+          ),
+          caption: NOverlayCaption(text: '${child.name} 탑승 위치'),
+        ),
+    });
+
+    final first = located.first.location!;
+    await controller.updateCamera(
+      NCameraUpdate.scrollAndZoomTo(
+        target: NLatLng(first.latitude!, first.longitude!),
+        zoom: 15,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final located = _located;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          '자녀 탑승 위치',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        ValueListenableBuilder<String?>(
+          valueListenable: naverMapAuthError,
+          builder: (context, authError, _) {
+            if (authError != null) {
+              return Card(
+                child: ListTile(
+                  leading: const Icon(Icons.map_outlined),
+                  title: const Text('지도를 불러오지 못했습니다.'),
+                  subtitle: const Text('네이버 지도 인증 설정을 확인해 주세요.'),
+                ),
+              );
+            }
+            return SizedBox(
+              height: 240,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: NaverMap(
+                  options: NaverMapViewOptions(
+                    initialCameraPosition: NCameraPosition(
+                      target: located.isEmpty
+                          ? _defaultPosition
+                          : NLatLng(
+                              located.first.location!.latitude!,
+                              located.first.location!.longitude!,
+                            ),
+                      zoom: located.isEmpty ? 11 : 15,
+                    ),
+                    locationButtonEnable: false,
+                  ),
+                  onMapReady: (controller) async {
+                    _controller = controller;
+                    await _updateOverlays();
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+        if (located.isEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '등록된 자녀 탑승 위치가 없습니다.',
+                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ChildLocationScreen(),
+                  ),
+                ),
+                child: const Text('위치 등록'),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
