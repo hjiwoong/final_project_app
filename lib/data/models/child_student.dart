@@ -11,6 +11,9 @@ class ChildStudent {
     this.busId,
     this.busName,
     this.busStatus,
+    this.tripId,
+    this.boardingConfirmedAt,
+    this.alightingConfirmedAt,
   });
 
   final int id;
@@ -22,6 +25,9 @@ class ChildStudent {
   final int? busId;
   final String? busName;
   final String? busStatus;
+  final int? tripId;
+  final DateTime? boardingConfirmedAt;
+  final DateTime? alightingConfirmedAt;
 
   factory ChildStudent.fromJson(Map<String, dynamic> json) {
     final location = json['location'];
@@ -33,6 +39,13 @@ class ChildStudent {
       busId: json['bus_id'] as int?,
       busName: json['bus_name'] as String?,
       busStatus: json['bus_status'] as String?,
+      tripId: json['trip_id'] as int?,
+      boardingConfirmedAt: DateTime.tryParse(
+        json['boarding_confirmed_at']?.toString() ?? '',
+      ),
+      alightingConfirmedAt: DateTime.tryParse(
+        json['alighting_confirmed_at']?.toString() ?? '',
+      ),
       location: location is Map
           ? ChildLocation.fromJson(Map<String, dynamic>.from(location))
           : null,

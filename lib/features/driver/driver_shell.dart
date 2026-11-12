@@ -11,6 +11,7 @@ import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
 import '../parent/unread_notification_store.dart';
 import '../parent/unread_notification_badge.dart';
+import 'trip_history_screen.dart';
 import 'trip_start_screen.dart';
 
 /// 기사(관리자) 하단 탭: 운행 · 알림 · 설정
@@ -41,6 +42,7 @@ class _DriverShellState extends State<DriverShell> {
 
   static final List<Widget> _pages = [
     const TripStartScreen(),
+    const TripHistoryScreen(),
     const NotificationListScreen(showSettingsButton: false),
     const DriverSettingsScreen(),
   ];
@@ -68,6 +70,11 @@ class _DriverShellState extends State<DriverShell> {
               icon: Icon(Icons.directions_bus_outlined),
               selectedIcon: Icon(Icons.directions_bus),
               label: '',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bookmark_border),
+              selectedIcon: Icon(Icons.bookmark),
+              label: '운행 기록',
             ),
             NavigationDestination(
               icon: const UnreadNotificationBadge(
@@ -167,7 +174,8 @@ class DriverAccountInfoScreen extends StatelessWidget {
                 (_) => false,
               );
             },
-          ),        ],
+          ),
+        ],
       ),
     );
   }

@@ -25,91 +25,237 @@ class JudgeResultScreen extends StatelessWidget {
     final imageSource = _buildImageProvider();
     final imageHeroTag = result;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('판정 결과 · 종점')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Semantics(
-                button: true,
-                label: '이미지 미리보기. 탭하여 자세히 보기',
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () => Navigator.of(context).push(
-                      PageRouteBuilder<void>(
-                        transitionDuration: const Duration(milliseconds: 420),
-                        reverseTransitionDuration: const Duration(
-                          milliseconds: 320,
-                        ),
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            FullscreenImageViewer(
-                              heroTag: imageHeroTag,
-                              child: _buildResultImage(imageSource),
-                            ),
-                        transitionsBuilder:
-                            (context, animation, secondaryAnimation, child) =>
-                                FadeTransition(
-                                  opacity: CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeInOutCubic,
+    return PopScope<Object?>(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text('판정 결과 · 종점'),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Semantics(
+                  button: true,
+                  label: '이미지 미리보기. 탭하여 자세히 보기',
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => Navigator.of(context).push(
+                        PageRouteBuilder<void>(
+                          transitionDuration: const Duration(milliseconds: 420),
+                          reverseTransitionDuration: const Duration(
+                            milliseconds: 320,
+                          ),
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  FullscreenImageViewer(
+                                    heroTag: imageHeroTag,
+                                    child: _buildResultImage(imageSource),
                                   ),
-                                  child: child,
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) =>
+                                  FadeTransition(
+                                    opacity: CurvedAnimation(
+                                      parent: animation,
+                                      curve: Curves.easeInOutCubic,
+                                    ),
+                                    child: child,
+                                  ),
+                        ),
+                      ),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ColoredBox(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
+                              child: Hero(
+                                tag: imageHeroTag,
+                                child: _buildResultImage(imageSource),
+                              ),
+                            ),
+                            Positioned(
+                              right: 12,
+                              bottom: 12,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.zoom_in_rounded,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        '자세히 보기',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: Stack(
-                        fit: StackFit.expand,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(minHeight: 52),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: ok
+                      ? Theme.of(context).colorScheme.tertiaryContainer
+                      : needsCheck
+                      ? Theme.of(context).colorScheme.secondaryContainer
+                      : Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  result.headline,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: ok
+                        ? Theme.of(context).colorScheme.onTertiaryContainer
+                        : needsCheck
+                        ? Theme.of(context).colorScheme.onSecondaryContainer
+                        : Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+              ),
+              if (result.checkReason != null) ...[
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.help_outline_rounded,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '이유: ${result.checkReason}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
                         children: [
-                          ColoredBox(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHighest,
-                            child: Hero(
-                              tag: imageHeroTag,
-                              child: _buildResultImage(imageSource),
-                            ),
+                          _CountSummary(
+                            label: '승차',
+                            count: result.boardingCount,
+                            icon: Icons.login_rounded,
                           ),
-                          Positioned(
-                            right: 12,
-                            bottom: 12,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
+                          _CountSummary(
+                            label: '잔류',
+                            count: result.remainingCount,
+                            icon: Icons.person_outline_rounded,
+                            color: result.remainingCount == 0
+                                ? AppTheme.ok
+                                : AppTheme.danger,
+                          ),
+                          _CountSummary(
+                            label: '하차',
+                            count: result.alightedCount,
+                            icon: Icons.logout_rounded,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (result.guidance != null && result.guidance!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  needsCheck ? '확인 안내' : '기사 안내',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.zoom_in_rounded,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      '자세히 보기',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                                const SizedBox(height: 6),
+                                Text(
+                                  result.guidance!,
+                                  softWrap: true,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    height: 1.4,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ],
@@ -117,189 +263,53 @@ class JudgeResultScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(minHeight: 52),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: ok
-                    ? Theme.of(context).colorScheme.tertiaryContainer
-                    : needsCheck
-                    ? Theme.of(context).colorScheme.secondaryContainer
-                    : Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                result.headline,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: ok
-                      ? Theme.of(context).colorScheme.onTertiaryContainer
-                      : needsCheck
-                      ? Theme.of(context).colorScheme.onSecondaryContainer
-                      : Theme.of(context).colorScheme.onErrorContainer,
+              ],
+              if (result.alertId != null) ...[
+                const SizedBox(height: 4),
+                _AlertSummaryCard(alertId: result.alertId!),
+              ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => _showAnalysisInfo(context),
+                  icon: const Icon(Icons.info_outline, size: 20),
+                  label: const Text('분석 및 동작 방법에 대해'),
                 ),
               ),
-            ),
-            if (result.checkReason != null) ...[
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.help_outline_rounded,
-                    size: 18,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ],
+          ),
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (result.shouldRetake) ...[
+                  PrimaryButton(
+                    label: '재촬영',
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      '이유: ${result.checkReason}',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        height: 1.4,
+                  const SizedBox(height: 12),
+                ],
+                PrimaryButton(
+                  label: '운행 결과 확인',
+                  color: ok ? null : (isDarkMode ? Colors.white : Colors.black),
+                  foregroundColor: ok
+                      ? null
+                      : (isDarkMode ? Colors.black : Colors.white),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TripEndScreen(
+                        result: result,
+                        busName: Session.currentTripBusName ?? '운행 차량',
                       ),
                     ),
                   ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant,
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _CountSummary(
-                          label: '승차',
-                          count: result.boardingCount,
-                          icon: Icons.login_rounded,
-                        ),
-                        _CountSummary(
-                          label: '잔류',
-                          count: result.remainingCount,
-                          icon: Icons.person_outline_rounded,
-                          color: result.remainingCount == 0
-                              ? AppTheme.ok
-                              : AppTheme.danger,
-                        ),
-                        _CountSummary(
-                          label: '하차',
-                          count: result.alightedCount,
-                          icon: Icons.logout_rounded,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (result.guidance != null && result.guidance!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                needsCheck ? '확인 안내' : '기사 안내',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                result.guidance!,
-                                softWrap: true,
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            if (result.alertId != null) ...[
-              const SizedBox(height: 4),
-              _AlertSummaryCard(alertId: result.alertId!),
-            ],
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => _showAnalysisInfo(context),
-                icon: const Icon(Icons.info_outline, size: 20),
-                label: const Text('분석 및 동작 방법에 대해'),
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (result.shouldRetake) ...[
-                PrimaryButton(
-                  label: '재촬영',
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                const SizedBox(height: 12),
               ],
-              PrimaryButton(
-                label: '운행 결과 확인',
-                color: ok ? null : (isDarkMode ? Colors.white : Colors.black),
-                foregroundColor: ok
-                    ? null
-                    : (isDarkMode ? Colors.black : Colors.white),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => TripEndScreen(
-                      result: result,
-                      busName: Session.currentTripBusName ?? '운행 차량',
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

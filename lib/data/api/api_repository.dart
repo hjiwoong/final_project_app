@@ -135,9 +135,8 @@ class ApiRepository {
     );
     return (response.data as List)
         .map(
-          (item) => AddressCandidate.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          ),
+          (item) =>
+              AddressCandidate.fromJson(Map<String, dynamic>.from(item as Map)),
         )
         .toList();
   }
@@ -155,7 +154,10 @@ class ApiRepository {
     if (latitude != null) data['latitude'] = latitude;
     if (longitude != null) data['longitude'] = longitude;
 
-    final response = await _dio.put('/me/children/$childId/location', data: data);
+    final response = await _dio.put(
+      '/me/children/$childId/location',
+      data: data,
+    );
     return ChildLocation.fromJson(
       Map<String, dynamic>.from(response.data as Map),
     );
@@ -423,6 +425,20 @@ class ApiRepository {
     return children;
   }
 
+  Future<void> confirmChildTripAttendance({
+    required int tripId,
+    required int studentId,
+    required String eventType,
+  }) async {
+    if (eventType != 'BOARDING' && eventType != 'ALIGHTING') {
+      throw ArgumentError.value(eventType, 'eventType');
+    }
+    await _dio.post(
+      '/me/trips/$tripId/students/$studentId/confirmations',
+      data: {'event_type': eventType},
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getMyBuses() async {
     final response = await _dio.get('/me/buses');
     return List<Map<String, dynamic>>.from(
@@ -549,10 +565,7 @@ class ApiRepository {
   }
 
   // 종점(하차) 사진 업로드 (POST /trips/{tripId}/dropoff-photo)
-  Future<JudgeResult> uploadDropoffPhoto(
-    int tripId, {
-    XFile? image,
-  }) async {
+  Future<JudgeResult> uploadDropoffPhoto(int tripId, {XFile? image}) async {
     final selectedImage = image ?? await pickImage(source: ImageSource.camera);
     if (selectedImage == null) {
       throw StateError('분석할 사진을 선택해 주세요.');
@@ -596,12 +609,21 @@ class ApiRepository {
   Future<void> confirmTrip(int tripId, {String? reason}) async {
     await _dio.post(
       '/trips/$tripId/confirm',
-      data: {
-        'method': 'button',
-        'safety_checked': true,
-        'reason': ?reason,
-      },
+      data: {'method': 'button', 'safety_checked': true, 'reason': ?reason},
     );
+  }
+
+  Future<Map<String, dynamic>> getTripRecords({int offset = 0}) async {
+    final response = await _dio.get(
+      '/trips',
+      queryParameters: {'limit': 100, 'offset': offset},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> getTripRecord(int tripId) async {
+    final response = await _dio.get('/trips/$tripId');
+    return Map<String, dynamic>.from(response.data as Map);
   }
 
   // 알림 목록 조회 (GET /me/notifications)
@@ -653,9 +675,7 @@ class ApiRepository {
     final payload = Map<String, dynamic>.from(response.data as Map);
     final items = payload['items'] as List;
 
-    return items
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
+    return items.map((item) => Map<String, dynamic>.from(item as Map)).toList();
   }
 
   Future<Map<String, dynamic>> getAlertDetail(int alertId) async {

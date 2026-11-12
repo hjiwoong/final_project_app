@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
+import '../../core/errors/app_error_message.dart';
 import '../../core/notifications/in_app_notification_banner.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
@@ -24,8 +28,12 @@ class ParentHomeScreen extends StatefulWidget {
   State<ParentHomeScreen> createState() => _ParentHomeScreenState();
 }
 
-class _ParentHomeScreenState extends State<ParentHomeScreen> {
+class _ParentHomeScreenState extends State<ParentHomeScreen>
+    with WidgetsBindingObserver {
   late Future<List<ChildStudent>> _children;
+  final Set<int> _confirmingChildren = {};
+  late DateTime _loadedDate;
+  Timer? _midnightRefresh;
 
   // 배정 버스(getMyBuses) + 운행 상태(getParentBusStatus)를 합친 목록
   late Future<List<Map<String, dynamic>>> _buses;
@@ -33,12 +41,58 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _children = ApiRepository.instance.getChildren();
+    WidgetsBinding.instance.addObserver(this);
+    _loadedDate = _dateOnly(DateTime.now());
+    _children = ApiRepository.instance.getChildren(date: _loadedDate);
     _buses = _loadBuses();
+    _scheduleMidnightRefresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _midnightRefresh?.cancel();
+    super.dispose();
+  }
+
+  DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  void _refreshDailyData() {
+    final today = _dateOnly(DateTime.now());
+    setState(() {
+      _loadedDate = today;
+      _children = ApiRepository.instance.getChildren(date: today);
+      _buses = _loadBuses();
+    });
+  }
+
+  void _scheduleMidnightRefresh() {
+    _midnightRefresh?.cancel();
+    final now = DateTime.now();
+    final midnight = DateTime(now.year, now.month, now.day + 1);
+    _midnightRefresh = Timer(midnight.difference(now), () {
+      if (!mounted) return;
+      _refreshDailyData();
+      _scheduleMidnightRefresh();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    if (_dateOnly(DateTime.now()) != _loadedDate) {
+      _refreshDailyData();
+    }
+    _scheduleMidnightRefresh();
   }
 
   void _reloadChildren() {
-    setState(() => _children = ApiRepository.instance.getChildren());
+    final today = _dateOnly(DateTime.now());
+    setState(() {
+      _loadedDate = today;
+      _children = ApiRepository.instance.getChildren(date: today);
+    });
   }
 
   void _reloadBuses() {
@@ -111,23 +165,191 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
   }
 
   Widget _buildChildCard(ChildStudent child) {
+    final canConfirm =
+        child.busStatus == 'IN_PROGRESS' &&
+        child.tripId != null &&
+        !child.isAbsent;
+    final showAttendance = child.tripId != null && !child.isAbsent;
     return Card(
       color: _homeCardColor(context),
-      child: ListTile(
-        leading: const Icon(Icons.child_care),
-        title: Text(child.name),
-        subtitle: Text(
-          [
-            child.className ?? '학급 정보 없음',
-            if (child.busName != null) child.busName!,
-          ].join(' · '),
-        ),
-        trailing: Chip(
-          label: Text(_childStatus(child)),
-          backgroundColor: _childStatusColor(context, child),
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.child_care),
+            title: Text(child.name),
+            subtitle: Text(
+              [
+                child.className ?? '학급 정보 없음',
+                if (child.busName != null) child.busName!,
+              ].join(' · '),
+            ),
+            trailing: Chip(
+              label: Text(_childStatus(child)),
+              backgroundColor: _childStatusColor(context, child),
+            ),
+          ),
+          if (showAttendance)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      child.alightingConfirmedAt != null
+                          ? '승차·하차 확인 완료'
+                          : child.boardingConfirmedAt != null
+                          ? canConfirm
+                                ? '승차 확인 완료 · 하차 확인 대기'
+                                : '승차 확인 완료 · 하차 미확인'
+                          : canConfirm
+                          ? '승차 확인 대기'
+                          : '승·하차 확인 기록 없음',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  if (canConfirm && child.alightingConfirmedAt == null)
+                    FilledButton.tonal(
+                      onPressed: _confirmingChildren.contains(child.id)
+                          ? null
+                          : () => _requestChildAttendanceConfirmation(
+                              child,
+                              eventType: child.boardingConfirmedAt == null
+                                  ? 'BOARDING'
+                                  : 'ALIGHTING',
+                            ),
+                      child: Text(
+                        _confirmingChildren.contains(child.id)
+                            ? '처리 중'
+                            : child.boardingConfirmedAt == null
+                            ? '승차 완료'
+                            : '하차 완료',
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _requestChildAttendanceConfirmation(
+    ChildStudent child, {
+    required String eventType,
+  }) async {
+    final isBoarding = eventType == 'BOARDING';
+    final action = isBoarding ? '승차' : '하차';
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        top: false,
+        child: Container(
+          margin: AppTheme.sheetMargin,
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+          decoration: AppTheme.sheetDecoration(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isBoarding
+                        ? Icons.directions_bus_rounded
+                        : Icons.exit_to_app_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$action 완료를 확인할까요?',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '${child.name} 학생의 ${child.busName ?? '배정 버스'} $action 여부를 '
+                '완료로 기록합니다.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '완료를 누르면 운행 기록에 저장되며 직접 취소할 수 없습니다. '
+                '실제 $action을 마친 경우에만 확인해 주세요.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('취소'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: Text('$action 완료 확인'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+    if (confirmed != true || !mounted) return;
+    await _confirmChildAttendance(child, eventType: eventType);
+  }
+
+  Future<void> _confirmChildAttendance(
+    ChildStudent child, {
+    required String eventType,
+  }) async {
+    final tripId = child.tripId;
+    if (tripId == null || _confirmingChildren.contains(child.id)) return;
+    setState(() => _confirmingChildren.add(child.id));
+    try {
+      await ApiRepository.instance.confirmChildTripAttendance(
+        tripId: tripId,
+        studentId: child.id,
+        eventType: eventType,
+      );
+      if (!mounted) return;
+      _reloadChildren();
+      await _children;
+      if (!mounted) return;
+      InAppNotificationBanner.showMessage(
+        eventType == 'BOARDING' ? '승차 확인을 완료했습니다.' : '하차 확인을 완료했습니다.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(e, fallback: '승·하차 확인을 저장하지 못했습니다. 다시 시도해 주세요.'),
+      );
+    } finally {
+      if (mounted) setState(() => _confirmingChildren.remove(child.id));
+    }
   }
 
   // ---------- 공통 화면 조각 ----------
@@ -156,9 +378,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
           ? Colors.transparent
           : const Color(0x30000000),
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: onTap,
         child: Ink(
@@ -416,7 +636,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                '버스 운행 상태를 표시합니다. 학생 개인별 승차 여부는 확인되지 않습니다.',
+                '현재 운행 중인 자녀의 승차와 하차를 확인 처리할 수 있습니다.',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 12,
