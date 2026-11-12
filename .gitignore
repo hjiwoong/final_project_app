@@ -5,6 +5,7 @@
 .packages
 build/
 /config/local.json
+workspace.xml
 
 # IDE specific
 .idea/

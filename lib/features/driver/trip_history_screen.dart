@@ -17,6 +17,7 @@ class _TripHistoryScreenState extends State<TripHistoryScreen> {
   List<Map<String, dynamic>> _loadedTrips = [];
   int _totalTrips = 0;
   bool _loadingMore = false;
+  final Map<String, GlobalKey> _dateSectionKeys = {};
 
   @override
   void initState() {
@@ -139,11 +140,13 @@ class _TripHistoryScreenState extends State<TripHistoryScreen> {
     final widgets = <Widget>[];
     String? lastHeader;
     for (final trip in trips) {
-      final header =
-          TripFormat.dateHeader(TripFormat.parse(trip['started_at']));
+      final date = TripFormat.parse(trip['started_at']);
+      final dateKey = '${date!.year}-${date.month}-${date.day}';
+      final header = TripFormat.dateHeader(date);
       if (header != lastHeader) {
         widgets.add(
           Padding(
+            key: _dateSectionKeys.putIfAbsent(dateKey, () => GlobalKey()),
             padding: EdgeInsets.fromLTRB(4, lastHeader == null ? 4 : 16, 4, 8),
             child: Text(
               header,
@@ -161,10 +164,79 @@ class _TripHistoryScreenState extends State<TripHistoryScreen> {
     return widgets;
   }
 
+  Future<void> _jumpToDate() async {
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: '이동할 날짜 선택',
+    );
+    if (selectedDate == null || !mounted) return;
+
+    bool hasTripsOnDate() => _loadedTrips.any((trip) {
+          final date = TripFormat.parse(trip['started_at']);
+          return date?.year == selectedDate.year &&
+              date?.month == selectedDate.month &&
+              date?.day == selectedDate.day;
+        });
+
+    setState(() => _loadingMore = true);
+    try {
+      while (!hasTripsOnDate() && _loadedTrips.length < _totalTrips) {
+        final previousLength = _loadedTrips.length;
+        final result = await ApiRepository.instance.getTripRecords(
+          offset: previousLength,
+        );
+        if (!mounted) return;
+        setState(() {
+          _loadedTrips.addAll(_items(result));
+          _totalTrips = result['total'] as int? ?? _totalTrips;
+        });
+        if (_loadedTrips.length == previousLength) break;
+      }
+
+      if (!mounted) return;
+      if (!hasTripsOnDate()) {
+        InAppNotificationBanner.showMessage('선택한 날짜의 운행 기록이 없습니다.');
+        return;
+      }
+
+      final dateKey =
+          '${selectedDate.year}-${selectedDate.month}-${selectedDate.day}';
+      await WidgetsBinding.instance.endOfFrame;
+      final targetContext = _dateSectionKeys[dateKey]?.currentContext;
+      if (targetContext != null) {
+        await Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 350),
+          alignment: 0,
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        InAppNotificationBanner.showMessage(
+          AppErrorMessage.from(error, fallback: '날짜 이동에 실패했습니다.'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('운행 기록')),
+      appBar: AppBar(
+        title: const Text('운행 기록'),
+        actions: [
+          IconButton(
+            tooltip: '날짜로 이동',
+            onPressed: _loadingMore ? null : _jumpToDate,
+            icon: const Icon(Icons.calendar_today),
+          ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<Map<String, dynamic>>(
