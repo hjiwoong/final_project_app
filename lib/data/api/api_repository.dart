@@ -827,6 +827,7 @@ class ApiRepository {
     );
   }
 
+
   // 7. 알림 목록 조회 (GET /me/notifications)
   Future<List<NotificationItem>> getNotifications() async {
     if (Env.useMock || Session.isMockAccount) return [];
@@ -835,8 +836,10 @@ class ApiRepository {
 
     final payload = Map<String, dynamic>.from(response.data as Map);
     final items = payload['items'] as List;
+
     final notifications = items.map((item) {
       final n = Map<String, dynamic>.from(item as Map);
+
       return NotificationItem(
         id: n['id'],
         title: n['title'],
@@ -847,10 +850,16 @@ class ApiRepository {
         isAlert: n['alert_id'] != null,
         read: n['is_read'],
         alertId: n['alert_id'] as int?,
+
+        // 신규: 운행 알림 구분
+        category: n['category'] as String?,
+        eventType: n['event_type'] as String?,
       );
     }).toList();
+
     return notifications;
   }
+
 
   Future<int> getNotificationUnreadCount() async {
     if (Env.useMock || Session.isMockAccount) return 0;
