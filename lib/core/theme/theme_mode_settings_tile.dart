@@ -93,7 +93,7 @@ class ThemeModeSettingsTile extends StatelessWidget {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 10),
             minVerticalPadding: 0,
-            leading: const Icon(Icons.dark_mode_outlined),
+            leading: Icon(_icons[selectedMode]!),
             title: const Text(
               '화면 테마',
               style: TextStyle(fontWeight: FontWeight.w600),

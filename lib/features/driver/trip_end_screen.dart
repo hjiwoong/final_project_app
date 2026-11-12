@@ -31,19 +31,11 @@ class _TripEndScreenState extends State<TripEndScreen> {
 
     setState(() => _isConfirming = true);
     try {
-      final simulationMode = Session.currentTripSimulationMode;
-      await ApiRepository.instance.confirmTrip(
-        tripId,
-        simulationMode: simulationMode,
-        safetyChecked: !simulationMode,
-        reason: reason,
-      );
+      await ApiRepository.instance.confirmTrip(tripId, reason: reason);
       await TripProgressStorage.clear();
       Session.currentTripId = null;
       Session.currentTripBusName = null;
       Session.currentBoardingCount = null;
-      Session.currentTripIsMock = false;
-      Session.currentTripSimulationMode = false;
       if (!mounted) return;
 
       InAppNotificationBanner.showMessage('운행이 종료되었습니다');

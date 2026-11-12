@@ -37,6 +37,11 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
         !await CameraPermissionService.requestAccess(context)) {
       return;
     }
+    final tripId = Session.currentTripId;
+    if (tripId == null) {
+      InAppNotificationBanner.showMessage('진행 중인 운행 정보를 찾을 수 없습니다. 운행을 다시 시작해 주세요.');
+      return;
+    }
     setState(() => _loading = true);
     try {
       final image = await ApiRepository.instance.pickImage(source: source);
@@ -47,7 +52,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       }
 
       final analysis = await ApiRepository.instance.uploadBoardingPhoto(
-        Session.currentTripId ?? 1,
+        tripId,
         image: image,
       );
       if (!mounted) return;

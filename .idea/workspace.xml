@@ -9,12 +9,70 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="BackgroundAgentGlobalSettings">
-    <option name="selectedModelId" value="claude-sonnet-5.5" />
+    <option name="selectedModelId" value="ensemble" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="73f636d5-7e97-4632-8fb5-d66af541a48e" name="Changes" comment="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더">
+    <list default="true" id="73f636d5-7e97-4632-8fb5-d66af541a48e" name="Changes" comment="챗봇 UI 수정">
+      <change beforePath="$PROJECT_DIR$/.dart_tool/package_graph.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_graph.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/generate_icon.py" beforeDir="false" afterPath="$PROJECT_DIR$/generate_icon.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/auth/session.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/auth/session.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/config/env.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/config/env.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/errors/app_error_message.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/errors/app_error_message.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/maps/naver_map_status.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/maps/naver_map_status.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/notifications/in_app_notification_banner.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/notifications/in_app_notification_banner.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/notifications/push_notification_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/notifications/push_notification_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/permissions/camera_permission_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/permissions/camera_permission_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/theme/modal_system_ui_observer.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/theme/modal_system_ui_observer.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/theme/theme_controller.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/theme/theme_controller.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/theme/theme_mode_settings_tile.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/theme/theme_mode_settings_tile.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/api/api_repository.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/api/api_repository.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/models/account_deletion_schedule.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/account_deletion_schedule.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/models/child_link_request.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/child_link_request.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/models/child_location.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/child_location.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/models/child_student.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/child_student.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/models/judge_result.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/judge_result.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/data/models/trip_progress.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/data/models/trip_progress.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/auth/account_removal_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/account_removal_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/auth/change_password_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/change_password_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/auth/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/auth/login_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/boarding_capture_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/boarding_capture_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/boarding_map_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/boarding_map_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/driver_shell.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/driver_shell.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/dropoff_capture_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/dropoff_capture_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/judge_result_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/judge_result_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/trip_end_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/trip_end_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/driver/trip_start_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/driver/trip_start_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/features/parent/alert_chat_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/alert_chat_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/alert_detail_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/alert_detail_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/alert_guidance_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/alert_guidance_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/app_info_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/app_info_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/attendance_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/attendance_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/bus_status_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/bus_status_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/child_info_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/child_info_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/child_link_request_status_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/child_link_request_status_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/child_location_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/child_location_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/missed_dropoff_alert_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/missed_dropoff_alert_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/notification_list_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/notification_list_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/notification_settings_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/notification_settings_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_attendance_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_attendance_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_child_management_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_child_management_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_home_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_home_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_settings_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_settings_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/parent_shell.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/parent_shell.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/trip_report_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/trip_report_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/features/parent/unread_notification_badge.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/features/parent/unread_notification_badge.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/widgets/address_search_field.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/widgets/address_search_field.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/widgets/fullscreen_image_viewer.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/widgets/fullscreen_image_viewer.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/widgets/settings_menu_tile.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/widgets/settings_menu_tile.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/account_removal_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/account_removal_test.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/app_error_message_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/app_error_message_test.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/app_theme_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/app_theme_test.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/boarding_photo_guidance_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/boarding_photo_guidance_test.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/change_password_screen_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/change_password_screen_test.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/parent_settings_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/parent_settings_test.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test/widget_test.dart" beforeDir="false" afterPath="$PROJECT_DIR$/test/widget_test.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -80,7 +138,7 @@
       <template>
         <option name="ensembleEnabled" value="true" />
         <option name="ensembleTierId" value="balance" />
-        <option name="modeId" value="Agent" />
+        <option name="modeId" value="Ask" />
         <option name="model">
           <model>
             <option name="modelType" value="builtin_id" />
@@ -117,7 +175,7 @@
     "io.flutter.reload.alreadyRun": "true",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "D:/projects/final_project_app",
-    "settings.editor.selected.configurable": "com.github.copilot.settings.agentHarness.ThirdPartyAgentHarnessConfigurable",
+    "settings.editor.selected.configurable": "com.android.studio.ml.McpConfigurable",
     "show.migrate.to.gradle.popup": "false"
   }
 }]]></component>
@@ -209,7 +267,15 @@
       <option name="project" value="LOCAL" />
       <updated>1794312778613</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="챗봇 UI 수정">
+      <option name="closed" value="true" />
+      <created>1794398811583</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1794398811583</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -261,6 +327,7 @@
     <MESSAGE value="11/04 일부 디자인 수정, API 적용" />
     <MESSAGE value="11/05 일부 디자인 수정, API 적용, 계정삭제, 비밀번호 API 연동 및 기능 구현" />
     <MESSAGE value="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더" />
-    <option name="LAST_COMMIT_MESSAGE" value="11/10 기능 개선 - 아이콘 추가, 알림창 개선, 챗봇 추가 등 그 외 더" />
+    <MESSAGE value="챗봇 UI 수정" />
+    <option name="LAST_COMMIT_MESSAGE" value="챗봇 UI 수정" />
   </component>
 </project>

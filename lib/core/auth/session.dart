@@ -20,12 +20,9 @@ class Session {
   static int? currentTripId;
   static String? currentTripBusName;
   static int? currentBoardingCount;
-  static bool currentTripIsMock = false;
-  static bool currentTripSimulationMode = false;
-  static bool isMockAccount = false;
 
   static Future<void> clear() async {
-    if (!isMockAccount && await TokenStorage.read() != null) {
+    if (await TokenStorage.read() != null) {
       try {
         final token = await _currentPushToken();
         if (token != null) {
@@ -47,9 +44,6 @@ class Session {
     currentTripId = null;
     currentTripBusName = null;
     currentBoardingCount = null;
-    currentTripIsMock = false;
-    currentTripSimulationMode = false;
-    isMockAccount = false;
     await TokenStorage.clear();
     await TripProgressStorage.clear();
   }

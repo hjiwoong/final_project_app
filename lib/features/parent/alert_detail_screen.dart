@@ -35,17 +35,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('안전 확인 안내')),
       body: widget.alertId == null
-          ? _buildDetail(
-              message: '미하차 의심 1명',
-              busName: '1호차',
-              detectedAt: '오전 8:40',
-              detectedCount: '1명',
-              status: 'OPEN',
-              summary: '종점에서 하차 후 1명이 남아 있을 가능성이 있습니다.',
-              isMock: true,
-              alertId: null,
-              guidance: null,
-            )
+          ? const Center(child: Text('경고 정보를 찾을 수 없습니다.'))
           : FutureBuilder<Map<String, dynamic>>(
               future: _alert,
               builder: (context, snapshot) {
@@ -77,10 +67,11 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                   message: alert['message'] as String? ?? '경고가 발생했습니다.',
                   busName: alert['bus_name'] as String? ?? '정보 없음',
                   detectedAt: detectedAt,
-                  detectedCount: null,
+                  detectedCount: alert['detected_count'] is num
+                      ? '${(alert['detected_count'] as num).toInt()}명'
+                      : null,
                   status: alert['status'] as String? ?? 'OPEN',
                   summary: alert['llm_summary'] as String? ?? 'AI 요약이 없습니다.',
-                  isMock: false,
                   alertId: widget.alertId,
                   guidance: _guidance,
                 );
@@ -113,7 +104,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
     required String? detectedCount,
     required String status,
     required String summary,
-    required bool isMock,
     required int? alertId,
     required Future<Map<String, dynamic>>? guidance,
   }) {
@@ -325,16 +315,6 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
               '자동 감지 결과만으로 자녀의 미하차가 확인된 것은 아닙니다. '
               '자세한 내용은 학교 또는 운행 담당자에게 문의해 주세요.',
         ),
-        if (isMock) ...[
-          const SizedBox(height: 16),
-          Text(
-            '※ 현재 경고 정보와 AI 요약은 테스트용 Mock 데이터입니다.',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontSize: 13,
-            ),
-          ),
-        ],
       ],
     );
   }

@@ -1,23 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
-import '../../core/config/env.dart';
+import '../../core/errors/app_error_message.dart';
 import '../../core/notifications/in_app_notification_banner.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
 import '../auth/child_link_request_screen.dart';
 import '../auth/login_screen.dart';
-import 'alert_mock_store.dart';
 import 'bus_status_screen.dart';
-import 'bus_trip_mock_store.dart';
 import 'missed_dropoff_alert_screen.dart';
-import 'notification_mock_store.dart';
-import 'parent_event_mock_store.dart';
-import 'parent_event_test_screen.dart';
 import 'trip_report_screen.dart';
 
-// 학부모 홈: 실제 API 정보와 Mock 테스트 화면 분리
+// 학부모 홈: 자녀 연결 · 자녀 탑승 현황 · 배정 버스 · 바로가기
 Color _homeCardColor(BuildContext context) =>
     Theme.of(context).brightness == Brightness.dark
     ? Theme.of(context).colorScheme.surfaceContainerHigh
@@ -30,22 +28,71 @@ class ParentHomeScreen extends StatefulWidget {
   State<ParentHomeScreen> createState() => _ParentHomeScreenState();
 }
 
-class _ParentHomeScreenState extends State<ParentHomeScreen> {
-  bool get _isMockMode => Env.useMock || Session.isMockAccount;
+class _ParentHomeScreenState extends State<ParentHomeScreen>
+    with WidgetsBindingObserver {
   late Future<List<ChildStudent>> _children;
+  final Set<int> _confirmingChildren = {};
+  late DateTime _loadedDate;
+  Timer? _midnightRefresh;
 
-  // 배정 버스(main: getMyBuses) + 운행 상태(parent-app: getParentBusStatus)를 합친 목록
+  // 배정 버스(getMyBuses) + 운행 상태(getParentBusStatus)를 합친 목록
   late Future<List<Map<String, dynamic>>> _buses;
 
   @override
   void initState() {
     super.initState();
-    _children = ApiRepository.instance.getChildren();
+    WidgetsBinding.instance.addObserver(this);
+    _loadedDate = _dateOnly(DateTime.now());
+    _children = ApiRepository.instance.getChildren(date: _loadedDate);
     _buses = _loadBuses();
+    _scheduleMidnightRefresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _midnightRefresh?.cancel();
+    super.dispose();
+  }
+
+  DateTime _dateOnly(DateTime value) =>
+      DateTime(value.year, value.month, value.day);
+
+  void _refreshDailyData() {
+    final today = _dateOnly(DateTime.now());
+    setState(() {
+      _loadedDate = today;
+      _children = ApiRepository.instance.getChildren(date: today);
+      _buses = _loadBuses();
+    });
+  }
+
+  void _scheduleMidnightRefresh() {
+    _midnightRefresh?.cancel();
+    final now = DateTime.now();
+    final midnight = DateTime(now.year, now.month, now.day + 1);
+    _midnightRefresh = Timer(midnight.difference(now), () {
+      if (!mounted) return;
+      _refreshDailyData();
+      _scheduleMidnightRefresh();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    if (_dateOnly(DateTime.now()) != _loadedDate) {
+      _refreshDailyData();
+    }
+    _scheduleMidnightRefresh();
   }
 
   void _reloadChildren() {
-    setState(() => _children = ApiRepository.instance.getChildren());
+    final today = _dateOnly(DateTime.now());
+    setState(() {
+      _loadedDate = today;
+      _children = ApiRepository.instance.getChildren(date: today);
+    });
   }
 
   void _reloadBuses() {
@@ -96,7 +143,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
     return merged;
   }
 
-  // ---------- 실제 자녀 상태 (main) ----------
+  // ---------- 자녀 상태 ----------
   String _childStatus(ChildStudent child) {
     if (child.isAbsent) return '오늘 결석';
     return switch (child.busStatus) {
@@ -118,65 +165,191 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
   }
 
   Widget _buildChildCard(ChildStudent child) {
+    final canConfirm =
+        child.busStatus == 'IN_PROGRESS' &&
+        child.tripId != null &&
+        !child.isAbsent;
+    final showAttendance = child.tripId != null && !child.isAbsent;
     return Card(
       color: _homeCardColor(context),
-      child: ListTile(
-        leading: const Icon(Icons.child_care),
-        title: Text(child.name),
-        subtitle: Text(
-          [
-            child.className ?? '학급 정보 없음',
-            if (child.busName != null) child.busName!,
-          ].join(' · '),
-        ),
-        trailing: Chip(
-          label: Text(_childStatus(child)),
-          backgroundColor: _childStatusColor(context, child),
-        ),
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.child_care),
+            title: Text(child.name),
+            subtitle: Text(
+              [
+                child.className ?? '학급 정보 없음',
+                if (child.busName != null) child.busName!,
+              ].join(' · '),
+            ),
+            trailing: Chip(
+              label: Text(_childStatus(child)),
+              backgroundColor: _childStatusColor(context, child),
+            ),
+          ),
+          if (showAttendance)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      child.alightingConfirmedAt != null
+                          ? '승차·하차 확인 완료'
+                          : child.boardingConfirmedAt != null
+                          ? canConfirm
+                                ? '승차 확인 완료 · 하차 확인 대기'
+                                : '승차 확인 완료 · 하차 미확인'
+                          : canConfirm
+                          ? '승차 확인 대기'
+                          : '승·하차 확인 기록 없음',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  if (canConfirm && child.alightingConfirmedAt == null)
+                    FilledButton.tonal(
+                      onPressed: _confirmingChildren.contains(child.id)
+                          ? null
+                          : () => _requestChildAttendanceConfirmation(
+                              child,
+                              eventType: child.boardingConfirmedAt == null
+                                  ? 'BOARDING'
+                                  : 'ALIGHTING',
+                            ),
+                      child: Text(
+                        _confirmingChildren.contains(child.id)
+                            ? '처리 중'
+                            : child.boardingConfirmedAt == null
+                            ? '승차 완료'
+                            : '하차 완료',
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  // ---------- 테스트용 자녀 상태 (parent-app) ----------
-  Widget _buildMockChildCard({
-    required String name,
-    required String grade,
-    required String status,
-    required bool? isAbsent,
-    required String emoji,
-  }) {
-    final displayStatus = isAbsent == null
-        ? '결석 여부 확인 불가'
-        : isAbsent
-        ? '오늘 결석'
-        : status;
-    final isChecking = isAbsent == null || (status == '상태 확인 중' && !isAbsent);
-
-    final Color statusColor = isAbsent == true
-        ? Colors.orange.shade100
-        : status == '하차 완료'
-        ? Colors.green.shade100
-        : isChecking
-        ? Colors.black26
-        : Colors.blue.shade50;
-
-    return Card(
-      color: _homeCardColor(context),
-      child: ListTile(
-        leading: Text(emoji, style: const TextStyle(fontSize: 28)),
-        title: Text(name),
-        subtitle: Text(grade),
-        trailing: Chip(
-          label: Text(
-            displayStatus,
-            style: TextStyle(
-              color: isChecking ? Colors.white : Colors.black,
-            ),
+  Future<void> _requestChildAttendanceConfirmation(
+    ChildStudent child, {
+    required String eventType,
+  }) async {
+    final isBoarding = eventType == 'BOARDING';
+    final action = isBoarding ? '승차' : '하차';
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        top: false,
+        child: Container(
+          margin: AppTheme.sheetMargin,
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+          decoration: AppTheme.sheetDecoration(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isBoarding
+                        ? Icons.directions_bus_rounded
+                        : Icons.exit_to_app_rounded,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$action 완료를 확인할까요?',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '${child.name} 학생의 ${child.busName ?? '배정 버스'} $action 여부를 '
+                '완료로 기록합니다.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '완료를 누르면 운행 기록에 저장되며 직접 취소할 수 없습니다. '
+                '실제 $action을 마친 경우에만 확인해 주세요.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('취소'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: Text('$action 완료 확인'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          backgroundColor: statusColor,
         ),
       ),
     );
+    if (confirmed != true || !mounted) return;
+    await _confirmChildAttendance(child, eventType: eventType);
+  }
+
+  Future<void> _confirmChildAttendance(
+    ChildStudent child, {
+    required String eventType,
+  }) async {
+    final tripId = child.tripId;
+    if (tripId == null || _confirmingChildren.contains(child.id)) return;
+    setState(() => _confirmingChildren.add(child.id));
+    try {
+      await ApiRepository.instance.confirmChildTripAttendance(
+        tripId: tripId,
+        studentId: child.id,
+        eventType: eventType,
+      );
+      if (!mounted) return;
+      _reloadChildren();
+      await _children;
+      if (!mounted) return;
+      InAppNotificationBanner.showMessage(
+        eventType == 'BOARDING' ? '승차 확인을 완료했습니다.' : '하차 확인을 완료했습니다.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(e, fallback: '승·하차 확인을 저장하지 못했습니다. 다시 시도해 주세요.'),
+      );
+    } finally {
+      if (mounted) setState(() => _confirmingChildren.remove(child.id));
+    }
   }
 
   // ---------- 공통 화면 조각 ----------
@@ -189,7 +362,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
     };
   }
 
-  // parent-app 디자인의 큰 이동 카드
+  // 큰 이동 카드
   Widget _buildNavCard({
     required IconData icon,
     required Color iconColor,
@@ -205,9 +378,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
           ? Colors.transparent
           : const Color(0x30000000),
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: onTap,
         child: Ink(
@@ -272,7 +443,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
     );
   }
 
-  // main: 자녀 연결 요청 카드
+  // 자녀 연결 요청 카드
   Widget _buildChildLinkCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
@@ -413,175 +584,6 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
     );
   }
 
-  // ---------- Mock 전용 화면 조각 (parent-app) ----------
-  List<Widget> _buildMockChildrenSection(Map<String, bool> absent) {
-    return [
-      const SizedBox(height: 16),
-      const Text(
-        '테스트용 학부모 기능',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-
-      // 읽지 않은 알림 개수
-      ValueListenableBuilder<int>(
-        valueListenable: NotificationMockStore.unreadCount,
-        builder: (context, count, _) {
-          return ValueListenableBuilder<List<ParentMockEvent>>(
-            valueListenable: ParentEventMockStore.events,
-            builder: (context, events, _) {
-              return ValueListenableBuilder<Set<int>>(
-                valueListenable: ParentEventMockStore.readEventIds,
-                builder: (context, readIds, _) {
-                  final totalCount =
-                      count + ParentEventMockStore.unreadEventCount;
-
-                  return Card(
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.notifications,
-                        color: Colors.blue,
-                      ),
-                      title: const Text('읽지 않은 알림'),
-                      subtitle: const Text('알림 탭에서 내용을 확인할 수 있습니다.'),
-                      trailing: Text(
-                        '$totalCount건',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
-
-      const SizedBox(height: 16),
-
-      const Text(
-        '테스트용 자녀 탑승 현황',
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      ),
-
-      const SizedBox(height: 12),
-
-      // 승하차 이벤트와 자녀 상태 자동 연동
-      ValueListenableBuilder<Map<String, ChildBoardingStatus>>(
-        valueListenable: ParentEventMockStore.childStatuses,
-        builder: (context, statuses, _) {
-          return Column(
-            children: [
-              _buildMockChildCard(
-                name: '김하늘',
-                grade: '1학년 2반',
-                status: ParentEventMockStore.getChildStatusText(
-                  statuses['김하늘'] ?? ChildBoardingStatus.waiting,
-                ),
-                isAbsent: absent['김하늘'],
-                emoji: '👧',
-              ),
-              _buildMockChildCard(
-                name: '이도윤',
-                grade: '3학년 1반',
-                status: ParentEventMockStore.getChildStatusText(
-                  statuses['이도윤'] ?? ChildBoardingStatus.waiting,
-                ),
-                isAbsent: absent['이도윤'],
-                emoji: '👦',
-              ),
-            ],
-          );
-        },
-      ),
-    ];
-  }
-
-  // 버스 운행 상태 (Mock)
-  Widget _buildMockBusCard() {
-    return ValueListenableBuilder<BusTripStatus>(
-      valueListenable: BusTripMockStore.status,
-      builder: (context, status, _) {
-        return Card(
-          color: _homeCardColor(context),
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.directions_bus, color: Colors.blue),
-                title: const Text('1호차'),
-                subtitle: const Text('차량번호: 12가3456'),
-                trailing: Chip(
-                  label: Text(BusTripMockStore.getStatusText(status)),
-                ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.access_time, color: Colors.blue),
-                title: const Text('예상 도착 시간 (Mock)'),
-                trailing: Text(BusTripMockStore.getEtaText(status)),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // 미하차 경고 시뮬레이션 (Mock)
-  Widget _buildMockAlertSection() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: AlertMockStore.hasAlert,
-      builder: (context, hasAlert, _) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              '안전 상태 안내',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 8),
-
-            Card(
-              color: hasAlert ? Colors.red.shade50 : const Color(0xFFFFF3E0),
-              child: ListTile(
-                leading: Icon(
-                  hasAlert ? Icons.warning_amber_rounded : Icons.info_outline,
-                  color: hasAlert ? Colors.red : Colors.orange,
-                ),
-                title: Text(hasAlert ? '미하차 의심 경고 (테스트)' : '안전 상태 확인 안내'),
-                subtitle: Text(
-                  hasAlert
-                      ? '1호차 내부에 어린이 1명이 남아 있는 상황을 '
-                            '가정한 Mock 경고입니다. 관리자 확인이 필요합니다.'
-                      : '현재 표시되는 운행 및 안전 정보는 테스트 데이터입니다. '
-                            '실제 미하차 감지 결과는 아직 연결되지 않았습니다.',
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            ElevatedButton.icon(
-              onPressed: AlertMockStore.triggerAlert,
-              icon: const Icon(Icons.warning_amber_rounded),
-              label: const Text('미하차 경고 발생 테스트'),
-            ),
-
-            const SizedBox(height: 8),
-
-            OutlinedButton(
-              onPressed: AlertMockStore.resetAlert,
-              child: const Text('테스트 경고 초기화'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -604,126 +606,99 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<List<ChildStudent>>(
-        future: _children,
-        builder: (context, snapshot) {
-          final absent = <String, bool>{
-            for (final child in snapshot.data ?? <ChildStudent>[])
-              child.name: child.isAbsent,
-          };
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildChildLinkCard(context),
-
-              const SizedBox(height: 16),
-
-              const Text(
-                '오늘의 자녀 탑승 현황',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 8),
-
-              _buildChildrenSection(),
-
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '버스 운행 상태를 표시합니다. 학생 개인별 승차 여부는 확인되지 않습니다.',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-
-              if (_isMockMode) ..._buildMockChildrenSection(absent),
-
-              const SizedBox(height: 24),
-
-              const Text(
-                '버스 운행 정보',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-
-              const SizedBox(height: 8),
-
-              if (_isMockMode) _buildMockBusCard() else _buildBusSection(),
-
-              const SizedBox(height: 24),
-
-              _buildNavCard(
-                icon: Icons.directions_bus,
-                iconColor: const Color(0xFFFF8A00),
-                accent: const Color(0xFFFFF8E6),
-                title: '버스 운행 현황',
-                subtitle: '차량 위치 및 운행 상태 확인',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const BusStatusScreen()),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              _buildNavCard(
-                icon: Icons.warning_amber_rounded,
-                iconColor: const Color(0xFFE05252),
-                accent: const Color(0xFFFFEEEE),
-                title: '미하차 안전 알림',
-                subtitle: '미하차 의심 경고 및 안전 상태 확인',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const MissedDropoffAlertScreen(),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              _buildNavCard(
-                icon: Icons.bar_chart_rounded,
-                iconColor: const Color(0xFF25865A),
-                accent: const Color(0xFFEAF7F0),
-                title: '운행 리포트',
-                subtitle: '운행 기록 및 안전 정보 확인',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const TripReportScreen()),
-                ),
-              ),
-
-              if (_isMockMode) ...[
-                const SizedBox(height: 24),
-
-                _buildMockAlertSection(),
-
-                const SizedBox(height: 12),
-
-                // 승하차 및 안전 이벤트 테스트 화면
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ParentEventTestScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.fact_check),
-                  label: const Text('승하차 · 안전 이벤트 테스트'),
-                ),
-
-                const SizedBox(height: 12),
-
-                const Text(
-                  '※ 현재 자녀 상태와 차량 정보는 Mock 데이터입니다.',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-
-              const SizedBox(height: 16),
-            ],
-          );
+      body: RefreshIndicator(
+        onRefresh: () async {
+          _reloadChildren();
+          _reloadBuses();
+          try {
+            await Future.wait<Object?>([_children, _buses]);
+          } catch (_) {
+            // 각 섹션의 FutureBuilder 가 오류 상태를 표시합니다.
+          }
         },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildChildLinkCard(context),
+
+            const SizedBox(height: 16),
+
+            const Text(
+              '오늘의 자녀 탑승 현황',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 8),
+
+            _buildChildrenSection(),
+
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '현재 운행 중인 자녀의 승차와 하차를 확인 처리할 수 있습니다.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            const Text(
+              '버스 운행 정보',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 8),
+
+            _buildBusSection(),
+
+            const SizedBox(height: 24),
+
+            _buildNavCard(
+              icon: Icons.directions_bus,
+              iconColor: const Color(0xFFFF8A00),
+              accent: const Color(0xFFFFF8E6),
+              title: '버스 운행 현황',
+              subtitle: '배정 버스 운행 단계와 탑승 예정 자녀 확인',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const BusStatusScreen()),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            _buildNavCard(
+              icon: Icons.warning_amber_rounded,
+              iconColor: const Color(0xFFE05252),
+              accent: const Color(0xFFFFEEEE),
+              title: '미하차 안전 알림',
+              subtitle: '미하차 의심 경고 및 안전 상태 확인',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MissedDropoffAlertScreen(),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            _buildNavCard(
+              icon: Icons.bar_chart_rounded,
+              iconColor: const Color(0xFF25865A),
+              accent: const Color(0xFFEAF7F0),
+              title: '운행 리포트',
+              subtitle: '운행 기록 및 안전 정보 확인',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TripReportScreen()),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }

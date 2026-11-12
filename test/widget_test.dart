@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:final_project_app/core/auth/session.dart';
-import 'package:final_project_app/data/mock/mock_repository.dart';
 import 'package:final_project_app/features/auth/signup_screen.dart';
-import 'package:final_project_app/features/parent/parent_shell.dart';
-import 'package:final_project_app/data/models/user_role.dart';
 import 'package:final_project_app/main.dart';
 
 void main() {
@@ -17,11 +13,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Google 계정으로 계속하기'), findsOneWidget);
-    expect(find.text('빠른 테스트 계정'), findsOneWidget);
-    expect(find.text('기사(관리자) 계정'), findsOneWidget);
-    expect(find.text('driver@school.kr'), findsOneWidget);
-    expect(find.text('학부모 계정'), findsOneWidget);
-    expect(find.text('parent@school.kr'), findsOneWidget);
+    // 테스트 계정 바로가기는 제거되었다.
+    expect(find.textContaining('테스트 계정'), findsNothing);
+    expect(find.text('driver@school.kr'), findsNothing);
+    expect(find.text('parent@school.kr'), findsNothing);
     expect(find.text('Naver로 로그인'), findsNothing);
 
     await tester.tap(find.text('이메일로 로그인'));
@@ -34,8 +29,10 @@ void main() {
     expect(find.byType(AppBar), findsOneWidget);
   });
 
-  testWidgets('회원가입이 완료되면 자동 로그인되어 학부모 홈으로 이동한다', (WidgetTester tester) async {
-    final requestCount = MockRepository.instance.signupRequests.length;
+  // 실제 가입 요청은 서버가 필요하므로 입력 단계 흐름만 확인한다.
+  testWidgets('회원가입 화면은 이메일 → 비밀번호 → 이름 순서로 진행된다', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MaterialApp(home: SignupScreen()));
 
     expect(find.text('이메일을 입력하세요'), findsOneWidget);
@@ -61,17 +58,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('이름을 입력하세요'), findsOneWidget);
-    await tester.enterText(find.byType(TextFormField).first, '테스트 보호자');
-    await tester.pump();
-    await tester.tap(find.text('계정 만들기'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(ParentShell), findsOneWidget);
-    expect(Session.role, UserRole.parent);
-    expect(Session.accountRole, 'PARENT');
-    expect(
-      MockRepository.instance.signupRequests[requestCount].children,
-      isEmpty,
-    );
+    expect(find.text('계정 만들기'), findsOneWidget);
   });
 }

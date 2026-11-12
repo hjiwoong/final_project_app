@@ -5,19 +5,17 @@ import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/auth/session.dart';
 import '../../core/auth/token_storage.dart';
-import '../../core/config/env.dart';
 import '../../core/network/api_client.dart';
 import '../../core/notifications/push_notification_service.dart';
 import '../../data/models/child_student.dart';
 import '../../data/models/child_link_request.dart';
 import '../../data/models/child_location.dart';
 import '../../data/models/account_deletion_schedule.dart';
-import '../../data/mock/mock_repository.dart';
 import '../../data/models/judge_result.dart';
 import '../../data/models/notification_item.dart';
 import '../../data/models/user_role.dart';
 
-/// FastAPI 연동 Repository. 목록은 비어 있거나 서버에 연결할 수 없을 때만 Mock으로 대체한다.
+/// FastAPI 연동 Repository. 모든 데이터는 서버 API에서 가져온다.
 class ApiRepository {
   ApiRepository._();
   static final ApiRepository instance = ApiRepository._();
@@ -61,47 +59,10 @@ class ApiRepository {
     required String password,
     required String name,
   }) async {
-    if (Env.useMock) {
-      final mockAccount = await MockRepository.instance.signup(
-        name: name,
-        email: email,
-        children: const [],
-      );
-      await TokenStorage.clear();
-      Session.role = UserRole.parent;
-      Session.accountRole = 'PARENT';
-      Session.email = email;
-      Session.name = name;
-      Session.createdAt = mockAccount.createdAt;
-      Session.signupMethod = 'APP';
-      Session.isMockAccount = true;
-      return;
-    }
-
-    late final Response<dynamic> response;
-    try {
-      response = await _dio.post(
-        '/auth/signup',
-        data: {'email': email, 'password': password, 'name': name},
-      );
-    } on DioException catch (e) {
-      if (e.response != null) rethrow;
-      debugPrint('회원가입 서버에 연결할 수 없어 Mock으로 폴백: $e');
-      final mockAccount = await MockRepository.instance.signup(
-        name: name,
-        email: email,
-        children: const [],
-      );
-      await TokenStorage.clear();
-      Session.role = UserRole.parent;
-      Session.accountRole = 'PARENT';
-      Session.email = email;
-      Session.name = name;
-      Session.createdAt = mockAccount.createdAt;
-      Session.signupMethod = 'APP';
-      Session.isMockAccount = true;
-      return;
-    }
+    final response = await _dio.post(
+      '/auth/signup',
+      data: {'email': email, 'password': password, 'name': name},
+    );
 
     final data = Map<String, dynamic>.from(response.data as Map);
     final accessToken = data['access_token'] as String;
@@ -123,7 +84,6 @@ class ApiRepository {
       Session.createdAt = null;
       Session.signupMethod = 'UNKNOWN';
     }
-    Session.isMockAccount = false;
     await _initializePushNotifications();
   }
 
@@ -133,15 +93,6 @@ class ApiRepository {
     required String className,
     required String relation,
   }) async {
-    if (Env.useMock || Session.isMockAccount) {
-      await MockRepository.instance.addChildRequest(
-        name: name,
-        className: className,
-        relation: relation,
-      );
-      return;
-    }
-
     await _dio.post(
       '/me/child-requests',
       data: {'name': name, 'class_name': className, 'relation': relation},
@@ -149,10 +100,6 @@ class ApiRepository {
   }
 
   Future<List<ChildLinkRequest>> getChildRequests() async {
-    if (Env.useMock || Session.isMockAccount) {
-      return MockRepository.instance.childRequests;
-    }
-
     final response = await _dio.get('/me/child-requests');
     return (response.data as List)
         .map(
@@ -163,22 +110,10 @@ class ApiRepository {
   }
 
   Future<void> cancelChildRequest(ChildLinkRequest request) async {
-    if (Env.useMock || Session.isMockAccount) {
-      MockRepository.instance.cancelChildRequest(request.id);
-      return;
-    }
-
     await _dio.delete('/me/child-requests/${request.id}');
   }
 
-  bool _useMock(int childId) =>
-      Env.useMock || Session.isMockAccount || childId < 0;
-
   Future<ChildLocation> getChildLocation(int childId) async {
-    if (_useMock(childId)) {
-      return MockRepository.instance.childLocation(childId);
-    }
-
     final response = await _dio.get('/me/children/$childId/location');
     return ChildLocation.fromJson(
       Map<String, dynamic>.from(response.data as Map),
@@ -192,9 +127,6 @@ class ApiRepository {
   }) async {
     final query = address.trim();
     if (query.length < 2) return const [];
-    if (Env.useMock || Session.isMockAccount) {
-      return MockRepository.instance.searchAddress(query);
-    }
 
     final response = await _dio.get(
       '/me/location/search',
@@ -203,9 +135,8 @@ class ApiRepository {
     );
     return (response.data as List)
         .map(
-          (item) => AddressCandidate.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          ),
+          (item) =>
+              AddressCandidate.fromJson(Map<String, dynamic>.from(item as Map)),
         )
         .toList();
   }
@@ -219,40 +150,24 @@ class ApiRepository {
     if ((latitude == null) != (longitude == null)) {
       throw ArgumentError('위도와 경도는 함께 입력해야 합니다.');
     }
-    if (_useMock(childId)) {
-      final location = ChildLocation(
-        address: address,
-        latitude: latitude,
-        longitude: longitude,
-      );
-      MockRepository.instance.setChildLocation(childId, location);
-      return location;
-    }
-
     final data = <String, Object>{'address': address};
     if (latitude != null) data['latitude'] = latitude;
     if (longitude != null) data['longitude'] = longitude;
 
-    final response = await _dio.put('/me/children/$childId/location', data: data);
+    final response = await _dio.put(
+      '/me/children/$childId/location',
+      data: data,
+    );
     return ChildLocation.fromJson(
       Map<String, dynamic>.from(response.data as Map),
     );
   }
 
   Future<void> clearChildLocation(int childId) async {
-    if (_useMock(childId)) {
-      MockRepository.instance.clearChildLocation(childId);
-      return;
-    }
-
     await _dio.delete('/me/children/$childId/location');
   }
-  Future<void> unlinkChild(ChildStudent child) async {
-    if (Env.useMock || Session.isMockAccount || child.isMock) {
-      MockRepository.instance.unlinkChild(child.id);
-      return;
-    }
 
+  Future<void> unlinkChild(ChildStudent child) async {
     await _dio.delete('/me/children/${child.id}');
   }
 
@@ -266,15 +181,6 @@ class ApiRepository {
     }
     if ((currentPassword == null) == (googleIdToken == null)) {
       throw ArgumentError('비밀번호 또는 Google 인증 정보 중 하나가 필요합니다.');
-    }
-
-    if (Env.useMock || Session.isMockAccount) {
-      final requestedAt = DateTime.now();
-      return AccountDeletionSchedule(
-        requestedAt: requestedAt,
-        scheduledDeletionAt: requestedAt.add(const Duration(days: 30)),
-        gracePeriodDays: 30,
-      );
     }
 
     final response = await _dio.post(
@@ -293,14 +199,6 @@ class ApiRepository {
     final email = Session.email;
     if (email == null || email.isEmpty) {
       throw StateError('로그인한 계정 이메일 정보를 확인할 수 없습니다.');
-    }
-
-    if (Env.useMock || Session.isMockAccount) {
-      final role = await MockRepository.instance.login(email, password);
-      if (role != UserRole.parent) {
-        throw StateError('학부모 계정만 삭제를 요청할 수 있습니다.');
-      }
-      return;
     }
 
     final response = await _dio.post(
@@ -368,67 +266,37 @@ class ApiRepository {
     Session.name = user['name'] as String?;
     Session.createdAt = _parseCreatedAt(user['created_at']);
     Session.signupMethod = user['signup_method'] as String? ?? 'UNKNOWN';
-    Session.isMockAccount = false;
     await _initializePushNotifications();
     return role;
   }
 
-  // 1. 로그인 API (/auth/login)
+  // 비밀번호 변경 (PUT /me/password)
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
-    if (Env.useMock || Session.isMockAccount) {
-      throw StateError('Mock 계정에서는 비밀번호를 변경할 수 없습니다.');
-    }
-
     await _dio.put(
       '/me/password',
       data: {'current_password': currentPassword, 'new_password': newPassword},
     );
   }
 
+  // 로그인 API (/auth/login)
   Future<UserRole> login(String email, String password) async {
-    if (Env.useMock) {
-      await TokenStorage.clear();
-      Session.isMockAccount = true;
-      Session.name = email.split('@').first;
-      Session.createdAt = null;
-      Session.email = email;
-      Session.signupMethod = 'UNKNOWN';
-      final role = await MockRepository.instance.login(email, password);
-      Session.accountRole = role == UserRole.parent ? 'PARENT' : 'DRIVER';
-      return role;
-    }
-
-    late final Response<dynamic> response;
-    try {
-      response = await _dio.post(
-        '/auth/login',
-        data: {'email': email, 'password': password},
-      );
-    } on DioException catch (e) {
-      if (e.response != null) rethrow;
-      debugPrint('로그인 서버에 연결할 수 없어 Mock으로 폴백: $e');
-      await TokenStorage.clear();
-      Session.isMockAccount = true;
-      Session.name = email.split('@').first;
-      Session.createdAt = null;
-      Session.email = email;
-      Session.signupMethod = 'UNKNOWN';
-      final role = await MockRepository.instance.login(email, password);
-      Session.accountRole = role == UserRole.parent ? 'PARENT' : 'DRIVER';
-      return role;
-    }
+    final response = await _dio.post(
+      '/auth/login',
+      data: {'email': email, 'password': password},
+    );
 
     final data = Map<String, dynamic>.from(response.data as Map);
     final accessToken = data['access_token'] as String;
     final roleStr = data['role'] as String;
     await TokenStorage.save(accessToken);
-    Session.isMockAccount = false;
     final user = data['user'];
     Session.accountRole = roleStr.toUpperCase();
+    Session.email = email;
     if (user is Map) {
+      Session.email = user['email'] as String? ?? email;
       Session.name = user['name'] as String?;
       Session.createdAt = _parseCreatedAt(user['created_at']);
       Session.signupMethod = user['signup_method'] as String? ?? 'UNKNOWN';
@@ -479,16 +347,11 @@ class ApiRepository {
     Session.name = user['name'] as String?;
     Session.createdAt = _parseCreatedAt(user['created_at']);
     Session.signupMethod = user['signup_method'] as String? ?? 'UNKNOWN';
-    Session.isMockAccount = false;
     await _initializePushNotifications();
     return role;
   }
 
   Future<UserRole> loginWithGoogle(String idToken) async {
-    if (Env.useMock) {
-      throw StateError('Google 계정은 Mock 모드에서 DB에 등록할 수 없습니다.');
-    }
-
     final response = await _dio.post(
       '/auth/google',
       data: {'id_token': idToken},
@@ -511,7 +374,6 @@ class ApiRepository {
     Session.name = user['name'] as String?;
     Session.createdAt = _parseCreatedAt(user['created_at']);
     Session.signupMethod = user['signup_method'] as String? ?? 'UNKNOWN';
-    Session.isMockAccount = false;
     await _initializePushNotifications();
     return role;
   }
@@ -521,7 +383,7 @@ class ApiRepository {
       .initialize(registerToken: registerPushToken);
 
   Future<void> registerPushToken(String token) async {
-    if (Session.isMockAccount || await TokenStorage.read() == null) return;
+    if (await TokenStorage.read() == null) return;
     await _dio.put('/me/push-token', data: {'push_token': token});
   }
 
@@ -531,39 +393,15 @@ class ApiRepository {
     return null;
   }
 
-  // 2. 버스 목록 조회 (/web/buses)
+  // 버스 목록 조회 (/web/buses)
   Future<List<Map<String, dynamic>>> getBuses() async {
-    if (Env.useMock) return _mockBuses;
-
-    late final Response<dynamic> response;
-    try {
-      response = await _dio.get('/web/buses');
-    } on DioException catch (e) {
-      if (e.response != null) rethrow;
-      debugPrint('버스 목록 서버에 연결할 수 없어 Mock 데이터 반환: $e');
-      return _mockBuses;
-    }
-
-    final buses = List<Map<String, dynamic>>.from(response.data);
-    return buses.isEmpty ? _mockBuses : buses;
+    final response = await _dio.get('/web/buses');
+    return List<Map<String, dynamic>>.from(
+      (response.data as List).map(
+        (bus) => Map<String, dynamic>.from(bus as Map),
+      ),
+    );
   }
-
-  static final List<Map<String, dynamic>> _mockBuses = [
-    {
-      'id': 1,
-      'name': '1호차',
-      'plate_no': '12가3456',
-      'student_count': 5,
-      'is_mock': true,
-    },
-    {
-      'id': 2,
-      'name': '2호차',
-      'plate_no': '34나5678',
-      'student_count': 6,
-      'is_mock': true,
-    },
-  ];
 
   // 학부모의 자녀 목록 조회 (/me/children)
   Future<List<ChildStudent>> getChildren({DateTime? date}) async {
@@ -587,9 +425,21 @@ class ApiRepository {
     return children;
   }
 
-  Future<List<Map<String, dynamic>>> getMyBuses() async {
-    if (Env.useMock || Session.isMockAccount) return [];
+  Future<void> confirmChildTripAttendance({
+    required int tripId,
+    required int studentId,
+    required String eventType,
+  }) async {
+    if (eventType != 'BOARDING' && eventType != 'ALIGHTING') {
+      throw ArgumentError.value(eventType, 'eventType');
+    }
+    await _dio.post(
+      '/me/trips/$tripId/students/$studentId/confirmations',
+      data: {'event_type': eventType},
+    );
+  }
 
+  Future<List<Map<String, dynamic>>> getMyBuses() async {
     final response = await _dio.get('/me/buses');
     return List<Map<String, dynamic>>.from(
       (response.data as List).map(
@@ -598,12 +448,8 @@ class ApiRepository {
     );
   }
 
-  // 학부모의 자녀가 배정된 버스 운행 현황 조회
+  // 학부모의 자녀가 배정된 버스 운행 현황 조회 (GET /me/bus-status)
   Future<List<Map<String, dynamic>>> getParentBusStatus() async {
-    if (Env.useMock || Session.isMockAccount) {
-      return [];
-    }
-
     final response = await _dio.get('/me/bus-status');
 
     return (response.data as List)
@@ -611,21 +457,8 @@ class ApiRepository {
         .toList();
   }
 
-  Future<List<ChildStudent>> getBusStudents(
-    int busId, {
-    bool isMock = false,
-  }) async {
-    if (Env.useMock || isMock) return MockRepository.instance.children;
-
-    late final Response<dynamic> response;
-    try {
-      response = await _dio.get('/web/buses/$busId/students');
-    } on DioException catch (e) {
-      if (e.response != null) rethrow;
-      debugPrint('버스 학생 서버에 연결할 수 없어 Mock 데이터 반환: $e');
-      return MockRepository.instance.children;
-    }
-
+  Future<List<ChildStudent>> getBusStudents(int busId) async {
+    final response = await _dio.get('/web/buses/$busId/students');
     final students = (response.data as List)
         .map(
           (item) =>
@@ -635,12 +468,7 @@ class ApiRepository {
     return students;
   }
 
-  Future<List<ChildStudent>> getTripBoardingMapStudents(
-    int tripId, {
-    bool isMock = false,
-  }) async {
-    if (Env.useMock || isMock) return MockRepository.instance.children;
-
+  Future<List<ChildStudent>> getTripBoardingMapStudents(int tripId) async {
     final response = await _dio.get('/trips/$tripId/boarding-map');
     final data = Map<String, dynamic>.from(response.data as Map);
     final students = data['students'] as List;
@@ -672,10 +500,6 @@ class ApiRepository {
     ChildStudent child, {
     required DateTime date,
   }) async {
-    if (Env.useMock || child.isMock) {
-      return child.isAbsent;
-    }
-
     final response = await _dio.get(
       '/me/children/${child.id}/attendance',
       queryParameters: {'date': date.toIso8601String().substring(0, 10)},
@@ -685,28 +509,13 @@ class ApiRepository {
     return data['is_absent'] as bool;
   }
 
-  // 3. 운행 시작 (POST /trips)
-  Future<int> startTrip(
-    int busId, {
-    bool isMock = false,
-    bool simulationMode = false,
-  }) async {
-    if (Env.useMock || isMock) return 1;
-    try {
-      final response = await _dio.post(
-        '/trips',
-        data: {'bus_id': busId, 'simulation_mode': simulationMode},
-      );
-      return response.data['id'];
-    } on DioException catch (e) {
-      if (e.response != null) rethrow;
-      debugPrint('운행 시작 서버에 연결할 수 없어 가상 ID 반환: $e');
-      return 1;
-    }
+  // 운행 시작 (POST /trips)
+  Future<int> startTrip(int busId) async {
+    final response = await _dio.post('/trips', data: {'bus_id': busId});
+    return response.data['id'] as int;
   }
 
   Future<Map<String, dynamic>?> getCurrentTrip() async {
-    if (Env.useMock || Session.isMockAccount) return null;
     try {
       final response = await _dio.get('/trips/current');
       return Map<String, dynamic>.from(response.data as Map);
@@ -717,17 +526,12 @@ class ApiRepository {
   }
 
   Future<void> cancelTrip(int tripId) async {
-    if (Env.useMock || Session.currentTripIsMock) return;
     await _dio.delete('/trips/$tripId');
   }
 
-  // 4. 승차 사진 업로드 (POST /trips/{tripId}/boarding-photo)
+  // 승차 사진 업로드 (POST /trips/{tripId}/boarding-photo)
   Future<({int boardingCount, bool photoDark, String guidance})>
   uploadBoardingPhoto(int tripId, {XFile? image}) async {
-    if (Env.useMock) {
-      throw StateError('모의 데이터 분석은 비활성화되어 있습니다. 실제 서버 연결을 사용하세요.');
-    }
-
     final selectedImage = image ?? await pickImage(source: ImageSource.camera);
     if (selectedImage == null) {
       throw StateError('분석할 사진을 선택해 주세요.');
@@ -760,16 +564,8 @@ class ApiRepository {
     }
   }
 
-  // 5. 종점(하차) 사진 업로드 (POST /trips/{tripId}/dropoff-photo)
-  Future<JudgeResult> uploadDropoffPhoto(
-    int tripId, {
-    required bool oneRemaining,
-    XFile? image,
-  }) async {
-    if (Env.useMock) {
-      throw StateError('모의 데이터 분석은 비활성화되어 있습니다. 실제 서버 연결을 사용하세요.');
-    }
-
+  // 종점(하차) 사진 업로드 (POST /trips/{tripId}/dropoff-photo)
+  Future<JudgeResult> uploadDropoffPhoto(int tripId, {XFile? image}) async {
     final selectedImage = image ?? await pickImage(source: ImageSource.camera);
     if (selectedImage == null) {
       throw StateError('분석할 사진을 선택해 주세요.');
@@ -808,29 +604,30 @@ class ApiRepository {
     }
   }
 
-  // 6. 하차 확인 및 운행 종료 (POST /trips/{tripId}/confirm)
-  Future<void> confirmTrip(
-    int tripId, {
-    required bool simulationMode,
-    required bool safetyChecked,
-    String? reason,
-  }) async {
-    if (Env.useMock || Session.currentTripIsMock) return;
+  // 하차 확인 및 운행 종료 (POST /trips/{tripId}/confirm)
+  // 기사가 차량 내부를 직접 확인한 뒤 호출하므로 safety_checked 는 항상 true.
+  Future<void> confirmTrip(int tripId, {String? reason}) async {
     await _dio.post(
       '/trips/$tripId/confirm',
-      data: {
-        'method': 'button',
-        'simulation_mode': simulationMode,
-        'safety_checked': safetyChecked,
-        'reason': ?reason,
-      },
+      data: {'method': 'button', 'safety_checked': true, 'reason': ?reason},
     );
   }
 
-  // 7. 알림 목록 조회 (GET /me/notifications)
-  Future<List<NotificationItem>> getNotifications() async {
-    if (Env.useMock || Session.isMockAccount) return [];
+  Future<Map<String, dynamic>> getTripRecords({int offset = 0}) async {
+    final response = await _dio.get(
+      '/trips',
+      queryParameters: {'limit': 100, 'offset': offset},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
 
+  Future<Map<String, dynamic>> getTripRecord(int tripId) async {
+    final response = await _dio.get('/trips/$tripId');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  // 알림 목록 조회 (GET /me/notifications)
+  Future<List<NotificationItem>> getNotifications() async {
     final response = await _dio.get('/me/notifications');
 
     final payload = Map<String, dynamic>.from(response.data as Map);
@@ -853,8 +650,6 @@ class ApiRepository {
   }
 
   Future<int> getNotificationUnreadCount() async {
-    if (Env.useMock || Session.isMockAccount) return 0;
-
     final response = await _dio.get(
       '/me/notifications',
       queryParameters: {'limit': 1},
@@ -863,26 +658,24 @@ class ApiRepository {
     return payload['unread_count'] as int;
   }
 
-  // 8. 알림 읽음 처리 (POST /me/notifications/{id}/read)
+  // 알림 읽음 처리 (POST /me/notifications/{id}/read)
   Future<void> readNotification(NotificationItem notification) async {
-    if (Env.useMock || Session.isMockAccount) return;
     await _dio.post('/me/notifications/${notification.id}/read');
   }
 
-
   // 학부모 미하차 경고 목록 조회 (GET /me/alerts)
-  Future<List<Map<String, dynamic>>> getParentAlerts() async {
-    if (Env.useMock || Session.isMockAccount) {
-      return [];
-    }
-
-    final response = await _dio.get('/me/alerts');
+  Future<List<Map<String, dynamic>>> getParentAlerts({
+    String? status,
+    int limit = 20,
+  }) async {
+    final response = await _dio.get(
+      '/me/alerts',
+      queryParameters: {'limit': limit, 'status': ?status},
+    );
     final payload = Map<String, dynamic>.from(response.data as Map);
     final items = payload['items'] as List;
 
-    return items
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
+    return items.map((item) => Map<String, dynamic>.from(item as Map)).toList();
   }
 
   Future<Map<String, dynamic>> getAlertDetail(int alertId) async {
