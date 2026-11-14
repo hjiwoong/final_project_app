@@ -14,7 +14,6 @@ import '../auth/login_screen.dart';
 import 'bus_status_screen.dart';
 import 'bus_trip_simulation.dart';
 import 'missed_dropoff_alert_screen.dart';
-import 'trip_report_screen.dart';
 
 // 학부모 홈: 자녀 연결 · 자녀 탑승 현황 · 배정 버스 · 바로가기
 Color _homeCardColor(BuildContext context) =>
@@ -712,19 +711,6 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                 MaterialPageRoute(
                   builder: (_) => const MissedDropoffAlertScreen(),
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            _buildNavCard(
-              icon: Icons.bar_chart_rounded,
-              iconColor: const Color(0xFF25865A),
-              accent: const Color(0xFFEAF7F0),
-              title: '운행 리포트',
-              subtitle: '운행 기록 및 안전 정보 확인',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const TripReportScreen()),
               ),
             ),
 

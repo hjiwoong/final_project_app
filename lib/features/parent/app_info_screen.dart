@@ -129,17 +129,6 @@ class AppInfoScreen extends StatelessWidget {
                   title: Text('출석·결석 관리'),
                   subtitle: Text('자녀의 날짜별 등교 및 결석 설정'),
                 ),
-
-                Divider(height: 1),
-
-                ListTile(
-                  leading: Icon(
-                    Icons.assessment_outlined,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  title: Text('운행 리포트'),
-                  subtitle: Text('급정거·과속·경로 이탈 현황 확인'),
-                ),
               ],
             ),
           ),
