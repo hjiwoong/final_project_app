@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
+import '../../core/errors/app_error_message.dart';
 import '../../data/api/api_repository.dart';
+import '../../widgets/fullscreen_image_viewer.dart';
 import 'alert_chat_screen.dart';
 
 class AlertDetailScreen extends StatefulWidget {
@@ -63,6 +67,27 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                 final detectedAt = _formatDateTime(
                   alert['detected_at'] ?? alert['created_at'],
                 );
+                final tripEvents = <Map<String, dynamic>>[];
+                final eventIds = <int>{};
+                final alertEvent = alert['alert_event'];
+                if (alertEvent is Map) {
+                  final event = Map<String, dynamic>.from(alertEvent);
+                  final eventId = event['id'];
+                  if (eventId is num) {
+                    tripEvents.add(event);
+                    eventIds.add(eventId.toInt());
+                  }
+                }
+                if (alert['trip_events'] is List) {
+                  for (final item in alert['trip_events'] as List) {
+                    if (item is! Map) continue;
+                    final event = Map<String, dynamic>.from(item);
+                    final eventId = event['id'];
+                    if (eventId is num && eventIds.add(eventId.toInt())) {
+                      tripEvents.add(event);
+                    }
+                  }
+                }
                 return _buildDetail(
                   message: alert['message'] as String? ?? '경고가 발생했습니다.',
                   busName: alert['bus_name'] as String? ?? '정보 없음',
@@ -74,6 +99,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                   summary: alert['llm_summary'] as String? ?? 'AI 요약이 없습니다.',
                   alertId: widget.alertId,
                   guidance: _guidance,
+                  tripEvents: tripEvents,
                 );
               },
             ),
@@ -106,6 +132,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
     required String summary,
     required int? alertId,
     required Future<Map<String, dynamic>>? guidance,
+    required List<Map<String, dynamic>> tripEvents,
   }) {
     final isResolved = status == 'RESOLVED';
     return ListView(
@@ -173,6 +200,10 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           title: '경고 요약',
           description: summary,
         ),
+        if (alertId != null) ...[
+          const SizedBox(height: 12),
+          _buildTripPhotos(alertId, tripEvents),
+        ],
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -319,6 +350,83 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
     );
   }
 
+  Widget _buildTripPhotos(int alertId, List<Map<String, dynamic>> events) {
+    final photos =
+        events
+            .where(
+              (event) =>
+                  event['event_type'] == 'BOARDING' ||
+                  event['event_type'] == 'DROPOFF' ||
+                  event['event_type'] == 'MISMATCH',
+            )
+            .toList()
+          ..sort((first, second) {
+            final firstTime = DateTime.tryParse(
+              (first['captured_at'] ?? first['uploaded_at'])?.toString() ?? '',
+            );
+            final secondTime = DateTime.tryParse(
+              (second['captured_at'] ?? second['uploaded_at'])?.toString() ??
+                  '',
+            );
+            if (firstTime == null || secondTime == null) return 0;
+            return firstTime.compareTo(secondTime);
+          });
+
+    final groupedPhotos = <String, List<Map<String, dynamic>>>{};
+    for (final photo in photos) {
+      final time = _eventDateTime(photo);
+      final dateLabel = time == null
+          ? '날짜 정보 없음'
+          : '${time.year}년 ${time.month}월 ${time.day}일';
+      groupedPhotos.putIfAbsent(dateLabel, () => []).add(photo);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(8, 8, 8, 8),
+          child: Text(
+            '승·하차 사진',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+        if (photos.isEmpty)
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.photo_library_outlined),
+              title: Text('이 운행의 승차·하차 사진이 없습니다.'),
+            ),
+          )
+        else
+          for (final entry in groupedPhotos.entries) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+              child: Text(
+                entry.key,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            for (final photo in entry.value)
+              _AlertEventPhotoCard(
+                key: ValueKey('${photo['id']}-${photo['event_type']}'),
+                alertId: alertId,
+                event: photo,
+              ),
+          ],
+      ],
+    );
+  }
+
+  DateTime? _eventDateTime(Map<String, dynamic> event) {
+    final value = event['captured_at'] ?? event['uploaded_at'];
+    if (value is! String) return null;
+    return DateTime.tryParse(value)?.toLocal();
+  }
+
   String _guidancePreview(String answer) {
     final trimmed = answer.trim();
     final firstPart = trimmed.split(RegExp(r'[\r\n]|(?<=[.!?])\s+')).first;
@@ -383,5 +491,144 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
         ),
       ),
     );
+  }
+}
+
+class _AlertEventPhotoCard extends StatefulWidget {
+  const _AlertEventPhotoCard({
+    super.key,
+    required this.alertId,
+    required this.event,
+  });
+
+  final int alertId;
+  final Map<String, dynamic> event;
+
+  @override
+  State<_AlertEventPhotoCard> createState() => _AlertEventPhotoCardState();
+}
+
+class _AlertEventPhotoCardState extends State<_AlertEventPhotoCard> {
+  Future<Uint8List>? _image;
+
+  int? get _eventId =>
+      widget.event['id'] is num ? (widget.event['id'] as num).toInt() : null;
+
+  void _loadImage() {
+    final eventId = _eventId;
+    if (eventId == null || widget.event['image_available'] == false) return;
+    setState(() {
+      _image = ApiRepository.instance.getAlertEventImage(
+        widget.alertId,
+        eventId,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final eventId = _eventId;
+    final eventType = widget.event['event_type'];
+    final isBoarding = eventType == 'BOARDING';
+    final title = switch (eventType) {
+      'BOARDING' => '승차 사진',
+      'DROPOFF' => '하차 사진',
+      'MISMATCH' => '미하차 감지 사진',
+      _ => '운행 사진',
+    };
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        leading: Icon(isBoarding ? Icons.login_rounded : Icons.logout_rounded),
+        title: Text(title),
+        subtitle: Text(_formatTime(widget.event)),
+        onExpansionChanged: (expanded) {
+          if (expanded && _image == null) _loadImage();
+        },
+        children: [
+          if (eventId == null || widget.event['image_available'] == false)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('사진을 사용할 수 없거나 보관 기간이 만료되었습니다.'),
+            )
+          else if (_image == null)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            FutureBuilder<Uint8List>(
+              future: _image,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snapshot.hasError || !snapshot.hasData) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Text(
+                          AppErrorMessage.from(
+                            snapshot.error ?? StateError('사진을 불러오지 못했습니다.'),
+                            fallback: '사진을 불러오지 못했습니다.',
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        TextButton.icon(
+                          onPressed: _loadImage,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('다시 시도'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final bytes = snapshot.data!;
+                final heroTag = 'alert-event-${widget.alertId}-$eventId';
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Semantics(
+                    button: true,
+                    label: '$title 확대하여 보기',
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => FullscreenImageViewer(
+                            heroTag: heroTag,
+                            child: Image.memory(bytes, fit: BoxFit.contain),
+                          ),
+                        ),
+                      ),
+                      child: Hero(
+                        tag: heroTag,
+                        child: Image.memory(
+                          bytes,
+                          width: double.infinity,
+                          height: 190,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(Map<String, dynamic> event) {
+    final value = event['captured_at'] ?? event['uploaded_at'];
+    if (value is! String) return '시간 정보 없음';
+    final time = DateTime.tryParse(value)?.toLocal();
+    if (time == null) return '시간 정보 없음';
+    return '${time.hour.toString().padLeft(2, '0')}:'
+        '${time.minute.toString().padLeft(2, '0')}';
   }
 }

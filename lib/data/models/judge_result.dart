@@ -28,7 +28,7 @@ class JudgeResult {
 
   bool get isOk => result == null ? remainingCount == 0 : result == 'OK';
   bool get isNeedsCheck => result == 'NEEDS_CHECK';
-  bool get shouldRetake => retakeRecommended ?? !isOk;
+  bool get shouldRetake => (retakeRecommended ?? false) || !isOk;
 
   /// 판정 화면 제목. 미하차 의심이면 서버 판정 문구를 그대로 쓴다.
   /// (서버는 확실한 잔류만 세고, 약한 검출은 "(추가 확인 필요 N명)"으로 따로 붙인다)

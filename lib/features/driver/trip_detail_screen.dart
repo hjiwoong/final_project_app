@@ -490,7 +490,7 @@ class _AlertsSection extends StatelessWidget {
   }
 }
 
-// ---------- 자녀별 승·하차 ----------
+// ---------- 학생별 승·하차 ----------
 
 class _StudentsSection extends StatelessWidget {
   const _StudentsSection({required this.students});
@@ -521,10 +521,10 @@ class _StudentsSection extends StatelessWidget {
         students is List ? (students as List).whereType<Map>().toList() : [];
     if (items.isEmpty) {
       return const _Section(
-        title: '자녀별 승·하차',
+        title: '학생 승·하차',
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: Text('자녀별 승·하차 확인 기록이 없습니다.'),
+          child: Text('학생 승·하차 확인 기록이 없습니다.'),
         ),
       );
     }
@@ -534,7 +534,7 @@ class _StudentsSection extends StatelessWidget {
             s['alighting_confirmed_at'] == null)
         .length;
     return _Section(
-      title: '자녀별 승·하차',
+      title: '학생 승·하차',
       trailing: Text(
         unconfirmed == 0
             ? '${items.length}명 모두 확인'
@@ -550,7 +550,7 @@ class _StudentsSection extends StatelessWidget {
             if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
             ListTile(
               leading: const Icon(Icons.child_care_outlined),
-              title: Text(s['student_name']?.toString() ?? '자녀'),
+              title: Text(s['student_name']?.toString() ?? '학생'),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

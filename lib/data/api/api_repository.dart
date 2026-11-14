@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
@@ -457,8 +456,13 @@ class ApiRepository {
         .toList();
   }
 
-  Future<List<ChildStudent>> getBusStudents(int busId) async {
-    final response = await _dio.get('/web/buses/$busId/students');
+  Future<List<ChildStudent>> getBusStudents(int busId, {DateTime? date}) async {
+    final response = await _dio.get(
+      '/web/buses/$busId/students',
+      queryParameters: {
+        if (date != null) 'date': date.toIso8601String().substring(0, 10),
+      },
+    );
     final students = (response.data as List)
         .map(
           (item) =>
@@ -466,6 +470,20 @@ class ApiRepository {
         )
         .toList();
     return students;
+  }
+
+  Future<List<Map<String, dynamic>>> getAttendanceCalendar({
+    required int year,
+    required int month,
+  }) async {
+    final response = await _dio.get(
+      '/web/buses/attendance/calendar',
+      queryParameters: {'year': year, 'month': month},
+    );
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return (data['days'] as List)
+        .map((day) => Map<String, dynamic>.from(day as Map))
+        .toList();
   }
 
   Future<List<ChildStudent>> getTripBoardingMapStudents(int tripId) async {
@@ -613,10 +631,21 @@ class ApiRepository {
     );
   }
 
-  Future<Map<String, dynamic>> getTripRecords({int offset = 0}) async {
+  Future<Map<String, dynamic>> getTripRecords({
+    int offset = 0,
+    DateTime? from,
+    DateTime? to,
+    bool? simulationMode,
+  }) async {
     final response = await _dio.get(
       '/trips',
-      queryParameters: {'limit': 100, 'offset': offset},
+      queryParameters: {
+        'limit': 100,
+        'offset': offset,
+        'from': ?from?.toIso8601String(),
+        'to': ?to?.toIso8601String(),
+        'simulation_mode': ?simulationMode,
+      },
     );
     return Map<String, dynamic>.from(response.data as Map);
   }
@@ -624,6 +653,35 @@ class ApiRepository {
   Future<Map<String, dynamic>> getTripRecord(int tripId) async {
     final response = await _dio.get('/trips/$tripId');
     return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Uint8List> getTripEventImage(int eventId) async {
+    final response = await _dio.get<List<int>>(
+      '/events/$eventId/image',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final image = response.data;
+    if (image == null) {
+      throw StateError('사진 데이터를 받지 못했습니다.');
+    }
+    if (image.isEmpty) {
+      throw StateError('사진 데이터를 받지 못했습니다.');
+    }
+    return Uint8List.fromList(image);
+  }
+
+  Future<Uint8List> getAlertEventImage(int alertId, int eventId) async {
+    final response = await _dio.get<List<int>>(
+      Session.role == UserRole.parent
+          ? '/me/alerts/$alertId/events/$eventId/image'
+          : '/alerts/$alertId/events/$eventId/image',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final image = response.data;
+    if (image == null || image.isEmpty) {
+      throw StateError('사진 데이터를 받지 못했습니다.');
+    }
+    return Uint8List.fromList(image);
   }
 
   // 알림 목록 조회 (GET /me/notifications)
