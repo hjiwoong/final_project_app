@@ -41,68 +41,54 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       body: widget.alertId == null
           ? const Center(child: Text('경고 정보를 찾을 수 없습니다.'))
           : FutureBuilder<Map<String, dynamic>>(
-              future: _alert,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+        future: _alert,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('경고 정보를 불러오지 못했습니다.'),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                          onPressed: () => setState(_loadAlert),
-                          child: const Text('다시 시도'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('경고 정보를 불러오지 못했습니다.'),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () => setState(_loadAlert),
+                    child: const Text('다시 시도'),
+                  ),
+                ],
+              ),
+            );
+          }
 
-                final alert = snapshot.data!;
-                final detectedAt = _formatDateTime(
-                  alert['detected_at'] ?? alert['created_at'],
-                );
-                final tripEvents = <Map<String, dynamic>>[];
-                final eventIds = <int>{};
-                final alertEvent = alert['alert_event'];
-                if (alertEvent is Map) {
-                  final event = Map<String, dynamic>.from(alertEvent);
-                  final eventId = event['id'];
-                  if (eventId is num) {
-                    tripEvents.add(event);
-                    eventIds.add(eventId.toInt());
-                  }
-                }
-                if (alert['trip_events'] is List) {
-                  for (final item in alert['trip_events'] as List) {
-                    if (item is! Map) continue;
-                    final event = Map<String, dynamic>.from(item);
-                    final eventId = event['id'];
-                    if (eventId is num && eventIds.add(eventId.toInt())) {
-                      tripEvents.add(event);
-                    }
-                  }
-                }
-                return _buildDetail(
-                  message: alert['message'] as String? ?? '경고가 발생했습니다.',
-                  busName: alert['bus_name'] as String? ?? '정보 없음',
-                  detectedAt: detectedAt,
-                  detectedCount: alert['detected_count'] is num
-                      ? '${(alert['detected_count'] as num).toInt()}명'
-                      : null,
-                  status: alert['status'] as String? ?? 'OPEN',
-                  summary: alert['llm_summary'] as String? ?? 'AI 요약이 없습니다.',
-                  alertId: widget.alertId,
-                  guidance: _guidance,
-                  tripEvents: tripEvents,
-                );
-              },
-            ),
+          final alert = snapshot.data!;
+          final detectedAt = _formatDateTime(
+            alert['detected_at'] ?? alert['created_at'],
+          );
+          final alertEvent = alert['alert_event'];
+
+          final tripEvents = <Map<String, dynamic>>[];
+
+          if (alertEvent is Map) {
+            tripEvents.add(Map<String, dynamic>.from(alertEvent));
+          }
+          return _buildDetail(
+            message: alert['message'] as String? ?? '경고가 발생했습니다.',
+            busName: alert['bus_name'] as String? ?? '정보 없음',
+            detectedAt: detectedAt,
+            detectedCount: alert['detected_count'] is num
+                ? '${(alert['detected_count'] as num).toInt()}명'
+                : null,
+            status: alert['status'] as String? ?? 'OPEN',
+            summary: alert['llm_summary'] as String? ?? 'AI 요약이 없습니다.',
+            alertId: widget.alertId,
+            guidance: _guidance,
+            tripEvents: tripEvents,
+          );
+        },
+      ),
     );
   }
 
@@ -273,11 +259,11 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
               final sources = response['sources'];
               final sourceTitles = sources is List
                   ? sources
-                        .whereType<Map>()
-                        .map((source) => source['title'])
-                        .whereType<String>()
-                        .take(2)
-                        .join(', ')
+                  .whereType<Map>()
+                  .map((source) => source['title'])
+                  .whereType<String>()
+                  .take(2)
+                  .join(', ')
                   : '';
               final answer =
                   response['answer'] as String? ?? '등록된 대응 수칙을 찾지 못했습니다.';
@@ -343,7 +329,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           icon: Icons.info_outline_rounded,
           title: '추가 확인이 필요하신가요?',
           description:
-              '자동 감지 결과만으로 자녀의 미하차가 확인된 것은 아닙니다. '
+          '자동 감지 결과만으로 자녀의 미하차가 확인된 것은 아닙니다. '
               '자세한 내용은 학교 또는 운행 담당자에게 문의해 주세요.',
         ),
       ],
@@ -351,33 +337,16 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   }
 
   Widget _buildTripPhotos(int alertId, List<Map<String, dynamic>> events) {
-    final photos =
-        events
-            .where(
-              (event) =>
-                  event['event_type'] == 'BOARDING' ||
-                  event['event_type'] == 'DROPOFF' ||
-                  event['event_type'] == 'MISMATCH',
-            )
-            .toList()
-          ..sort((first, second) {
-            final firstTime = DateTime.tryParse(
-              (first['captured_at'] ?? first['uploaded_at'])?.toString() ?? '',
-            );
-            final secondTime = DateTime.tryParse(
-              (second['captured_at'] ?? second['uploaded_at'])?.toString() ??
-                  '',
-            );
-            if (firstTime == null || secondTime == null) return 0;
-            return firstTime.compareTo(secondTime);
-          });
+    final photos = List<Map<String, dynamic>>.from(events);
 
     final groupedPhotos = <String, List<Map<String, dynamic>>>{};
+
     for (final photo in photos) {
       final time = _eventDateTime(photo);
       final dateLabel = time == null
           ? '날짜 정보 없음'
           : '${time.year}년 ${time.month}월 ${time.day}일';
+
       groupedPhotos.putIfAbsent(dateLabel, () => []).add(photo);
     }
 
@@ -387,7 +356,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
         const Padding(
           padding: EdgeInsets.fromLTRB(8, 8, 8, 8),
           child: Text(
-            '승·하차 사진',
+            '미하차 판정 사진',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
@@ -395,7 +364,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           const Card(
             child: ListTile(
               leading: Icon(Icons.photo_library_outlined),
-              title: Text('이 운행의 승차·하차 사진이 없습니다.'),
+              title: Text('이 경고에 연결된 판정 사진이 없습니다.'),
             ),
           )
         else
@@ -435,11 +404,11 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   }
 
   Widget _infoRow(
-    IconData icon,
-    String title,
-    String value, {
-    Color? valueColor,
-  }) {
+      IconData icon,
+      String title,
+      String value, {
+        Color? valueColor,
+      }) {
     return ListTile(
       minVerticalPadding: 18,
       leading: Icon(
@@ -510,6 +479,19 @@ class _AlertEventPhotoCard extends StatefulWidget {
 
 class _AlertEventPhotoCardState extends State<_AlertEventPhotoCard> {
   Future<Uint8List>? _image;
+  @override
+  void initState() {
+    super.initState();
+
+    final eventId = _eventId;
+
+    if (eventId != null && widget.event['image_available'] != false) {
+      _image = ApiRepository.instance.getAlertEventImage(
+        widget.alertId,
+        eventId,
+      );
+    }
+  }
 
   int? get _eventId =>
       widget.event['id'] is num ? (widget.event['id'] as num).toInt() : null;
@@ -530,15 +512,11 @@ class _AlertEventPhotoCardState extends State<_AlertEventPhotoCard> {
     final eventId = _eventId;
     final eventType = widget.event['event_type'];
     final isBoarding = eventType == 'BOARDING';
-    final title = switch (eventType) {
-      'BOARDING' => '승차 사진',
-      'DROPOFF' => '하차 사진',
-      'MISMATCH' => '미하차 감지 사진',
-      _ => '운행 사진',
-    };
+    const title = '미하차 판정 사진';
     return Card(
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
+        initiallyExpanded: true,
         leading: Icon(isBoarding ? Icons.login_rounded : Icons.logout_rounded),
         title: Text(title),
         subtitle: Text(_formatTime(widget.event)),

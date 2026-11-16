@@ -1,4 +1,3 @@
-import '../../widgets/settings_menu_tile.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
@@ -7,6 +6,8 @@ import '../../core/theme/theme_mode_settings_tile.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/user_role.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
+import '../../widgets/settings_menu_tile.dart';
+import '../auth/change_password_screen.dart';
 import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
 import '../parent/unread_notification_store.dart';
@@ -171,6 +172,16 @@ class DriverAccountInfoScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          if (Session.accountRole?.toUpperCase() == 'ADMIN') ...[
+            SettingsMenuTile(
+              icon: Icons.lock_reset_rounded,
+              title: '비밀번호 변경하기',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           SettingsMenuTile(
             icon: Icons.logout_rounded,
             title: '로그아웃',

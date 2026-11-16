@@ -13,6 +13,10 @@ class AddressSearchField extends StatefulWidget {
     required this.controller,
     required this.onSelected,
     this.onEdited,
+    this.onClear,
+    this.trailing,
+    this.isConfirmed = false,
+    this.readOnly = false,
     this.labelText = '주소',
     this.hintText = '도로명 주소를 입력하면 후보가 표시됩니다.',
     this.maxLines = 1,
@@ -23,6 +27,10 @@ class AddressSearchField extends StatefulWidget {
 
   /// 사용자가 직접 글자를 고쳤을 때 (후보 선택으로 인한 변경은 제외).
   final VoidCallback? onEdited;
+  final VoidCallback? onClear;
+  final Widget? trailing;
+  final bool isConfirmed;
+  final bool readOnly;
   final String labelText;
   final String hintText;
   final int maxLines;
@@ -68,6 +76,12 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
       _error = null;
     });
     _timer = Timer(_debounce, () => _search(query));
+  }
+
+  void _searchNow() {
+    final query = widget.controller.text.trim();
+    _timer?.cancel();
+    if (query.length >= 2) _search(query);
   }
 
   Future<void> _search(String query) async {
@@ -130,22 +144,40 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
         TextField(
           controller: widget.controller,
           maxLines: widget.maxLines,
+          readOnly: widget.readOnly,
           textInputAction: TextInputAction.search,
           onChanged: _onChanged,
+          onSubmitted: (_) => _searchNow(),
           decoration: InputDecoration(
             labelText: widget.labelText,
             hintText: widget.hintText,
             border: const OutlineInputBorder(),
-            suffixIcon: _loading
-                ? const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : const Icon(Icons.search),
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.isConfirmed)
+                  const Icon(Icons.check_circle, color: Colors.green)
+                else
+                  IconButton(
+                    tooltip: '주소 검색',
+                    onPressed: _loading ? null : _searchNow,
+                    icon: _loading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.search),
+                  ),
+                if (widget.trailing != null) widget.trailing!,
+                if (widget.isConfirmed)
+                  IconButton(
+                    tooltip: '주소 초기화',
+                    onPressed: widget.onClear,
+                    icon: const Icon(Icons.close),
+                  ),
+              ],
+            ),
           ),
         ),
         if (_error != null)
@@ -157,7 +189,7 @@ class _AddressSearchFieldState extends State<AddressSearchField> {
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
-              '검색 결과가 없습니다. 도로명 또는 지번 주소로 다시 입력해 주세요.',
+              '검색 결과가 없습니다. 주소 또는 장소명을 바꿔 다시 검색해 주세요.',
               style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
             ),
           ),

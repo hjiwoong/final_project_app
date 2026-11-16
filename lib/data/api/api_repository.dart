@@ -402,6 +402,40 @@ class ApiRepository {
     );
   }
 
+  Future<List<Map<String, dynamic>>> getTripSchedules({
+    required DateTime serviceDate,
+  }) async {
+    final response = await _dio.get(
+      '/trip-schedules',
+      queryParameters: {'service_date': _formatScheduleDate(serviceDate)},
+    );
+    return List<Map<String, dynamic>>.from(
+      (response.data as List).map(
+        (schedule) => Map<String, dynamic>.from(schedule as Map),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> saveTripSchedule({
+    required int busId,
+    required DateTime serviceDate,
+    required String startTime,
+  }) async {
+    final response = await _dio.put(
+      '/trip-schedules/$busId',
+      data: {
+        'service_date': _formatScheduleDate(serviceDate),
+        'start_time': startTime,
+      },
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  String _formatScheduleDate(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
+
   // 학부모의 자녀 목록 조회 (/me/children)
   Future<List<ChildStudent>> getChildren({DateTime? date}) async {
     final response = await _dio.get(
@@ -528,8 +562,11 @@ class ApiRepository {
   }
 
   // 운행 시작 (POST /trips)
-  Future<int> startTrip(int busId) async {
-    final response = await _dio.post('/trips', data: {'bus_id': busId});
+  Future<int> startTrip(int busId, {int? scheduleId}) async {
+    final response = await _dio.post(
+      '/trips',
+      data: {'bus_id': busId, 'schedule_id': ?scheduleId},
+    );
     return response.data['id'] as int;
   }
 
