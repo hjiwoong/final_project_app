@@ -127,6 +127,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         'plate_no': bus['plate_no'],
         'student_count': bus['student_count'],
         'status': status?['status'],
+        'scheduled_at': status?['scheduled_at'],
       });
     }
 
@@ -137,6 +138,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         'plate_no': s['plate_no'],
         'student_count': null,
         'status': s['status'],
+        'scheduled_at': s['scheduled_at'],
       });
     }
 
@@ -597,6 +599,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                   title: Text(bus['name']?.toString() ?? '버스'),
                   subtitle: Text(
                     [
+                      if (bus['scheduled_at'] != null)
+                        '출발 예정 ${_formatScheduledTime(bus['scheduled_at'])}',
                       '차량번호: ${bus['plate_no'] ?? '-'}',
                       if (bus['student_count'] != null)
                         '자녀 ${bus['student_count']}명 배정',
@@ -611,6 +615,14 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         );
       },
     );
+  }
+
+  String _formatScheduledTime(Object? value) {
+    final scheduledAt = DateTime.tryParse(value?.toString() ?? '');
+    if (scheduledAt == null) return '-';
+    final hour = scheduledAt.hour.toString().padLeft(2, '0');
+    final minute = scheduledAt.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 
   @override

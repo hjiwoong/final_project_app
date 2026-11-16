@@ -41,54 +41,54 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
       body: widget.alertId == null
           ? const Center(child: Text('경고 정보를 찾을 수 없습니다.'))
           : FutureBuilder<Map<String, dynamic>>(
-              future: _alert,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+        future: _alert,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('경고 정보를 불러오지 못했습니다.'),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                          onPressed: () => setState(_loadAlert),
-                          child: const Text('다시 시도'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('경고 정보를 불러오지 못했습니다.'),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () => setState(_loadAlert),
+                    child: const Text('다시 시도'),
+                  ),
+                ],
+              ),
+            );
+          }
 
-                final alert = snapshot.data!;
-                final detectedAt = _formatDateTime(
-                  alert['detected_at'] ?? alert['created_at'],
-                );
-                final alertEvent = alert['alert_event'];
+          final alert = snapshot.data!;
+          final detectedAt = _formatDateTime(
+            alert['detected_at'] ?? alert['created_at'],
+          );
+          final alertEvent = alert['alert_event'];
 
-                final tripEvents = <Map<String, dynamic>>[];
+          final tripEvents = <Map<String, dynamic>>[];
 
-                if (alertEvent is Map) {
-                  tripEvents.add(Map<String, dynamic>.from(alertEvent));
-                }
-                return _buildDetail(
-                  message: alert['message'] as String? ?? '경고가 발생했습니다.',
-                  busName: alert['bus_name'] as String? ?? '정보 없음',
-                  detectedAt: detectedAt,
-                  detectedCount: alert['detected_count'] is num
-                      ? '${(alert['detected_count'] as num).toInt()}명'
-                      : null,
-                  status: alert['status'] as String? ?? 'OPEN',
-                  summary: alert['llm_summary'] as String? ?? 'AI 요약이 없습니다.',
-                  alertId: widget.alertId,
-                  guidance: _guidance,
-                  tripEvents: tripEvents,
-                );
-              },
-            ),
+          if (alertEvent is Map) {
+            tripEvents.add(Map<String, dynamic>.from(alertEvent));
+          }
+          return _buildDetail(
+            message: alert['message'] as String? ?? '경고가 발생했습니다.',
+            busName: alert['bus_name'] as String? ?? '정보 없음',
+            detectedAt: detectedAt,
+            detectedCount: alert['detected_count'] is num
+                ? '${(alert['detected_count'] as num).toInt()}명'
+                : null,
+            status: alert['status'] as String? ?? 'OPEN',
+            summary: alert['llm_summary'] as String? ?? 'AI 요약이 없습니다.',
+            alertId: widget.alertId,
+            guidance: _guidance,
+            tripEvents: tripEvents,
+          );
+        },
+      ),
     );
   }
 
@@ -259,11 +259,11 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
               final sources = response['sources'];
               final sourceTitles = sources is List
                   ? sources
-                        .whereType<Map>()
-                        .map((source) => source['title'])
-                        .whereType<String>()
-                        .take(2)
-                        .join(', ')
+                  .whereType<Map>()
+                  .map((source) => source['title'])
+                  .whereType<String>()
+                  .take(2)
+                  .join(', ')
                   : '';
               final answer =
                   response['answer'] as String? ?? '등록된 대응 수칙을 찾지 못했습니다.';
@@ -329,7 +329,7 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
           icon: Icons.info_outline_rounded,
           title: '추가 확인이 필요하신가요?',
           description:
-              '자동 감지 결과만으로 자녀의 미하차가 확인된 것은 아닙니다. '
+          '자동 감지 결과만으로 자녀의 미하차가 확인된 것은 아닙니다. '
               '자세한 내용은 학교 또는 운행 담당자에게 문의해 주세요.',
         ),
       ],
@@ -404,11 +404,11 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   }
 
   Widget _infoRow(
-    IconData icon,
-    String title,
-    String value, {
-    Color? valueColor,
-  }) {
+      IconData icon,
+      String title,
+      String value, {
+        Color? valueColor,
+      }) {
     return ListTile(
       minVerticalPadding: 18,
       leading: Icon(

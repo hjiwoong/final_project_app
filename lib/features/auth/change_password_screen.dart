@@ -3,8 +3,12 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../core/notifications/in_app_notification_banner.dart';
+import '../../core/auth/session.dart';
 import '../../data/api/api_repository.dart';
+import '../../widgets/primary_button.dart';
+import 'login_screen.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -115,8 +119,67 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (!mounted) return;
 
     setState(() => _saving = false);
+    if (Session.accountRole?.toUpperCase() == 'ADMIN') {
+      await Session.clear();
+      if (!mounted) return;
+      await _showAdminPasswordChangedSheet();
+      return;
+    }
+
     InAppNotificationBanner.showMessage('비밀번호가 변경되었습니다.');
     Navigator.of(context).pop();
+  }
+
+  Future<void> _showAdminPasswordChangedSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
+      useRootNavigator: true,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Container(
+          margin: AppTheme.sheetMargin,
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          decoration: AppTheme.sheetDecoration(sheetContext),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '비밀번호 변경 완료',
+                style: TextStyle(
+                  color: Theme.of(sheetContext).colorScheme.onSurface,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '비밀번호가 변경되어 로그아웃되었습니다. 새 비밀번호로 다시 로그인해 주세요.',
+                style: TextStyle(
+                  fontSize: 15,
+                  height: 1.5,
+                  color: Theme.of(sheetContext).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              PrimaryButton(
+                label: '로그인 화면으로 이동',
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (_) => false,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   InputDecoration _fieldDecoration(
