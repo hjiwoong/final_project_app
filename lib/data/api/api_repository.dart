@@ -707,7 +707,7 @@ class ApiRepository {
   Future<Uint8List> getAlertEventImage(int alertId, int eventId) async {
     final response = await _dio.get<List<int>>(
       Session.role == UserRole.parent
-          ? '/me/alerts/$alertId/image'
+          ? '/me/alerts/$alertId/events/$eventId/image'
           : '/alerts/$alertId/events/$eventId/image',
       options: Options(responseType: ResponseType.bytes),
     );
