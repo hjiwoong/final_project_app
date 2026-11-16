@@ -708,21 +708,21 @@ class ApiRepository {
   Future<Uint8List> getAlertEventImage(int alertId, int eventId) async {
     final response = await _dio.get<List<int>>(
       Session.role == UserRole.parent
-          ? '/me/alerts/$alertId/events/$eventId/image'
+          ? '/me/alerts/$alertId/image'
           : '/alerts/$alertId/events/$eventId/image',
       options: Options(responseType: ResponseType.bytes),
     );
+
     final image = response.data;
     if (image == null || image.isEmpty) {
       throw StateError('사진 데이터를 받지 못했습니다.');
     }
+
     return Uint8List.fromList(image);
   }
-
   // 알림 목록 조회 (GET /me/notifications)
   // 테스트(Mock) 모드·계정은 서버 알림이 없으므로 빈 목록
   Future<List<NotificationItem>> getNotifications() async {
-    if (Env.useMock || Session.isMockAccount) return [];
     final response = await _dio.get('/me/notifications');
 
     final payload = Map<String, dynamic>.from(response.data as Map);
@@ -741,7 +741,6 @@ class ApiRepository {
         isAlert: n['alert_id'] != null,
         read: n['is_read'],
         alertId: n['alert_id'] as int?,
-
         // 신규: 운행 알림 구분
         category: n['category'] as String?,
         eventType: n['event_type'] as String?,
@@ -828,4 +827,18 @@ class ApiRepository {
     );
     return Map<String, dynamic>.from(response.data as Map);
   }
+}
+
+Future<Uint8List> getParentAlertImage(int alertId) async {
+  final response = await _dio.get<List<int>>(
+    '/me/alerts/$alertId/image',
+    options: Options(responseType: ResponseType.bytes),
+  );
+
+  final image = response.data;
+  if (image == null || image.isEmpty) {
+    throw StateError('미하차 판정 사진이 없습니다.');
+  }
+
+  return Uint8List.fromList(image);
 }
