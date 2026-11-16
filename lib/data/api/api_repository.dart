@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/auth/session.dart';
 import '../../core/auth/token_storage.dart';
-import '../../core/config/env.dart';
 import '../../core/network/api_client.dart';
 import '../../core/notifications/push_notification_service.dart';
 import '../../data/models/child_student.dart';
@@ -827,18 +826,18 @@ class ApiRepository {
     );
     return Map<String, dynamic>.from(response.data as Map);
   }
-}
 
-Future<Uint8List> getParentAlertImage(int alertId) async {
-  final response = await _dio.get<List<int>>(
-    '/me/alerts/$alertId/image',
-    options: Options(responseType: ResponseType.bytes),
-  );
+  Future<Uint8List> getParentAlertImage(int alertId) async {
+    final response = await _dio.get<List<int>>(
+      '/me/alerts/$alertId/image',
+      options: Options(responseType: ResponseType.bytes),
+    );
 
-  final image = response.data;
-  if (image == null || image.isEmpty) {
-    throw StateError('미하차 판정 사진이 없습니다.');
+    final image = response.data;
+    if (image == null || image.isEmpty) {
+      throw StateError('미하차 판정 사진이 없습니다.');
+    }
+
+    return Uint8List.fromList(image);
   }
-
-  return Uint8List.fromList(image);
 }
