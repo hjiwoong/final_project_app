@@ -16,10 +16,4 @@ class Env {
     defaultValue:
         '639796441499-s3fdvlvau43s3n7389nt32f7qa145l65.apps.googleusercontent.com',
   );
-
-  /// true 이면 API를 호출하지 않고 명시적으로 mock 모드로 동작
-  static const bool useMock = bool.fromEnvironment(
-    'USE_MOCK',
-    defaultValue: false,
-  );
 }

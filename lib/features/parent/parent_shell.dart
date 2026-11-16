@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/api/api_repository.dart';
-import 'notification_mock_store.dart';
+import 'unread_notification_store.dart';
 import 'notification_list_screen.dart';
 import 'parent_home_screen.dart';
 import 'parent_settings_screen.dart';
@@ -29,7 +29,7 @@ class _ParentShellState extends State<ParentShell> {
   Future<void> _refreshUnreadCount() async {
     try {
       final count = await ApiRepository.instance.getNotificationUnreadCount();
-      NotificationMockStore.setNotificationUnreadCount(count);
+      UnreadNotificationStore.setCount(count);
     } catch (e) {
       debugPrint('읽지 않은 알림 개수 조회 실패: $e');
     }
@@ -37,8 +37,8 @@ class _ParentShellState extends State<ParentShell> {
 
   static const _pages = [
     ParentHomeScreen(),
-    NotificationListScreen(),
     AlertChatScreen(),
+    NotificationListScreen(),
     ParentSettingsScreen(),
   ];
 
@@ -71,11 +71,19 @@ class _ParentShellState extends State<ParentShell> {
           elevation: 0,
           height: 60,
           destinations: [
+            // 홈
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home_rounded),
               label: '홈',
             ),
+            //AI 채팅
+            NavigationDestination(
+              icon: Icon(Icons.auto_awesome_outlined),
+              selectedIcon: Icon(Icons.auto_awesome),
+              label: 'AI 채팅',
+            ),
+            // 알림
             NavigationDestination(
               icon: const UnreadNotificationBadge(
                 icon: Icons.notifications_outlined,
@@ -85,11 +93,7 @@ class _ParentShellState extends State<ParentShell> {
               ),
               label: '알림',
             ),
-            NavigationDestination(
-              icon: Icon(Icons.auto_awesome_outlined),
-              selectedIcon: Icon(Icons.auto_awesome),
-              label: 'AI 채팅',
-            ),
+            //설정
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
               selectedIcon: Icon(Icons.settings),

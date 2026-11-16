@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
@@ -248,11 +250,7 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
   void _appendStopNotice() {
     if (_messages.isNotEmpty && _messages.last.isNotice) return;
     _messages.add(
-      const _ChatMessage(
-        role: 'notice',
-        text: '사용자가 응답을 중지했습니다.',
-        isNotice: true,
-      ),
+      _ChatMessage(role: 'notice', text: '사용자가 응답을 중지했습니다.', isNotice: true),
     );
     _suggestions = const [];
   }
@@ -310,6 +308,7 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         title: const Text('챗봇'),
         actions: [
           IconButton(
@@ -322,30 +321,37 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
       body: Column(
         children: [
           Container(
-            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            margin: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: colorScheme.onSecondaryContainer.withValues(alpha: 0.12),
-              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(
+                    alpha: Theme.of(context).brightness == Brightness.dark
+                        ? 0.35
+                        : 0.12,
+                  ),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
                   Icons.info_outline,
                   color: colorScheme.onSecondaryContainer,
-                  size: 20,
+                  size: 16,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '챗봇을 긴급 용도로 사용하지 마세요.',
                     style: TextStyle(
                       color: colorScheme.onSecondaryContainer,
-                      height: 1.4,
+                      fontSize: 13,
                     ),
                   ),
                 ),
@@ -355,48 +361,53 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
           if (_activeAlertContext case final alertContext?)
             Container(
               width: double.infinity,
-              margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: colorScheme.outlineVariant),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.notifications_active_outlined,
-                        size: 18,
-                        color: colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '연결된 안전 알림${_activeAlertId == null ? '' : ' · #$_activeAlertId'}',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
+              clipBehavior: Clip.antiAlias,
+              child: Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  dense: true,
+                  tilePadding: const EdgeInsets.symmetric(horizontal: 14),
+                  childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  expandedAlignment: Alignment.centerLeft,
+                  expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                  leading: Icon(
+                    Icons.notifications_active_outlined,
+                    size: 18,
+                    color: colorScheme.primary,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
+                  title: Text(
+                    '연결된 안전 알림${_activeAlertId == null ? '' : ' · #$_activeAlertId'}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
                     [
                       ?alertContext['busName'],
                       ?alertContext['detectedAt'],
                       ?alertContext['status'],
                     ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: colorScheme.onSurfaceVariant,
-                      fontSize: 13,
+                      fontSize: 12,
                     ),
                   ),
-                  if (alertContext['message'] case final message?)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(message, maxLines: 2),
-                    ),
-                ],
+                  children: [
+                    if (alertContext['message'] case final message?)
+                      Text(message, style: const TextStyle(height: 1.4)),
+                  ],
+                ),
               ),
             ),
           Expanded(
@@ -439,7 +450,7 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
           ),
           if ((_suggestions.isNotEmpty || _messages.isNotEmpty) && !_loading)
             SizedBox(
-              height: 48,
+              height: 40,
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
@@ -452,6 +463,8 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
                       ? _suggestions
                       : _defaultSuggestions;
                   return ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    labelStyle: const TextStyle(fontSize: 13),
                     label: Text(suggestions[index]),
                     onPressed: _loading
                         ? null
@@ -574,14 +587,14 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
 }
 
 class _ChatMessage {
-  const _ChatMessage({
+  _ChatMessage({
     required this.role,
     required this.text,
     this.sources = const [],
     this.sourceDate,
     this.formatParagraphs = true,
     this.isNotice = false,
-  });
+  }) : createdAt = DateTime.now();
 
   final String role;
   final String text;
@@ -589,6 +602,7 @@ class _ChatMessage {
   final ({String label, String value})? sourceDate;
   final bool formatParagraphs;
   final bool isNotice;
+  final DateTime createdAt;
 }
 
 class _MessageBubble extends StatelessWidget {
@@ -603,136 +617,236 @@ class _MessageBubble extends StatelessWidget {
     final displayText = isUser || !message.formatParagraphs
         ? message.text
         : message.text.replaceAll(RegExp(r'(?<=[.!?。！？])[ \t]+(?=\S)'), '\n\n');
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.84,
-        ),
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isUser
-              ? colorScheme.primaryContainer
-              : colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SelectableText(
-              displayText,
-              textAlign: TextAlign.left,
-              style: const TextStyle(height: 1.5),
+    final time = TimeOfDay.fromDateTime(message.createdAt);
+    final timeLabel =
+        '${time.hour.toString().padLeft(2, '0')}:'
+        '${time.minute.toString().padLeft(2, '0')}';
+    final timeText = Text(
+      timeLabel,
+      style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isUser) ...[
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: colorScheme.primaryContainer,
+              child: Icon(
+                Icons.smart_toy_outlined,
+                size: 18,
+                color: colorScheme.onPrimaryContainer,
+              ),
             ),
-            if (message.sources.isNotEmpty || message.sourceDate != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.only(top: 8),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: colorScheme.outlineVariant),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (message.sources.isNotEmpty)
-                      ExpansionTile(
-                        tilePadding: EdgeInsets.zero,
-                        childrenPadding: EdgeInsets.zero,
-                        visualDensity: VisualDensity.compact,
-                        title: Text(
-                          '참고 자료 (${message.sources.length})',
-                          style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        subtitle: message.sourceDate == null
-                            ? null
-                            : Text(
-                                '${message.sourceDate?.label}: '
-                                '${message.sourceDate?.value}',
-                                style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontSize: 11,
-                                ),
-                              ),
-                        children: [
-                          for (final source in message.sources.take(3))
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    source['title'] as String? ?? '안전 안내 자료',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  if (source['source'] is String &&
-                                      (source['source'] as String).isNotEmpty)
-                                    Text(
-                                      source['source'] as String,
-                                      style: TextStyle(
-                                        color: colorScheme.onSurfaceVariant,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    if (message.sources.isEmpty && message.sourceDate != null)
-                      Text(
-                        '${message.sourceDate?.label}: '
-                        '${message.sourceDate?.value}',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                      ),
-                  ],
+            const SizedBox(width: 8),
+          ],
+          if (isUser) ...[timeText, const SizedBox(width: 6)],
+          Flexible(child: _buildBubble(context, isUser, displayText)),
+          if (!isUser) ...[const SizedBox(width: 6), timeText],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBubble(BuildContext context, bool isUser, String displayText) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.sizeOf(context).width * (isUser ? 0.74 : 0.68),
+      ),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isUser
+            ? colorScheme.primaryContainer
+            : colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(18),
+          topRight: const Radius.circular(18),
+          bottomLeft: Radius.circular(isUser ? 18 : 4),
+          bottomRight: Radius.circular(isUser ? 4 : 18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SelectableText(
+            displayText,
+            textAlign: TextAlign.left,
+            style: const TextStyle(height: 1.5),
+          ),
+          if (message.sources.isNotEmpty || message.sourceDate != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 8),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: colorScheme.outlineVariant),
                 ),
               ),
-            ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (message.sources.isNotEmpty)
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      title: Text(
+                        '참고 자료 (${message.sources.length})',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: message.sourceDate == null
+                          ? null
+                          : Text(
+                              '${message.sourceDate?.label}: '
+                              '${message.sourceDate?.value}',
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 11,
+                              ),
+                            ),
+                      children: [
+                        for (final source in message.sources)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  source['title'] as String? ?? '안전 안내 자료',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                if (source['source'] is String &&
+                                    (source['source'] as String).isNotEmpty)
+                                  Text(
+                                    source['source'] as String,
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  if (message.sources.isEmpty && message.sourceDate != null)
+                    Text(
+                      '${message.sourceDate?.label}: '
+                      '${message.sourceDate?.value}',
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
 }
 
-class _LoadingBubble extends StatelessWidget {
+class _LoadingBubble extends StatefulWidget {
   const _LoadingBubble();
 
   @override
-  Widget build(BuildContext context) => const Align(
-    alignment: Alignment.centerLeft,
-    child: Padding(
-      padding: EdgeInsets.only(bottom: 12),
-      child: Card(
-        child: Padding(
-          padding: EdgeInsets.all(14),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+  State<_LoadingBubble> createState() => _LoadingBubbleState();
+}
+
+class _LoadingBubbleState extends State<_LoadingBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: '답변 생성 중',
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: colorScheme.primaryContainer,
+              child: Icon(
+                Icons.smart_toy_outlined,
+                size: 18,
+                color: colorScheme.onPrimaryContainer,
               ),
-              SizedBox(width: 10),
-              Text('생각 중'),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainer,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(18),
+                  topRight: Radius.circular(18),
+                  bottomLeft: Radius.circular(4),
+                  bottomRight: Radius.circular(18),
+                ),
+              ),
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < 3; i++)
+                      Padding(
+                        padding: EdgeInsets.only(left: i == 0 ? 0 : 5),
+                        child: Opacity(
+                          opacity:
+                              0.3 +
+                              0.7 *
+                                  (0.5 +
+                                      0.5 *
+                                          math.sin(
+                                            (_controller.value - i * 0.15) *
+                                                2 *
+                                                math.pi,
+                                          )),
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: colorScheme.onSurfaceVariant,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _ErrorBubble extends StatelessWidget {

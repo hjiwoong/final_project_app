@@ -9,8 +9,10 @@ import '../../data/models/user_role.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
 import '../auth/login_screen.dart';
 import '../parent/notification_list_screen.dart';
-import '../parent/notification_mock_store.dart';
+import '../parent/unread_notification_store.dart';
 import '../parent/unread_notification_badge.dart';
+import 'students_check_screen.dart';
+import 'trip_history_screen.dart';
 import 'trip_start_screen.dart';
 
 /// 기사(관리자) 하단 탭: 운행 · 알림 · 설정
@@ -33,7 +35,7 @@ class _DriverShellState extends State<DriverShell> {
   Future<void> _refreshUnreadCount() async {
     try {
       final count = await ApiRepository.instance.getNotificationUnreadCount();
-      NotificationMockStore.setNotificationUnreadCount(count);
+      UnreadNotificationStore.setCount(count);
     } catch (e) {
       debugPrint('읽지 않은 알림 개수 조회 실패: $e');
     }
@@ -41,6 +43,8 @@ class _DriverShellState extends State<DriverShell> {
 
   static final List<Widget> _pages = [
     const TripStartScreen(),
+    const TripHistoryScreen(),
+    const StudentsCheckScreen(),
     const NotificationListScreen(showSettingsButton: false),
     const DriverSettingsScreen(),
   ];
@@ -64,11 +68,25 @@ class _DriverShellState extends State<DriverShell> {
           height: 60,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
           destinations: [
+            //홈
             NavigationDestination(
               icon: Icon(Icons.directions_bus_outlined),
               selectedIcon: Icon(Icons.directions_bus),
               label: '',
             ),
+            //운행 기록
+            NavigationDestination(
+              icon: Icon(Icons.bookmark_border),
+              selectedIcon: Icon(Icons.bookmark),
+              label: '운행 기록',
+            ),
+            //학생 출결 확인
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: '출결 확인',
+            ),
+            //알림
             NavigationDestination(
               icon: const UnreadNotificationBadge(
                 icon: Icons.notifications_outlined,
@@ -78,6 +96,7 @@ class _DriverShellState extends State<DriverShell> {
               ),
               label: '',
             ),
+            //설정
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
               selectedIcon: Icon(Icons.settings),
@@ -167,7 +186,8 @@ class DriverAccountInfoScreen extends StatelessWidget {
                 (_) => false,
               );
             },
-          ),        ],
+          ),
+        ],
       ),
     );
   }

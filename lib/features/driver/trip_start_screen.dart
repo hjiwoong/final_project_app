@@ -19,13 +19,6 @@ class BusTripItem {
   final String busName;
   final String routeName;
   final int studentCount;
-  final bool isMock;
-  final bool simulationMode;
-
-  bool get isSimulationBus =>
-      simulationMode ||
-      busName == '개발용' ||
-      busNumber.toUpperCase().startsWith('TEST-');
 
   BusTripItem({
     required this.tripId,
@@ -33,8 +26,6 @@ class BusTripItem {
     required this.busName,
     required this.routeName,
     required this.studentCount,
-    this.isMock = false,
-    this.simulationMode = false,
   });
 
   factory BusTripItem.fromJson(Map<String, dynamic> json) {
@@ -44,8 +35,6 @@ class BusTripItem {
       busName: json['busName'] ?? '',
       routeName: json['routeName'] ?? '',
       studentCount: json['studentCount'] ?? 0,
-      isMock: json['is_mock'] == true,
-      simulationMode: json['simulation_mode'] == true,
     );
   }
 }
@@ -95,7 +84,6 @@ class _TripStartScreenState extends State<TripStartScreen> {
               busName: b['name'] ?? '',
               routeName: '학교 → 종점',
               studentCount: b['student_count'] ?? 0,
-              isMock: b['is_mock'] == true,
             ),
           )
           .toList();
@@ -120,42 +108,22 @@ class _TripStartScreenState extends State<TripStartScreen> {
               bus?['student_count'] as int? ??
               currentTrip['expected_count'] as int? ??
               0,
-          simulationMode: currentTrip['simulation_mode'] as bool? ?? false,
         );
         final TripProgress restoredProgress;
-        final simulationMode =
-            currentTrip['simulation_mode'] as bool? ??
-            savedProgress?.simulationMode ??
-            activeTrip.isSimulationBus;
         if (savedProgress != null &&
             savedProgress.tripId == currentTrip['id']) {
-          restoredProgress = savedProgress.copyWith(
-            simulationMode: simulationMode,
-          );
+          restoredProgress = savedProgress;
         } else {
           restoredProgress = TripProgress(
             tripId: currentTrip['id'] as int,
             busId: busId,
             busName: activeTrip.busName,
             busNumber: activeTrip.busNumber,
-            isMock: false,
             currentStopIndex: 0,
-            simulationMode: simulationMode,
           );
         }
         activeProgress = restoredProgress;
         await TripProgressStorage.save(restoredProgress);
-      } else if (savedProgress != null && savedProgress.isMock) {
-        final mockProgress = savedProgress;
-        activeProgress = mockProgress;
-        activeTrip = BusTripItem(
-          tripId: mockProgress.tripId.toString(),
-          busNumber: mockProgress.busNumber,
-          busName: mockProgress.busName,
-          routeName: '학교 → 종점',
-          studentCount: 0,
-          isMock: true,
-        );
       } else {
         await TripProgressStorage.clear();
       }
@@ -188,8 +156,6 @@ class _TripStartScreenState extends State<TripStartScreen> {
     Session.currentTripId = progress.tripId;
     Session.currentTripBusName = progress.busName;
     Session.currentBoardingCount = progress.boardingCount;
-    Session.currentTripIsMock = progress.isMock;
-    Session.currentTripSimulationMode = progress.simulationMode;
     final result = await Navigator.of(context).push<Object?>(
       MaterialPageRoute(
         builder: (_) => progress.boardingCount != null
@@ -201,7 +167,6 @@ class _TripStartScreenState extends State<TripStartScreen> {
                 busId: progress.busId,
                 busName: progress.busName,
                 busNumber: progress.busNumber,
-                isMock: progress.isMock,
                 initialStopIndex: progress.currentStopIndex,
                 onStopChanged: (index) {
                   final updated = progress.copyWith(currentStopIndex: index);
@@ -318,8 +283,7 @@ class _TripStartScreenState extends State<TripStartScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '${selectedTrip.busNumber} · 탑승 예정 학생 ${selectedTrip.studentCount}명'
-                '${selectedTrip.isSimulationBus ? ' · 테스트 운행' : ''}',
+                '${selectedTrip.busNumber} · 탑승 예정 학생 ${selectedTrip.studentCount}명',
                 style: TextStyle(
                   fontSize: 13,
                   color: colorScheme.onSurfaceVariant,
@@ -370,24 +334,16 @@ class _TripStartScreenState extends State<TripStartScreen> {
 
     setState(() => _isStartingTrip = true);
     try {
-      final tripId = await ApiRepository.instance.startTrip(
-        busId,
-        isMock: selectedTrip.isMock,
-        simulationMode: selectedTrip.isSimulationBus,
-      );
+      final tripId = await ApiRepository.instance.startTrip(busId);
       Session.currentTripId = tripId;
       Session.currentTripBusName = selectedTrip.busName;
       Session.currentBoardingCount = null;
-      Session.currentTripIsMock = selectedTrip.isMock;
-      Session.currentTripSimulationMode = selectedTrip.isSimulationBus;
       final progress = TripProgress(
         tripId: tripId,
         busId: busId,
         busName: selectedTrip.busName,
         busNumber: selectedTrip.busNumber,
-        isMock: selectedTrip.isMock,
         currentStopIndex: 0,
-        simulationMode: selectedTrip.isSimulationBus,
       );
       await TripProgressStorage.save(progress);
       if (!mounted) return;
@@ -403,7 +359,6 @@ class _TripStartScreenState extends State<TripStartScreen> {
             busId: busId,
             busName: selectedTrip.busName,
             busNumber: selectedTrip.busNumber,
-            isMock: selectedTrip.isMock,
             initialStopIndex: 0,
             onStopChanged: (index) {
               final updated = progress.copyWith(currentStopIndex: index);

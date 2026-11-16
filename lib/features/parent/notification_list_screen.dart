@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/notification_item.dart';
 import 'alert_detail_screen.dart';
-import 'notification_mock_store.dart';
-import 'alert_mock_store.dart';
-import 'parent_event_mock_store.dart';
 import 'notification_settings_screen.dart';
+import 'unread_notification_store.dart';
 
 import '../../core/notifications/in_app_notification_banner.dart';
 
@@ -49,19 +47,13 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       final items = await ApiRepository.instance.getNotifications();
       if (!mounted) return;
 
-      NotificationMockStore.updateNotifications(
-        items.map((n) => n.id).toList(),
-        items.where((n) => n.read).map((n) => n.id).toSet(),
-      );
       try {
         final unreadCount = await ApiRepository.instance
             .getNotificationUnreadCount();
-        NotificationMockStore.setNotificationUnreadCount(unreadCount);
+        UnreadNotificationStore.setCount(unreadCount);
       } catch (e) {
         debugPrint('읽지 않은 알림 개수 조회 실패: $e');
-      }
-      for (final n in items) {
-        n.read = NotificationMockStore.isRead(n.id, n.read);
+        UnreadNotificationStore.setCount(items.where((n) => !n.read).length);
       }
       setState(() => _items = items);
     } catch (e) {
@@ -76,28 +68,20 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   Future<void> _markAllAsRead() async {
     if (_loading) return;
 
-    // 아직 읽지 않은 일반 알림 ID
     final unreadItems = _items.where((n) => !n.read).toList();
-
-    // 기존 일반 알림과 미하차 테스트 경고 읽음 처리
-    NotificationMockStore.markAllAsRead(_items.map((n) => n.id).toList());
-
-    // 승하차 및 이상 상황 Mock 이벤트 읽음 처리
-    final events = ParentEventMockStore.events.value;
-
-    for (final event in events) {
-      ParentEventMockStore.markEventAsRead(event.id);
+    if (unreadItems.isEmpty) {
+      InAppNotificationBanner.showMessage('읽지 않은 알림이 없습니다.');
+      return;
     }
 
-    // 화면에 표시된 일반 알림 상태 갱신
+    UnreadNotificationStore.clear();
+
     setState(() {
       for (final n in _items) {
         n.read = true;
       }
     });
 
-    // 기존 일반 알림의 읽음 API 호출 유지
-    // 실패해도 Mock 화면의 읽음 상태는 유지
     for (final item in unreadItems) {
       try {
         await ApiRepository.instance.readNotification(item);
@@ -165,29 +149,6 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     return colorScheme.onSurfaceVariant;
   }
 
-  void _showEventDetail(ParentMockEvent event) {
-    ParentEventMockStore.markEventAsRead(event.id);
-
-    showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(event.title),
-          content: Text(event.message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('확인'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-
   List<NotificationItem> _itemsForFilter(_NotificationFilter filter) {
     return switch (filter) {
       _NotificationFilter.all => _items,
@@ -204,7 +165,6 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
           ).toList(),
     };
   }
-
 
   Widget _buildNotificationPage(_NotificationFilter filter) {
     if (_loading) {
@@ -283,8 +243,10 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                           size: 10,
                         ),
                   onTap: () async {
-                    setState(() => n.read = true);
-                    NotificationMockStore.markAsRead(n.id);
+                    if (!n.read) {
+                      setState(() => n.read = true);
+                      UnreadNotificationStore.decrement();
+                    }
 
                     try {
                       await ApiRepository.instance.readNotification(n);
@@ -294,7 +256,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
 
                     if (!context.mounted) return;
 
-                    if (n.isAlert) {
+                    if (n.isAlert && n.alertId != null) {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => AlertDetailScreen(alertId: n.alertId),
@@ -339,50 +301,37 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('알림'),
-
       ),
-
-      body: ValueListenableBuilder<bool>(
-        valueListenable: AlertMockStore.hasAlert,
-        builder: (context, hasAlert, child) {
-          return Column(
-            children: [
-              SizedBox(
-                height: 58,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  children: [
-                    _buildFilterChip(_NotificationFilter.all, '전체'),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(_NotificationFilter.trip, '운행'),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(_NotificationFilter.urgent, '긴급'),
-                  ],
-                ),
-              ),
-
-
-              // 기존 알림 목록
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(
-                      () => _selectedFilter = _NotificationFilter.values[index],
-                    );
-                  },
-                  children: _NotificationFilter.values
-                      .map(_buildNotificationPage)
-                      .toList(),
-                ),
-              ),
-            ],
-          );
-        },
+      body: Column(
+        children: [
+          SizedBox(
+            height: 58,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              children: [
+                _buildFilterChip(_NotificationFilter.all, '전체'),
+                const SizedBox(width: 8),
+                _buildFilterChip(_NotificationFilter.trip, '운행'),
+                const SizedBox(width: 8),
+                _buildFilterChip(_NotificationFilter.urgent, '긴급'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(
+                  () => _selectedFilter = _NotificationFilter.values[index],
+                );
+              },
+              children: _NotificationFilter.values
+                  .map(_buildNotificationPage)
+                  .toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
