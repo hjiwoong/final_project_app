@@ -8,7 +8,7 @@ import 'unread_notification_store.dart';
 
 import '../../core/notifications/in_app_notification_banner.dart';
 
-enum _NotificationFilter { all, urgent, check }
+enum _NotificationFilter { all, trip, urgent }
 
 class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({super.key, this.showSettingsButton = true});
@@ -96,6 +96,14 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   }
 
   IconData _getNotificationIcon(NotificationItem n) {
+    if (n.isTripNotification) {
+      return switch (n.eventType) {
+        'STARTED' => Icons.directions_bus,
+        'ENDED' => Icons.check_circle_outline,
+        'DELAYED' => Icons.schedule,
+        _ => Icons.directions_bus_outlined,
+      };
+    }
     if (n.isAlert) {
       return switch (n.alertLevel) {
         'URGENT' => Icons.error_rounded,
@@ -116,6 +124,11 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   }
 
   Color _getNotificationColor(NotificationItem n) {
+    if (n.isTripNotification) {
+      return n.eventType == 'DELAYED'
+          ? Colors.orange
+          : Theme.of(context).colorScheme.primary;
+    }
     final colorScheme = Theme.of(context).colorScheme;
     if (n.isAlert) {
       return switch (n.alertLevel) {
@@ -139,10 +152,17 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   List<NotificationItem> _itemsForFilter(_NotificationFilter filter) {
     return switch (filter) {
       _NotificationFilter.all => _items,
+
+      _NotificationFilter.trip =>
+          _items.where((n) => n.isTripNotification).toList(),
+
       _NotificationFilter.urgent =>
-        _items.where((n) => n.alertLevel == 'URGENT').toList(),
-      _NotificationFilter.check =>
-        _items.where((n) => n.alertLevel == 'CHECK').toList(),
+          _items.where((n) =>
+          !n.isTripNotification &&
+              (n.isAlert ||
+                  n.alertLevel == 'URGENT' ||
+                  n.alertLevel == 'CHECK')
+          ).toList(),
     };
   }
 
@@ -281,28 +301,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('알림'),
-
-        // 모두 읽음 버튼
-        actions: [
-          if (widget.showSettingsButton)
-            IconButton(
-              tooltip: '알림 설정',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const NotificationSettingsScreen(),
-                ),
-              ),
-              icon: const Icon(Icons.settings_outlined),
-            ),
-          IconButton(
-            tooltip: '모두 읽음 처리',
-            onPressed: _loading ? null : _markAllAsRead,
-            icon: const Icon(Icons.done_all),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
-
       body: Column(
         children: [
           SizedBox(
@@ -313,9 +312,9 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
               children: [
                 _buildFilterChip(_NotificationFilter.all, '전체'),
                 const SizedBox(width: 8),
-                _buildFilterChip(_NotificationFilter.urgent, '긴급'),
+                _buildFilterChip(_NotificationFilter.trip, '운행'),
                 const SizedBox(width: 8),
-                _buildFilterChip(_NotificationFilter.check, '확인 필요'),
+                _buildFilterChip(_NotificationFilter.urgent, '긴급'),
               ],
             ),
           ),
