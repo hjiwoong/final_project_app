@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:final_project_app/core/auth/session.dart';
 import 'package:final_project_app/features/parent/attendance_screen.dart';
+import 'package:final_project_app/features/parent/parent_child_management_screen.dart';
 import 'package:final_project_app/features/parent/parent_settings_screen.dart';
 
 void main() {
@@ -30,6 +31,17 @@ void main() {
 
     expect(find.text('가입 경로'), findsOneWidget);
     expect(find.text('앱 가입'), findsOneWidget);
+    expect(find.text('자녀 주소 및 위치'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('자녀 주소 및 위치가 자녀 관리 메뉴에 표시된다', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: ParentChildManagementScreen()),
+    );
+
+    expect(find.text('자녀 주소 및 위치'), findsOneWidget);
+    expect(find.text('자녀 연결 해제'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

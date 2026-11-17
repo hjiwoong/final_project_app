@@ -301,19 +301,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 52,
-                child: FilledButton.icon(
+                child: FilledButton(
                   onPressed: _saving ? null : _submit,
-                  icon: _saving
-                      ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
+                  child: _saving
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text('변경 중...'),
+                          ],
                         )
-                      : const Icon(Icons.lock_reset_rounded),
-                  label: Text(_saving ? '변경 중...' : '비밀번호 변경'),
+                      : const Text('비밀번호 변경'),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     shape: const StadiumBorder(),

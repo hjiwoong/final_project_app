@@ -10,7 +10,6 @@ import '../auth/change_password_screen.dart';
 import '../auth/login_screen.dart';
 import '../auth/account_removal_screen.dart';
 import '../../widgets/settings_menu_tile.dart';
-import 'child_location_screen.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
 
 import '../../core/notifications/in_app_notification_banner.dart';
@@ -322,14 +321,6 @@ class ParentAccountInfoScreen extends StatelessWidget {
                   icon: Icons.how_to_reg_outlined,
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          SettingsMenuTile(
-            icon: Icons.location_on_outlined,
-            title: '자녀 주소 및 위치',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ChildLocationScreen()),
             ),
           ),
           const SizedBox(height: 8),
