@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../data/api/api_repository.dart';
+import '../../core/auth/session.dart';
+import '../auth/login_screen.dart';
+import '../auth/parent_terms_gate.dart';
 import 'unread_notification_store.dart';
 import 'notification_list_screen.dart';
 import 'parent_home_screen.dart';
@@ -20,12 +23,6 @@ class _ParentShellState extends State<ParentShell> {
   int _index = 0;
   final Set<int> _visitedTabs = {0};
 
-  @override
-  void initState() {
-    super.initState();
-    _refreshUnreadCount();
-  }
-
   Future<void> _refreshUnreadCount() async {
     try {
       final count = await ApiRepository.instance.getNotificationUnreadCount();
@@ -44,6 +41,21 @@ class _ParentShellState extends State<ParentShell> {
 
   @override
   Widget build(BuildContext context) {
+    return ParentTermsGate(
+      onAccepted: _refreshUnreadCount,
+      onLogout: () async {
+        await Session.clear();
+        if (!context.mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (_) => false,
+        );
+      },
+      child: _buildShell(),
+    );
+  }
+
+  Widget _buildShell() {
     return Scaffold(
       body: IndexedStack(
         index: _index,

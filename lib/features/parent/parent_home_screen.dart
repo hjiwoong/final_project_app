@@ -521,36 +521,6 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     );
   }
 
-  // 실제 배정 버스 + 운행 상태
-  // 테스트 운행(버스 위치 시뮬레이션) 요약 카드 → 버스 운행 현황으로 이동
-  Widget _buildTestRunCard() {
-    return ValueListenableBuilder<BusTripStatus>(
-      valueListenable: BusTripSimulation.status,
-      builder: (context, status, _) {
-        return ValueListenableBuilder<double>(
-          valueListenable: BusTripSimulation.progress,
-          builder: (context, _, _) {
-            return Card(
-              color: _homeCardColor(context),
-              child: ListTile(
-                leading: const Icon(Icons.route, color: Colors.blue),
-                title: const Text('버스 위치 (테스트 운행)'),
-                subtitle: Text(
-                  '${BusTripSimulation.statusText(status)} · '
-                  '도착 예정 ${BusTripSimulation.etaText(status)}',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const BusStatusScreen()),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   Widget _buildBusSection() {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: _buses,
@@ -695,8 +665,6 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
             const SizedBox(height: 8),
 
             _buildBusSection(),
-
-            _buildTestRunCard(),
 
             const SizedBox(height: 24),
 
