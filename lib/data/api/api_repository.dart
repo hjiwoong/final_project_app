@@ -12,10 +12,29 @@ import '../../data/models/child_location.dart';
 import '../../data/models/account_deletion_schedule.dart';
 import '../../data/models/judge_result.dart';
 import '../../data/models/notification_item.dart';
+import '../../data/models/signup_term.dart';
 import '../../data/models/user_role.dart';
 
+abstract interface class SignupGateway {
+  Future<List<SignupTermInfo>> getSignupTerms();
+
+  Future<void> signup({
+    required String email,
+    required String password,
+    required String name,
+    required List<SignupTermAgreement> agreements,
+  });
+}
+
+abstract interface class TermsGateway {
+  Future<List<SignupTermInfo>> getSignupTerms();
+  Future<List<SignupTermAgreement>> getMyAgreements();
+  Future<List<SignupTermAgreement>> getPendingTerms();
+  Future<void> saveAgreements(List<SignupTermAgreement> agreements);
+}
+
 /// FastAPI 연동 Repository. 모든 데이터는 서버 API에서 가져온다.
-class ApiRepository {
+class ApiRepository implements SignupGateway, TermsGateway {
   ApiRepository._();
   static final ApiRepository instance = ApiRepository._();
 
@@ -53,14 +72,92 @@ class ApiRepository {
     });
   }
 
+  @override
+  Future<List<SignupTermInfo>> getSignupTerms() async {
+    final response = await _dio.get(
+      '/terms',
+      options: Options(
+        extra: const {'skipAuth': true, 'skipTermsRequired': true},
+      ),
+    );
+    final payload = response.data;
+    final rawTerms = payload is Map ? payload['terms'] : payload;
+    if (rawTerms is! List) {
+      throw const FormatException('약관 응답 형식이 올바르지 않습니다.');
+    }
+
+    final terms = rawTerms
+        .map(
+          (item) =>
+              SignupTermInfo.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
+    for (final type in SignupTermType.values) {
+      if (terms.where((term) => term.type == type).length != 1) {
+        throw FormatException('필수 약관 정보가 올바르지 않습니다: ${type.apiValue}');
+      }
+    }
+    return SignupTermType.values
+        .map((type) => terms.singleWhere((term) => term.type == type))
+        .toList();
+  }
+
+  @override
+  Future<List<SignupTermAgreement>> getMyAgreements() async {
+    final response = await _dio.get(
+      '/me/agreements',
+      options: Options(extra: const {'skipTermsRequired': true}),
+    );
+    final data = response.data;
+    if (data is! List) {
+      throw const FormatException('동의 내역 응답 형식이 올바르지 않습니다.');
+    }
+    return data.map((item) {
+      final record = Map<String, dynamic>.from(item as Map);
+      return SignupTermAgreement.fromJson(record);
+    }).toList();
+  }
+
+  @override
+  Future<List<SignupTermAgreement>> getPendingTerms() async {
+    final response = await _dio.get(
+      '/me',
+      options: Options(extra: const {'skipTermsRequired': true}),
+    );
+    final user = Map<String, dynamic>.from(response.data as Map);
+    final pendingTerms = _parsePendingTerms(user['pending_terms']);
+    Session.pendingTerms = pendingTerms;
+    return pendingTerms;
+  }
+
+  @override
+  Future<void> saveAgreements(List<SignupTermAgreement> agreements) async {
+    await _dio.post(
+      '/me/agreements',
+      data: {'agreements': agreements.map((item) => item.toJson()).toList()},
+      options: Options(extra: const {'skipTermsRequired': true}),
+    );
+    Session.pendingTerms = const [];
+  }
+
+  @override
   Future<void> signup({
     required String email,
     required String password,
     required String name,
+    required List<SignupTermAgreement> agreements,
   }) async {
     final response = await _dio.post(
       '/auth/signup',
-      data: {'email': email, 'password': password, 'name': name},
+      data: {
+        'email': email,
+        'password': password,
+        'name': name,
+        'children': [],
+        'agreements': agreements
+            .map((agreement) => agreement.toJson())
+            .toList(),
+      },
     );
 
     final data = Map<String, dynamic>.from(response.data as Map);
@@ -251,6 +348,9 @@ class ApiRepository {
     );
     final data = Map<String, dynamic>.from(response.data as Map);
     final user = Map<String, dynamic>.from(data['user'] as Map);
+    Session.pendingTerms = _parsePendingTerms(
+      data['pending_terms'] ?? user['pending_terms'],
+    );
     final roleName = (data['role'] as String).toUpperCase();
     final role = switch (roleName) {
       'PARENT' => UserRole.parent,
@@ -292,6 +392,9 @@ class ApiRepository {
     final roleStr = data['role'] as String;
     await TokenStorage.save(accessToken);
     final user = data['user'];
+    Session.pendingTerms = _parsePendingTerms(
+      data['pending_terms'] ?? (user is Map ? user['pending_terms'] : null),
+    );
     Session.accountRole = roleStr.toUpperCase();
     Session.email = email;
     if (user is Map) {
@@ -325,7 +428,7 @@ class ApiRepository {
       response = await _dio.get('/me');
     } on DioException catch (error) {
       if (error.response?.statusCode == 401 ||
-          error.response?.statusCode == 403) {
+          (error.response?.statusCode == 403 && !_isTermsRequired(error))) {
         await TokenStorage.clear();
         return null;
       }
@@ -333,6 +436,7 @@ class ApiRepository {
     }
 
     final user = Map<String, dynamic>.from(response.data as Map);
+    Session.pendingTerms = _parsePendingTerms(user['pending_terms']);
     final accountRole = (user['role'] as String).toUpperCase();
     final role = switch (accountRole) {
       'PARENT' => UserRole.parent,
@@ -359,6 +463,9 @@ class ApiRepository {
     final accessToken = data['access_token'] as String;
     final roleStr = (data['role'] as String).toUpperCase();
     final user = Map<String, dynamic>.from(data['user'] as Map);
+    Session.pendingTerms = _parsePendingTerms(
+      data['pending_terms'] ?? user['pending_terms'],
+    );
 
     final role = switch (roleStr) {
       'PARENT' => UserRole.parent,
@@ -392,6 +499,20 @@ class ApiRepository {
     return null;
   }
 
+  List<SignupTermAgreement> _parsePendingTerms(Object? value) {
+    if (value == null) return const [];
+    if (value is! List) {
+      throw const FormatException('미동의 약관 응답 형식이 올바르지 않습니다.');
+    }
+    return value
+        .map(
+          (item) => SignupTermAgreement.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
+        .toList();
+  }
+
   // 버스 목록 조회 (/web/buses)
   Future<List<Map<String, dynamic>>> getBuses() async {
     final response = await _dio.get('/web/buses');
@@ -400,6 +521,13 @@ class ApiRepository {
         (bus) => Map<String, dynamic>.from(bus as Map),
       ),
     );
+  }
+
+  bool _isTermsRequired(DioException error) {
+    final data = error.response?.data;
+    return error.response?.statusCode == 403 &&
+        data is Map &&
+        data['detail'] == 'TERMS_REQUIRED';
   }
 
   Future<List<Map<String, dynamic>>> getTripSchedules({
@@ -698,7 +826,10 @@ class ApiRepository {
       options: Options(responseType: ResponseType.bytes),
     );
     final image = response.data;
-    if (image == null || image.isEmpty) {
+    if (image == null) {
+      throw StateError('사진 데이터를 받지 못했습니다.');
+    }
+    if (image.isEmpty) {
       throw StateError('사진 데이터를 받지 못했습니다.');
     }
     return Uint8List.fromList(image);
@@ -711,25 +842,21 @@ class ApiRepository {
           : '/alerts/$alertId/events/$eventId/image',
       options: Options(responseType: ResponseType.bytes),
     );
-
     final image = response.data;
     if (image == null || image.isEmpty) {
       throw StateError('사진 데이터를 받지 못했습니다.');
     }
-
     return Uint8List.fromList(image);
   }
+
   // 알림 목록 조회 (GET /me/notifications)
-  // 테스트(Mock) 모드·계정은 서버 알림이 없으므로 빈 목록
   Future<List<NotificationItem>> getNotifications() async {
     final response = await _dio.get('/me/notifications');
 
     final payload = Map<String, dynamic>.from(response.data as Map);
     final items = payload['items'] as List;
-
     final notifications = items.map((item) {
       final n = Map<String, dynamic>.from(item as Map);
-
       return NotificationItem(
         id: n['id'],
         title: n['title'],
@@ -740,12 +867,8 @@ class ApiRepository {
         isAlert: n['alert_id'] != null,
         read: n['is_read'],
         alertId: n['alert_id'] as int?,
-        // 신규: 운행 알림 구분
-        category: n['category'] as String?,
-        eventType: n['event_type'] as String?,
       );
     }).toList();
-
     return notifications;
   }
 
@@ -825,19 +948,5 @@ class ApiRepository {
       options: Options(receiveTimeout: const Duration(seconds: 30)),
     );
     return Map<String, dynamic>.from(response.data as Map);
-  }
-
-  Future<Uint8List> getParentAlertImage(int alertId) async {
-    final response = await _dio.get<List<int>>(
-      '/me/alerts/$alertId/image',
-      options: Options(responseType: ResponseType.bytes),
-    );
-
-    final image = response.data;
-    if (image == null || image.isEmpty) {
-      throw StateError('미하차 판정 사진이 없습니다.');
-    }
-
-    return Uint8List.fromList(image);
   }
 }

@@ -30,9 +30,7 @@ void main() {
   });
 
   // 실제 가입 요청은 서버가 필요하므로 입력 단계 흐름만 확인한다.
-  testWidgets('회원가입 화면은 이메일 → 비밀번호 → 이름 순서로 진행된다', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('회원가입 화면은 이메일 → 비밀번호 → 이름 순서로 진행된다', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: SignupScreen()));
 
     expect(find.text('이메일을 입력하세요'), findsOneWidget);
@@ -58,6 +56,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('이름을 입력하세요'), findsOneWidget);
-    expect(find.text('계정 만들기'), findsOneWidget);
+    expect(find.text('약관 확인'), findsOneWidget);
   });
 }

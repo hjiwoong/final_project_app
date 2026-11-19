@@ -9,6 +9,7 @@ import '../../widgets/logout_confirmation_dialog.dart';
 import '../../widgets/settings_menu_tile.dart';
 import '../auth/change_password_screen.dart';
 import '../auth/login_screen.dart';
+import '../auth/parent_terms_gate.dart';
 import '../parent/notification_list_screen.dart';
 import '../parent/unread_notification_store.dart';
 import '../parent/unread_notification_badge.dart';
@@ -26,12 +27,6 @@ class DriverShell extends StatefulWidget {
 
 class _DriverShellState extends State<DriverShell> {
   int _index = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _refreshUnreadCount();
-  }
 
   Future<void> _refreshUnreadCount() async {
     try {
@@ -52,58 +47,69 @@ class _DriverShellState extends State<DriverShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_index],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).colorScheme.outlineVariant,
+    return ParentTermsGate(
+      onAccepted: _refreshUnreadCount,
+      onLogout: () async {
+        await Session.clear();
+        if (!context.mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (_) => false,
+        );
+      },
+      child: Scaffold(
+        body: _pages[_index],
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
             ),
           ),
-        ),
-        child: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (i) => setState(() => _index = i),
-          elevation: 0,
-          height: 60,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
-          destinations: [
-            //홈
-            NavigationDestination(
-              icon: Icon(Icons.directions_bus_outlined),
-              selectedIcon: Icon(Icons.directions_bus),
-              label: '',
-            ),
-            //운행 기록
-            NavigationDestination(
-              icon: Icon(Icons.bookmark_border),
-              selectedIcon: Icon(Icons.bookmark),
-              label: '운행 기록',
-            ),
-            //학생 출결 확인
-            NavigationDestination(
-              icon: Icon(Icons.person_outline_rounded),
-              selectedIcon: Icon(Icons.person_rounded),
-              label: '출결 확인',
-            ),
-            //알림
-            NavigationDestination(
-              icon: const UnreadNotificationBadge(
-                icon: Icons.notifications_outlined,
+          child: NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: (i) => setState(() => _index = i),
+            elevation: 0,
+            height: 60,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+            destinations: [
+              //홈
+              NavigationDestination(
+                icon: Icon(Icons.directions_bus_outlined),
+                selectedIcon: Icon(Icons.directions_bus),
+                label: '',
               ),
-              selectedIcon: const UnreadNotificationBadge(
-                icon: Icons.notifications,
+              //운행 기록
+              NavigationDestination(
+                icon: Icon(Icons.bookmark_border),
+                selectedIcon: Icon(Icons.bookmark),
+                label: '운행 기록',
               ),
-              label: '',
-            ),
-            //설정
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings),
-              label: '',
-            ),
-          ],
+              //학생 출결 확인
+              NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: '출결 확인',
+              ),
+              //알림
+              NavigationDestination(
+                icon: const UnreadNotificationBadge(
+                  icon: Icons.notifications_outlined,
+                ),
+                selectedIcon: const UnreadNotificationBadge(
+                  icon: Icons.notifications,
+                ),
+                label: '',
+              ),
+              //설정
+              NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: '',
+              ),
+            ],
+          ),
         ),
       ),
     );

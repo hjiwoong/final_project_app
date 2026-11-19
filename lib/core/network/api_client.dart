@@ -14,12 +14,18 @@ String _newRequestId() {
   return '$timestamp-$random';
 }
 
+typedef TermsRequiredHandler = Future<bool> Function(DioException error);
+
 /// 모든 API 호출의 공통 클라이언트 (JWT 자동 첨부)
 class ApiClient {
-  ApiClient._();
+  ApiClient._() {
+    dio = _buildDio();
+  }
   static final ApiClient instance = ApiClient._();
 
-  final Dio dio =
+  late final Dio dio;
+
+  Dio _buildDio() =>
       Dio(
           BaseOptions(
             baseUrl: Env.apiBaseUrl,
@@ -32,6 +38,11 @@ class ApiClient {
             onRequest: (options, handler) async {
               options.headers['X-Request-ID'] =
                   options.headers['X-Request-ID'] ?? _newRequestId();
+              if (options.extra['skipAuth'] == true) {
+                options.headers.remove('Authorization');
+                handler.next(options);
+                return;
+              }
               final token = await TokenStorage.read();
               if (token != null) {
                 options.headers['Authorization'] = 'Bearer $token';
@@ -51,7 +62,7 @@ class ApiClient {
               }
               handler.next(response);
             },
-            onError: (error, handler) {
+            onError: (error, handler) async {
               if (kDebugMode) {
                 final requestId =
                     error.requestOptions.headers['X-Request-ID'] ?? 'unknown';
@@ -62,8 +73,58 @@ class ApiClient {
                   'type=${error.type.name} request_id=$requestId',
                 );
               }
-              handler.next(error);
+
+              if (!_isTermsRequired(error) ||
+                  error.requestOptions.extra['skipTermsRequired'] == true ||
+                  error.requestOptions.extra['termsRequiredRetried'] == true ||
+                  _termsRequiredHandler == null) {
+                handler.next(error);
+                return;
+              }
+
+              try {
+                final accepted = await _termsRequiredHandler!(error);
+                if (!accepted) {
+                  handler.next(error);
+                  return;
+                }
+                final options = error.requestOptions;
+                options.extra['termsRequiredRetried'] = true;
+                handler.resolve(await dio.fetch<dynamic>(options));
+              } on DioException catch (retryError) {
+                handler.reject(retryError);
+              } catch (retryError) {
+                handler.reject(
+                  DioException(
+                    requestOptions: error.requestOptions,
+                    error: retryError,
+                  ),
+                );
+              }
             },
           ),
         );
+
+  Object? _termsRequiredOwner;
+  TermsRequiredHandler? _termsRequiredHandler;
+
+  void registerTermsRequiredHandler(
+    Object owner,
+    TermsRequiredHandler handler,
+  ) {
+    _termsRequiredOwner = owner;
+    _termsRequiredHandler = handler;
+  }
+
+  void unregisterTermsRequiredHandler(Object owner) {
+    if (!identical(_termsRequiredOwner, owner)) return;
+    _termsRequiredOwner = null;
+    _termsRequiredHandler = null;
+  }
+
+  static bool _isTermsRequired(DioException error) {
+    if (error.response?.statusCode != 403) return false;
+    final data = error.response?.data;
+    return data is Map && data['detail'] == 'TERMS_REQUIRED';
+  }
 }

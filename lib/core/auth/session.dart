@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../data/models/user_role.dart';
+import '../../data/models/signup_term.dart';
 import '../network/api_client.dart';
 import 'trip_progress_storage.dart';
 import 'token_storage.dart';
@@ -17,6 +18,7 @@ class Session {
   static String? name;
   static DateTime? createdAt;
   static String? signupMethod;
+  static List<SignupTermAgreement> pendingTerms = const [];
   static int? currentTripId;
   static String? currentTripBusName;
   static int? currentBoardingCount;
@@ -29,6 +31,7 @@ class Session {
           await ApiClient.instance.dio.delete(
             '/me/push-token',
             data: {'push_token': token},
+            options: Options(extra: const {'skipTermsRequired': true}),
           );
         }
       } on DioException catch (error) {
@@ -41,6 +44,7 @@ class Session {
     name = null;
     createdAt = null;
     signupMethod = null;
+    pendingTerms = const [];
     currentTripId = null;
     currentTripBusName = null;
     currentBoardingCount = null;
@@ -50,9 +54,9 @@ class Session {
 
   static Future<String?> _currentPushToken() async {
     try {
-      return await FirebaseMessaging.instance
-          .getToken()
-          .timeout(const Duration(seconds: 3));
+      return await FirebaseMessaging.instance.getToken().timeout(
+        const Duration(seconds: 3),
+      );
     } catch (error) {
       debugPrint('푸시 토큰 확인 실패: $error');
       return null;
