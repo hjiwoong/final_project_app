@@ -53,6 +53,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
   bool _exitDialogOpen = false;
   bool _loadingStops = true;
   bool _mapLoaded = false;
+  NaverMapController? _mapController;
   String? _loadError;
   String? _mapError;
   Timer? _mapLoadTimer;
@@ -74,6 +75,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
   @override
   void dispose() {
     _mapLoadTimer?.cancel();
+    _mapController = null;
     _sheetController
       ..removeListener(_updateSheetState)
       ..dispose();
@@ -190,6 +192,34 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
         ),
   ];
 
+  NLatLng? _positionForStop(int index) {
+    if (index < 0 || index >= _stops.length) return null;
+    final location = _stops[index]['location'] as ChildLocation?;
+    if (location == null || !location.hasCoordinates) return null;
+    return NLatLng(location.latitude!, location.longitude!);
+  }
+
+  Future<void> _focusStop(int index) async {
+    final controller = _mapController;
+    final position = _positionForStop(index);
+    if (controller == null || position == null) return;
+
+    try {
+      await controller.updateCamera(
+        NCameraUpdate.scrollAndZoomTo(target: position, zoom: 14.5)
+          ..setAnimation(
+            animation: NCameraAnimation.easing,
+            duration: const Duration(milliseconds: 700),
+          ),
+      );
+    } catch (error) {
+      debugPrint('다음 정류장으로 지도 이동 실패: $error');
+      if (mounted) {
+        InAppNotificationBanner.showMessage('다음 학생 위치로 지도를 이동하지 못했습니다.');
+      }
+    }
+  }
+
   Color _markerColor(BuildContext context, int index) {
     final colorScheme = Theme.of(context).colorScheme;
     if (_stops[index]['isAbsent'] == true) return colorScheme.onSurfaceVariant;
@@ -251,6 +281,8 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
       setState(() {
         _currentStopIndex = _nextAvailableStopIndex(_currentStopIndex + 1);
       });
+      await _focusStop(_currentStopIndex);
+      if (!mounted) return;
       for (final (index, marker) in _stopMarkers.indexed) {
         marker.setIcon(
           await _markerIcon(context, _stopMarkerStopIndices[index]),
@@ -353,16 +385,23 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
           _collapsedSheetSize = collapsedSheetSize;
           _expandedSheetSize = expandedSheetSize;
           final stopPositions = _stopPositions;
+          final currentStopPosition = _positionForStop(_currentStopIndex);
+          final initialMapPosition =
+              currentStopPosition ??
+              (stopPositions.isNotEmpty
+                  ? stopPositions.first
+                  : _defaultMapPosition);
 
           return Stack(
             children: [
               NaverMap(
                 options: NaverMapViewOptions(
                   initialCameraPosition: NCameraPosition(
-                    target: stopPositions.isNotEmpty
-                        ? stopPositions.first
-                        : _defaultMapPosition,
-                    zoom: stopPositions.isNotEmpty ? 14.5 : 11.5,
+                    target: initialMapPosition,
+                    zoom:
+                        currentStopPosition != null || stopPositions.isNotEmpty
+                        ? 14.5
+                        : 11.5,
                   ),
                   locationButtonEnable: true,
                   nightModeEnable:
@@ -370,6 +409,7 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
                 ),
                 onMapReady: (controller) async {
                   debugPrint('네이버 지도 로딩 완료');
+                  _mapController = controller;
                   _mapLoadTimer?.cancel();
                   _mapLoadTimer = Timer(const Duration(seconds: 15), () {
                     if (!mounted || _mapLoaded) return;

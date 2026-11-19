@@ -8,7 +8,9 @@ import '../../widgets/primary_button.dart';
 import '../../core/notifications/in_app_notification_banner.dart';
 
 class ParentAttendanceScreen extends StatefulWidget {
-  const ParentAttendanceScreen({super.key});
+  const ParentAttendanceScreen({this.active = true, super.key});
+
+  final bool active;
 
   @override
   State<ParentAttendanceScreen> createState() => _ParentAttendanceScreenState();
@@ -26,6 +28,12 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
   void initState() {
     super.initState();
     _loadChildren();
+  }
+
+  @override
+  void didUpdateWidget(ParentAttendanceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.active && widget.active) _loadChildren();
   }
 
   String _formatDate(DateTime date) {

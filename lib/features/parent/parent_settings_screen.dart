@@ -6,20 +6,10 @@ import '../../data/models/user_role.dart';
 import 'app_info_screen.dart';
 import 'attendance_screen.dart';
 import 'notification_settings_screen.dart';
-import 'parent_attendance_screen.dart';
 import 'parent_child_management_screen.dart';
 
 class ParentSettingsScreen extends StatelessWidget {
   const ParentSettingsScreen({super.key});
-
-  void _openAttendanceManagement(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => const ParentAttendanceScreen(),
-      ),
-    );
-  }
 
   void _openChildManagement(BuildContext context) {
     Navigator.of(context).push(
@@ -185,26 +175,6 @@ class ParentSettingsScreen extends StatelessWidget {
               //subtitle: const Text('연결된 자녀 정보를 확인하고 연결을 요청합니다.'),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => _openChildManagement(context),
-            ),
-          ),
-          Card(
-            margin: EdgeInsets.zero,
-            color: Theme.of(context).scaffoldBackgroundColor,
-            shape: const RoundedRectangleBorder(
-              side: BorderSide.none,
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-              minVerticalPadding: 0,
-              leading: const Icon(Icons.event_available_outlined),
-              title: const Text(
-                '출석·결석 관리',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              // subtitle: const Text('날짜별 등교 및 결석 상태를 관리합니다.'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => _openAttendanceManagement(context),
             ),
           ),
           Card(

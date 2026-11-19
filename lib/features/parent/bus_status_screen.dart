@@ -35,7 +35,9 @@ class _BusStatusItem {
 /// - 운행 상태·탑승 예정 자녀: 서버 실제 데이터 (GET /me/bus-status + GET /me/children)
 /// - 지도에는 테스트 운행 버스와 학부모가 등록한 자녀 탑승 위치를 함께 표시
 class BusStatusScreen extends StatefulWidget {
-  const BusStatusScreen({super.key});
+  const BusStatusScreen({this.tripId, super.key});
+
+  final int? tripId;
 
   @override
   State<BusStatusScreen> createState() => _BusStatusScreenState();

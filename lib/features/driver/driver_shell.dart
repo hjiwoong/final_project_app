@@ -71,14 +71,12 @@ class _DriverShellState extends State<DriverShell> {
             selectedIndex: _index,
             onDestinationSelected: (i) => setState(() => _index = i),
             elevation: 0,
-            height: 60,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
             destinations: [
               //홈
               NavigationDestination(
                 icon: Icon(Icons.directions_bus_outlined),
                 selectedIcon: Icon(Icons.directions_bus),
-                label: '',
+                label: '홈',
               ),
               //운행 기록
               NavigationDestination(
@@ -100,13 +98,13 @@ class _DriverShellState extends State<DriverShell> {
                 selectedIcon: const UnreadNotificationBadge(
                   icon: Icons.notifications,
                 ),
-                label: '',
+                label: '알림',
               ),
               //설정
               NavigationDestination(
                 icon: Icon(Icons.settings_outlined),
                 selectedIcon: Icon(Icons.settings),
-                label: '',
+                label: '설정',
               ),
             ],
           ),

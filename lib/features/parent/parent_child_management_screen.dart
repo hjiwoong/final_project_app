@@ -8,6 +8,7 @@ import '../auth/child_link_request_screen.dart';
 import '../../widgets/settings_menu_tile.dart';
 import 'child_link_request_status_screen.dart';
 import 'child_location_screen.dart';
+import 'parent_attendance_screen.dart';
 
 import '../../core/notifications/in_app_notification_banner.dart';
 
@@ -44,6 +45,18 @@ class ParentChildManagementScreen extends StatelessWidget {
             title: '자녀 목록 확인',
             subtitle: '계정에 연결된 자녀 정보를 확인합니다.',
             onTap: () => _openChildList(context),
+          ),
+          const SizedBox(height: 8),
+          _ChildManagementMenuTile(
+            icon: Icons.event_available_outlined,
+            title: '출석·결석 관리',
+            subtitle: '날짜별 출석 및 결석 상태를 관리합니다.',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                fullscreenDialog: true,
+                builder: (_) => const ParentAttendanceScreen(),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           _ChildManagementMenuTile(

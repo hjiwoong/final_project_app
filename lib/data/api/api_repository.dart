@@ -875,10 +875,19 @@ class ApiRepository implements SignupGateway, TermsGateway {
   Future<int> getNotificationUnreadCount() async {
     final response = await _dio.get(
       '/me/notifications',
-      queryParameters: {'limit': 1},
+      queryParameters: {'unread_only': true, 'limit': 1},
     );
     final payload = Map<String, dynamic>.from(response.data as Map);
     return payload['unread_count'] as int;
+  }
+
+  Future<int> getOpenParentAlertCount() async {
+    final response = await _dio.get(
+      '/me/alerts',
+      queryParameters: {'status': 'OPEN', 'limit': 1},
+    );
+    final payload = Map<String, dynamic>.from(response.data as Map);
+    return payload['total'] as int;
   }
 
   // 알림 읽음 처리 (POST /me/notifications/{id}/read)

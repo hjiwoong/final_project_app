@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import 'unread_notification_store.dart';
 
 class UnreadNotificationBadge extends StatelessWidget {
-  const UnreadNotificationBadge({required this.icon, super.key});
+  const UnreadNotificationBadge({
+    required this.icon,
+    this.dot = false,
+    super.key,
+  });
 
   final IconData icon;
+  final bool dot;
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +19,7 @@ class UnreadNotificationBadge extends StatelessWidget {
       builder: (context, count, child) {
         return Badge(
           isLabelVisible: count > 0,
-          label: Text(count > 99 ? '99+' : '$count'),
+          label: dot ? null : Text(count > 99 ? '99+' : '$count'),
           child: Icon(icon),
         );
       },

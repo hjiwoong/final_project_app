@@ -172,7 +172,7 @@ class AppTheme {
       backgroundColor: surface,
       indicatorColor: Colors.transparent,
       indicatorShape: const StadiumBorder(),
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
             ? const IconThemeData(size: 26, color: primary)
@@ -310,7 +310,7 @@ class AppTheme {
       backgroundColor: darkSurface,
       indicatorColor: Colors.transparent,
       indicatorShape: const StadiumBorder(),
-      labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
             ? IconThemeData(size: 26, color: darkPrimary)
