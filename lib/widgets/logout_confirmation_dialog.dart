@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
 
-Future<bool> showLogoutConfirmationDialog(BuildContext context) async {
+Future<bool> showLogoutConfirmationDialog(
+  BuildContext context, {
+  String message = '로그아웃하시겠습니까?',
+}) async {
   final colorScheme = Theme.of(context).colorScheme;
   return await showModalBottomSheet<bool>(
         context: context,
@@ -23,7 +26,7 @@ Future<bool> showLogoutConfirmationDialog(BuildContext context) async {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '로그아웃하시겠습니까?',
+                  message,
                   style: TextStyle(
                     fontSize: 15,
                     color: colorScheme.onSurfaceVariant,

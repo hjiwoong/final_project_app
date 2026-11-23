@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../data/api/api_repository.dart';
+import '../../theme/app_colors.dart';
 
 /// 운행 기록 화면과 상세 화면이 함께 쓰는 포맷·상태 도우미
 class TripFormat {
   TripFormat._();
 
-  static const okColor = Color(0xFF2E7D32);
-  static const warnColor = Color(0xFFEF6C00);
-  static const dangerColor = Color(0xFFC62828);
+  static const okColor = AppColors.success;
+  static const warnColor = AppColors.danger;
+  static const dangerColor = AppColors.danger;
 
   static DateTime? parse(Object? value) =>
       value is String ? DateTime.tryParse(value)?.toLocal() : null;
@@ -17,8 +18,7 @@ class TripFormat {
 
   static String time(DateTime t) => '${_two(t.hour)}:${_two(t.minute)}';
 
-  static String timeWithSeconds(DateTime t) =>
-      '${time(t)}:${_two(t.second)}';
+  static String timeWithSeconds(DateTime t) => '${time(t)}:${_two(t.second)}';
 
   static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -55,11 +55,13 @@ class TripFormat {
     final end = parse(trip['ended_at']);
     if (start == null) return '시간 정보 없음';
     if (end == null) return '${time(start)} ~ 운행 중';
-    final sameDay = start.year == end.year &&
+    final sameDay =
+        start.year == end.year &&
         start.month == end.month &&
         start.day == end.day;
-    final endText =
-        sameDay ? time(end) : '${end.month}/${end.day} ${time(end)}';
+    final endText = sameDay
+        ? time(end)
+        : '${end.month}/${end.day} ${time(end)}';
     return '${time(start)} ~ $endText · ${duration(start, end)}';
   }
 
@@ -90,13 +92,20 @@ class TripStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     if (trip['status'] != 'CLOSED') {
-      return InfoBadge('운행 중', colors.primary,
-          icon: Icons.play_circle_outline);
+      return const InfoBadge(
+        '운행 중',
+        AppColors.textPrimary,
+        backgroundColor: AppColors.info,
+        icon: Icons.play_circle_outline,
+      );
     }
     switch (trip['result']) {
       case 'OK':
-        return const InfoBadge('정상 하차', TripFormat.okColor,
-            icon: Icons.check_circle_outline);
+        return const InfoBadge(
+          '정상 하차',
+          TripFormat.okColor,
+          icon: Icons.check_circle_outline,
+        );
       case 'MISSED':
         return InfoBadge(
           '미하차 의심 ${TripFormat.remaining(trip)}명',
@@ -104,19 +113,31 @@ class TripStatusBadge extends StatelessWidget {
           icon: Icons.warning_amber_rounded,
         );
       case 'NEEDS_CHECK':
-        return const InfoBadge('확인 필요', TripFormat.warnColor,
-            icon: Icons.help_outline_rounded);
+        return const InfoBadge(
+          '확인 필요',
+          TripFormat.warnColor,
+          icon: Icons.help_outline_rounded,
+        );
       case 'PENDING':
-        return InfoBadge('판정 전', colors.onSurfaceVariant,
-            icon: Icons.hourglass_empty_rounded);
+        return InfoBadge(
+          '판정 전',
+          colors.onSurfaceVariant,
+          icon: Icons.hourglass_empty_rounded,
+        );
     }
     // result 값이 없을 때는 인원으로 판단
     final missing = TripFormat.remaining(trip);
     return missing > 0
-        ? InfoBadge('미하차 의심 $missing명', TripFormat.dangerColor,
-            icon: Icons.warning_amber_rounded)
-        : const InfoBadge('운행 완료', TripFormat.okColor,
-            icon: Icons.check_circle_outline);
+        ? InfoBadge(
+            '미하차 의심 $missing명',
+            TripFormat.dangerColor,
+            icon: Icons.warning_amber_rounded,
+          )
+        : const InfoBadge(
+            '운행 완료',
+            TripFormat.okColor,
+            icon: Icons.check_circle_outline,
+          );
   }
 
   /// 아이콘 등에 쓸 대표 색
@@ -136,18 +157,25 @@ class TripStatusBadge extends StatelessWidget {
 }
 
 class InfoBadge extends StatelessWidget {
-  const InfoBadge(this.text, this.color, {super.key, this.icon});
+  const InfoBadge(
+    this.text,
+    this.color, {
+    super.key,
+    this.icon,
+    this.backgroundColor,
+  });
 
   final String text;
   final Color color;
   final IconData? icon;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: backgroundColor ?? color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -219,8 +247,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           builder: (context, snapshot) {
             // 상세가 오기 전에는 목록에서 받은 요약으로 화면을 먼저 채운다
             final trip = snapshot.data ?? widget.trip;
-            final loading =
-                snapshot.connectionState == ConnectionState.waiting;
+            final loading = snapshot.connectionState == ConnectionState.waiting;
             final failed = snapshot.hasError || _detail == null;
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -285,15 +312,18 @@ class _Section extends StatelessWidget {
                   child: Text(
                     title,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 ?trailing,
               ],
             ),
           ),
-          SizedBox(width: double.infinity, child: Card(child: child)),
+          SizedBox(
+            width: double.infinity,
+            child: Card(child: child),
+          ),
         ],
       ),
     );
@@ -317,15 +347,15 @@ class _SummaryCard extends StatelessWidget {
       _ => null,
     };
     Widget row(IconData icon, String text) => Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Row(
-            children: [
-              Icon(icon, size: 16, color: colors.onSurfaceVariant),
-              const SizedBox(width: 8),
-              Expanded(child: Text(text)),
-            ],
-          ),
-        );
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: colors.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
 
     return Card(
       child: Padding(
@@ -335,8 +365,10 @@ class _SummaryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.directions_bus_outlined,
-                    color: TripStatusBadge.colorOf(context, trip)),
+                Icon(
+                  Icons.directions_bus_outlined,
+                  color: TripStatusBadge.colorOf(context, trip),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -356,17 +388,22 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 TripStatusBadge(trip: trip),
                 if (trip['simulation_mode'] == true)
-                  InfoBadge('시뮬레이션', colors.onSurfaceVariant,
-                      icon: Icons.science_outlined),
+                  InfoBadge(
+                    '시뮬레이션',
+                    colors.onSurfaceVariant,
+                    icon: Icons.science_outlined,
+                  ),
               ],
             ),
             const SizedBox(height: 6),
-            row(Icons.calendar_today_outlined,
-                start == null ? '날짜 정보 없음' : TripFormat.date(start)),
+            row(
+              Icons.calendar_today_outlined,
+              start == null ? '날짜 정보 없음' : TripFormat.date(start),
+            ),
             row(Icons.schedule, TripFormat.timeRange(trip)),
-            row(Icons.person_outline,
-                '${trip['driver_name'] ?? '운전자 정보 없음'}'),
-            if (confirm != null) row(Icons.fact_check_outlined, '하차 확인: $confirm'),
+            row(Icons.person_outline, '${trip['driver_name'] ?? '운전자 정보 없음'}'),
+            if (confirm != null)
+              row(Icons.fact_check_outlined, '하차 확인: $confirm'),
           ],
         ),
       ),
@@ -384,21 +421,21 @@ class _CountCard extends StatelessWidget {
     final closed = trip['status'] == 'CLOSED';
     final remaining = TripFormat.remaining(trip);
     Widget count(String label, Object? value, {Color? color}) => Expanded(
-          child: Column(
-            children: [
-              Text(
-                value is num ? '${value.toInt()}명' : '-',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(label),
-            ],
+      child: Column(
+        children: [
+          Text(
+            value is num ? '${value.toInt()}명' : '-',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
-        );
+          const SizedBox(height: 4),
+          Text(label),
+        ],
+      ),
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -408,8 +445,11 @@ class _CountCard extends StatelessWidget {
             count('승차', trip['boarding_count']),
             count('하차', trip['alighted_count']),
             if (closed)
-              count('미하차', remaining,
-                  color: remaining > 0 ? TripFormat.dangerColor : null),
+              count(
+                '미하차',
+                remaining,
+                color: remaining > 0 ? TripFormat.dangerColor : null,
+              ),
           ],
         ),
       ),
@@ -426,7 +466,9 @@ class _AlertsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = alerts is List ? (alerts as List).whereType<Map>().toList() : [];
+    final items = alerts is List
+        ? (alerts as List).whereType<Map>().toList()
+        : [];
     if (items.isEmpty) return const SizedBox.shrink();
     final colors = Theme.of(context).colorScheme;
     return _Section(
@@ -444,8 +486,11 @@ class _AlertsSection extends StatelessWidget {
                     spacing: 6,
                     children: [
                       a['level'] == 'URGENT'
-                          ? const InfoBadge('긴급', TripFormat.dangerColor,
-                              icon: Icons.priority_high_rounded)
+                          ? const InfoBadge(
+                              '긴급',
+                              TripFormat.dangerColor,
+                              icon: Icons.priority_high_rounded,
+                            )
                           : const InfoBadge('확인 필요', TripFormat.warnColor),
                       InfoBadge(
                         a['status'] == 'ACKED' ? '확인함' : '미확인',
@@ -460,13 +505,18 @@ class _AlertsSection extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ],
-                  if ((a['llm_summary']?.toString() ?? '').trim().isNotEmpty) ...[
+                  if ((a['llm_summary']?.toString() ?? '')
+                      .trim()
+                      .isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.auto_awesome,
-                            size: 16, color: colors.primary),
+                        Icon(
+                          Icons.auto_awesome,
+                          size: 16,
+                          color: colors.primary,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -504,8 +554,11 @@ class _StudentsSection extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(ok ? Icons.check_circle : Icons.error_outline,
-            size: 16, color: color),
+        Icon(
+          ok ? Icons.check_circle : Icons.error_outline,
+          size: 16,
+          color: color,
+        ),
         const SizedBox(width: 4),
         Text(
           ok ? '$label ${TripFormat.time(t)}' : '$label 미확인',
@@ -517,8 +570,9 @@ class _StudentsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items =
-        students is List ? (students as List).whereType<Map>().toList() : [];
+    final items = students is List
+        ? (students as List).whereType<Map>().toList()
+        : [];
     if (items.isEmpty) {
       return const _Section(
         title: '학생 승·하차',
@@ -529,9 +583,11 @@ class _StudentsSection extends StatelessWidget {
       );
     }
     final unconfirmed = items
-        .where((s) =>
-            s['boarding_confirmed_at'] == null ||
-            s['alighting_confirmed_at'] == null)
+        .where(
+          (s) =>
+              s['boarding_confirmed_at'] == null ||
+              s['alighting_confirmed_at'] == null,
+        )
         .length;
     return _Section(
       title: '학생 승·하차',
@@ -584,8 +640,9 @@ class _EventsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items =
-        events is List ? (events as List).whereType<Map>().toList() : [];
+    final items = events is List
+        ? (events as List).whereType<Map>().toList()
+        : [];
     if (items.isEmpty) return const SizedBox.shrink();
     items.sort((a, b) {
       final ta = TripFormat.parse(a['captured_at'] ?? a['uploaded_at']);
@@ -600,37 +657,45 @@ class _EventsSection extends StatelessWidget {
       child: Column(
         children: [
           for (final e in items)
-            Builder(builder: (context) {
-              final (label, icon, color) = switch (e['event_type']) {
-                'BOARDING' => ('승차 사진', Icons.login_rounded, colors.primary),
-                'DROPOFF' => ('종점 사진', Icons.logout_rounded, TripFormat.okColor),
-                'MISMATCH' => (
+            Builder(
+              builder: (context) {
+                final (label, icon, color) = switch (e['event_type']) {
+                  'BOARDING' => ('승차 사진', Icons.login_rounded, colors.primary),
+                  'DROPOFF' => (
+                    '종점 사진',
+                    Icons.logout_rounded,
+                    TripFormat.okColor,
+                  ),
+                  'MISMATCH' => (
                     '인원 불일치',
                     Icons.warning_amber_rounded,
-                    TripFormat.dangerColor
+                    TripFormat.dangerColor,
                   ),
-                _ => ('기록', Icons.circle_outlined, colors.onSurfaceVariant),
-              };
-              final t = TripFormat.parse(e['captured_at'] ?? e['uploaded_at']);
-              final people = TripFormat.toInt(e['person_count']);
-              final lowConf = TripFormat.toInt(e['low_conf_count']) ?? 0;
-              final excluded = TripFormat.toInt(e['exclude_count']) ?? 0;
-              final details = [
-                if (people != null) '감지 $people명',
-                if (excluded > 0) '제외 $excluded명',
-                if (lowConf > 0) '불확실 $lowConf명',
-                if (e['image_available'] == false) '사진 만료',
-              ].join(' · ');
-              return ListTile(
-                leading: Icon(icon, color: color),
-                title: Text(label),
-                subtitle: details.isEmpty ? null : Text(details),
-                trailing: Text(
-                  t == null ? '-' : TripFormat.timeWithSeconds(t),
-                  style: TextStyle(color: colors.onSurfaceVariant),
-                ),
-              );
-            }),
+                  _ => ('기록', Icons.circle_outlined, colors.onSurfaceVariant),
+                };
+                final t = TripFormat.parse(
+                  e['captured_at'] ?? e['uploaded_at'],
+                );
+                final people = TripFormat.toInt(e['person_count']);
+                final lowConf = TripFormat.toInt(e['low_conf_count']) ?? 0;
+                final excluded = TripFormat.toInt(e['exclude_count']) ?? 0;
+                final details = [
+                  if (people != null) '감지 $people명',
+                  if (excluded > 0) '제외 $excluded명',
+                  if (lowConf > 0) '불확실 $lowConf명',
+                  if (e['image_available'] == false) '사진 만료',
+                ].join(' · ');
+                return ListTile(
+                  leading: Icon(icon, color: color),
+                  title: Text(label),
+                  subtitle: details.isEmpty ? null : Text(details),
+                  trailing: Text(
+                    t == null ? '-' : TripFormat.timeWithSeconds(t),
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );

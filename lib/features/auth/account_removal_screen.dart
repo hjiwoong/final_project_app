@@ -90,10 +90,7 @@ class _AccountDeletionPendingScreenState
       1.0,
     );
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(''),
-        automaticallyImplyLeading: false,
-      ),
+      appBar: AppBar(title: const Text(''), automaticallyImplyLeading: false),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
@@ -533,12 +530,14 @@ class _AccountDeletionReauthenticationSheetState
                           shape: const StadiumBorder(),
                         ),
                         child: _loading
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimary,
                                 ),
                               )
                             : const Text('계속'),
@@ -683,15 +682,20 @@ class _AccountDeletionDecisionSheetState
                           backgroundColor: schedule == null
                               ? AppTheme.danger
                               : null,
+                          foregroundColor: schedule == null
+                              ? Theme.of(context).colorScheme.onError
+                              : null,
                           shape: const StadiumBorder(),
                         ),
                         child: _loading
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.white,
+                                  color: schedule == null
+                                      ? Theme.of(context).colorScheme.onError
+                                      : Theme.of(context).colorScheme.onPrimary,
                                 ),
                               )
                             : Text(schedule == null ? '계정 삭제 요청' : '로그아웃'),

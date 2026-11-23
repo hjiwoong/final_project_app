@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_mode_settings_tile.dart';
 import '../../data/models/user_role.dart';
+import '../../widgets/logout_confirmation_dialog.dart';
+import '../../widgets/settings_menu_tile.dart';
+import '../auth/login_screen.dart';
 import 'app_info_screen.dart';
 import 'attendance_screen.dart';
 import 'notification_settings_screen.dart';
@@ -10,6 +14,20 @@ import 'parent_child_management_screen.dart';
 
 class ParentSettingsScreen extends StatelessWidget {
   const ParentSettingsScreen({super.key});
+
+  Future<void> _logout(BuildContext context) async {
+    final shouldLogout = await showLogoutConfirmationDialog(
+      context,
+      message: '로그아웃하시겠습니까?',
+    );
+    if (!shouldLogout || !context.mounted) return;
+    await Session.clear();
+    if (!context.mounted) return;
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
 
   void _openChildManagement(BuildContext context) {
     Navigator.of(context).push(
@@ -226,6 +244,14 @@ class ParentSettingsScreen extends StatelessWidget {
                 );
               },
             ),
+          ),
+          const Divider(height: 28),
+          SettingsMenuTile(
+            icon: Icons.logout,
+            title: '로그아웃',
+            color: AppTheme.danger,
+            showChevron: false,
+            onTap: () => _logout(context),
           ),
         ],
       ),

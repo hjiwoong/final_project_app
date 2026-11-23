@@ -7,6 +7,7 @@ import '../../core/auth/token_storage.dart';
 import '../../core/network/api_client.dart';
 import '../../core/notifications/push_notification_service.dart';
 import '../../data/models/child_student.dart';
+import '../../data/models/child_attendance.dart';
 import '../../data/models/child_link_request.dart';
 import '../../data/models/child_location.dart';
 import '../../data/models/account_deletion_schedule.dart';
@@ -565,7 +566,10 @@ class ApiRepository implements SignupGateway, TermsGateway {
       '${value.day.toString().padLeft(2, '0')}';
 
   // 학부모의 자녀 목록 조회 (/me/children)
-  Future<List<ChildStudent>> getChildren({DateTime? date}) async {
+  Future<List<ChildStudent>> getChildren({
+    DateTime? date,
+    bool debugLogResponse = false,
+  }) async {
     final response = await _dio.get(
       '/me/children',
       queryParameters: date == null
@@ -577,6 +581,9 @@ class ApiRepository implements SignupGateway, TermsGateway {
                   '${date.day.toString().padLeft(2, '0')}',
             },
     );
+    if (kDebugMode && debugLogResponse) {
+      debugPrint('GET /me/children 응답: ${response.data}');
+    }
     final children = (response.data as List)
         .map(
           (item) =>
@@ -610,8 +617,13 @@ class ApiRepository implements SignupGateway, TermsGateway {
   }
 
   // 학부모의 자녀가 배정된 버스 운행 현황 조회 (GET /me/bus-status)
-  Future<List<Map<String, dynamic>>> getParentBusStatus() async {
+  Future<List<Map<String, dynamic>>> getParentBusStatus({
+    bool debugLogResponse = false,
+  }) async {
     final response = await _dio.get('/me/bus-status');
+    if (kDebugMode && debugLogResponse) {
+      debugPrint('GET /me/bus-status 응답: ${response.data}');
+    }
 
     return (response.data as List)
         .map((item) => Map<String, dynamic>.from(item as Map))
@@ -688,6 +700,116 @@ class ApiRepository implements SignupGateway, TermsGateway {
     final data = Map<String, dynamic>.from(response.data as Map);
     return data['is_absent'] as bool;
   }
+
+  Future<ChildAttendance> getChildAttendanceRecord(
+    ChildStudent child, {
+    required DateTime date,
+  }) async {
+    final response = await _dio.get(
+      '/me/children/${child.id}/attendance',
+      queryParameters: {'date': _attendanceDateKey(date)},
+    );
+    final payload = Map<String, dynamic>.from(response.data as Map);
+    return ChildAttendance.fromJson(payload, fallbackDate: date);
+  }
+
+  Future<List<ChildAttendance>> getChildAttendances({
+    required ChildStudent child,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final response = await _dio.get(
+      '/me/children/${child.id}/attendances',
+      queryParameters: {
+        'from': _attendanceDateKey(from),
+        'to': _attendanceDateKey(to),
+      },
+    );
+    final payload = response.data;
+    final dynamic rawItems;
+    if (payload is List) {
+      rawItems = payload;
+    } else if (payload is Map) {
+      rawItems = payload['items'] ?? payload['attendances'] ?? payload['days'];
+    } else {
+      throw const FormatException('출결 기록 응답 형식이 올바르지 않습니다.');
+    }
+    if (rawItems is! List) {
+      throw const FormatException('출결 기록 응답 형식이 올바르지 않습니다.');
+    }
+
+    return rawItems
+        .map(
+          (item) => ChildAttendance.fromJson(
+            Map<String, dynamic>.from(item as Map),
+            fallbackDate: from,
+          ),
+        )
+        .toList();
+  }
+
+  Future<int> saveChildAttendance({
+    required ChildStudent child,
+    required DateTime date,
+    required bool isAbsent,
+    String? reasonType,
+    String? reasonMemo,
+  }) async {
+    final response = await _dio.put(
+      '/me/children/${child.id}/attendance',
+      data: <String, dynamic>{
+        'date': _attendanceDateKey(date),
+        'is_absent': isAbsent,
+        if (isAbsent && reasonType != null) 'reason_type': reasonType,
+        if (isAbsent && reasonMemo != null) 'reason_memo': reasonMemo,
+      },
+    );
+    final payload = response.data;
+    if (payload is! Map) {
+      throw const FormatException('출결 저장 응답에 출결 ID가 없습니다.');
+    }
+
+    final rawId = payload['attendance_id'] ?? payload['id'];
+    if (rawId is int) return rawId;
+    if (rawId is num && rawId == rawId.toInt()) return rawId.toInt();
+    if (rawId is String) {
+      final parsedId = int.tryParse(rawId);
+      if (parsedId != null) return parsedId;
+    }
+    throw const FormatException('출결 저장 응답에 출결 ID가 없습니다.');
+  }
+
+  Future<void> uploadChildAttendanceFile({
+    required int attendanceId,
+    required XFile file,
+  }) async {
+    await _dio.post(
+      '/me/attendances/$attendanceId/files',
+      data: FormData.fromMap({
+        'file': await MultipartFile.fromFile(file.path, filename: file.name),
+      }),
+    );
+  }
+
+  Future<Uint8List> getChildAttendanceFile(
+    ChildStudent child, {
+    required int fileId,
+  }) async {
+    final response = await _dio.get<List<int>>(
+      '/me/children/${child.id}/attendance/files/$fileId',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final bytes = response.data;
+    if (bytes == null || bytes.isEmpty) {
+      throw StateError('첨부 파일을 불러오지 못했습니다.');
+    }
+    return Uint8List.fromList(bytes);
+  }
+
+  String _attendanceDateKey(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
 
   // 운행 시작 (POST /trips)
   Future<int> startTrip(int busId, {int? scheduleId}) async {
@@ -850,26 +972,14 @@ class ApiRepository implements SignupGateway, TermsGateway {
   }
 
   // 알림 목록 조회 (GET /me/notifications)
-  Future<List<NotificationItem>> getNotifications() async {
-    final response = await _dio.get('/me/notifications');
-
-    final payload = Map<String, dynamic>.from(response.data as Map);
-    final items = payload['items'] as List;
-    final notifications = items.map((item) {
-      final n = Map<String, dynamic>.from(item as Map);
-      return NotificationItem(
-        id: n['id'],
-        title: n['title'],
-        body: n['body'] as String? ?? '',
-        alertLevel: n['alert_level'] as String?,
-        busName: '통학버스',
-        time: n['sent_at'] ?? '',
-        isAlert: n['alert_id'] != null,
-        read: n['is_read'],
-        alertId: n['alert_id'] as int?,
-      );
-    }).toList();
-    return notifications;
+  Future<NotificationPage> getNotifications({String? category}) async {
+    final response = await _dio.get(
+      '/me/notifications',
+      queryParameters: {'category': ?category},
+    );
+    return NotificationPage.fromJson(
+      Map<String, dynamic>.from(response.data as Map),
+    );
   }
 
   Future<int> getNotificationUnreadCount() async {
@@ -882,11 +992,7 @@ class ApiRepository implements SignupGateway, TermsGateway {
   }
 
   Future<int> getOpenParentAlertCount() async {
-    final response = await _dio.get(
-      '/me/alerts',
-      queryParameters: {'status': 'OPEN', 'limit': 1},
-    );
-    final payload = Map<String, dynamic>.from(response.data as Map);
+    final payload = await _getParentAlertsPayload(status: 'OPEN', limit: 1);
     return payload['total'] as int;
   }
 
@@ -895,19 +1001,45 @@ class ApiRepository implements SignupGateway, TermsGateway {
     await _dio.post('/me/notifications/${notification.id}/read');
   }
 
+  Future<void> readAllNotifications() async {
+    await _dio.post('/me/notifications/read-all');
+  }
+
   // 학부모 미하차 경고 목록 조회 (GET /me/alerts)
   Future<List<Map<String, dynamic>>> getParentAlerts({
     String? status,
     int limit = 20,
   }) async {
+    final payload = await _getParentAlertsPayload(status: status, limit: limit);
+    return (payload['items'] as List)
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
+
+  Future<({int total, List<Map<String, dynamic>> items})> getParentAlertsPage({
+    String? status,
+    int limit = 20,
+  }) async {
+    final payload = await _getParentAlertsPayload(status: status, limit: limit);
+    final items = payload['items'] as List;
+
+    return (
+      total: payload['total'] as int,
+      items: items
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList(),
+    );
+  }
+
+  Future<Map<String, dynamic>> _getParentAlertsPayload({
+    String? status,
+    required int limit,
+  }) async {
     final response = await _dio.get(
       '/me/alerts',
       queryParameters: {'limit': limit, 'status': ?status},
     );
-    final payload = Map<String, dynamic>.from(response.data as Map);
-    final items = payload['items'] as List;
-
-    return items.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    return Map<String, dynamic>.from(response.data as Map);
   }
 
   Future<Map<String, dynamic>> getAlertDetail(int alertId) async {

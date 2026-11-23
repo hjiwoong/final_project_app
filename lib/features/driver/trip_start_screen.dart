@@ -6,6 +6,7 @@ import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
 import '../../core/auth/trip_progress_storage.dart';
 import '../../core/theme/app_theme.dart';
+import '../../theme/app_colors.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/trip_exit_action.dart';
 import '../../data/models/trip_progress.dart';
@@ -536,7 +537,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
             Expanded(
               child: _isLoadingTrips
                   ? const Center(
-                      child: CircularProgressIndicator(color: AppTheme.accent),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryDark,
+                      ),
                     )
                   : RefreshIndicator(
                       onRefresh: () => _fetchTodayTrips(showLoading: false),

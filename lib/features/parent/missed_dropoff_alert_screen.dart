@@ -72,7 +72,7 @@ class _MissedDropoffAlertScreenState extends State<MissedDropoffAlertScreen> {
         ? colors.tertiary
         : isUrgent
         ? colors.error
-        : Colors.orange;
+        : colors.error;
 
     return Card(
       color: isResolved

@@ -152,8 +152,6 @@ class _TripEndScreenState extends State<TripEndScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final statusColor = result.isOk
         ? colorScheme.tertiary
-        : result.isNeedsCheck
-        ? colorScheme.secondary
         : colorScheme.error;
     return Scaffold(
       appBar: AppBar(title: const Text('운행 결과')),

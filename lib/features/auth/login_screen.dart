@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/errors/app_error_message.dart';
 import '../../core/config/env.dart';
 import '../../core/theme/app_theme.dart';
+import '../../theme/app_colors.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/account_deletion_schedule.dart';
 import '../../data/models/user_role.dart';
@@ -259,12 +261,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: OutlinedButton(
                         onPressed: _loading ? null : _showLoginOptions,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onSurface,
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.textPrimary,
+                          side: const BorderSide(color: AppColors.primary),
                           shape: const StadiumBorder(),
                         ),
                         child: const Text(
@@ -305,183 +304,10 @@ class _BusIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return SvgPicture.asset(
+      'assets/images/tonghaki_side_bus.svg',
       width: 280,
-      height: 260,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: 218,
-            height: 218,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF1F6FF),
-              shape: BoxShape.circle,
-            ),
-          ),
-          Positioned(
-            top: 24,
-            left: 20,
-            child: _decorationDot(const Color(0xFFFFD66B), 18),
-          ),
-          Positioned(
-            top: 43,
-            right: 22,
-            child: _decorationDot(const Color(0xFFB7D7FF), 12),
-          ),
-          Positioned(
-            bottom: 30,
-            left: 28,
-            child: _decorationDot(const Color(0xFFBFE8D1), 13),
-          ),
-          Positioned(
-            top: 42,
-            right: 55,
-            child: Container(
-              padding: const EdgeInsets.all(11),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.shield_rounded,
-                color: Color(0xFF3B82F6),
-                size: 30,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 72,
-            left: 35,
-            child: Container(
-              padding: const EdgeInsets.all(9),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.star_rounded,
-                color: Color(0xFFFFBD3D),
-                size: 23,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 90,
-            child: Container(
-              width: 178,
-              height: 106,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFC94A),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFF202329), width: 3),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1F202329),
-                    offset: Offset(0, 7),
-                    blurRadius: 0,
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 13),
-                        Expanded(
-                          child: Container(
-                            height: 45,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEAF4FF),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFF202329),
-                                width: 2,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.directions_bus_rounded,
-                              color: Color(0xFF202329),
-                              size: 32,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Container(
-                          width: 28,
-                          height: 45,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF8E8),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: const Color(0xFF202329),
-                              width: 2,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.notifications_active_outlined,
-                            size: 17,
-                            color: Color(0xFF202329),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    height: 27,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF202329),
-                      borderRadius: BorderRadius.vertical(
-                        bottom: Radius.circular(20),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [_Wheel(), SizedBox(width: 74), _Wheel()],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 24,
-            child: Container(
-              width: 150,
-              height: 5,
-              decoration: BoxDecoration(
-                color: const Color(0xFFB7D7FF),
-                borderRadius: BorderRadius.circular(5),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _decorationDot(Color color, double size) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-  );
-}
-
-class _Wheel extends StatelessWidget {
-  const _Wheel();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 25,
-      height: 25,
-      decoration: BoxDecoration(
-        color: const Color(0xFF202329),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 4),
-      ),
+      semanticsLabel: '통학이 버스',
     );
   }
 }
@@ -530,6 +356,10 @@ class _LoginOptionsSheet extends StatelessWidget {
                 ),
               ),
               style: OutlinedButton.styleFrom(
+                backgroundColor:
+                    Theme.of(context).brightness == Brightness.light
+                    ? AppColors.surface
+                    : null,
                 side: BorderSide(color: Theme.of(context).colorScheme.outline),
                 shape: const StadiumBorder(),
               ),

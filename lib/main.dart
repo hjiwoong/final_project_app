@@ -7,10 +7,11 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'core/maps/naver_map_status.dart';
 import 'core/notifications/in_app_notification_banner.dart';
 import 'core/notifications/push_notification_service.dart';
-import 'core/theme/app_theme.dart';
+import 'theme/app_theme.dart';
 import 'core/theme/modal_system_ui_observer.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/auth/login_screen.dart';
+import 'features/auth/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,8 +42,15 @@ void main() async {
   runApp(const BusSafetyApp());
 }
 
-class BusSafetyApp extends StatelessWidget {
+class BusSafetyApp extends StatefulWidget {
   const BusSafetyApp({super.key});
+
+  @override
+  State<BusSafetyApp> createState() => _BusSafetyAppState();
+}
+
+class _BusSafetyAppState extends State<BusSafetyApp> {
+  bool _showSplash = true;
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +76,11 @@ class BusSafetyApp extends StatelessWidget {
             child: child ?? const SizedBox.shrink(),
           ),
         ),
-        home: const LoginScreen(),
+        home: _showSplash
+            ? SplashScreen(
+                onFinished: () => setState(() => _showSplash = false),
+              )
+            : const LoginScreen(),
       ),
     );
   }

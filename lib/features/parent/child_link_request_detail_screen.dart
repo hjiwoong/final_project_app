@@ -175,6 +175,7 @@ class _ChildLinkRequestDetailScreenState
                 style: FilledButton.styleFrom(
                   shape: const StadiumBorder(),
                   backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
                 ),
                 child: _canceling
                     ? SizedBox(

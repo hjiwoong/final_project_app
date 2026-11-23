@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_mode_settings_tile.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/user_role.dart';
+import '../../widgets/app_bottom_navigation_bar.dart';
 import '../../widgets/logout_confirmation_dialog.dart';
 import '../../widgets/settings_menu_tile.dart';
 import '../auth/change_password_screen.dart';
@@ -59,55 +60,45 @@ class _DriverShellState extends State<DriverShell> {
       },
       child: Scaffold(
         body: _pages[_index],
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant,
-              ),
+        bottomNavigationBar: AppBottomNavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: [
+            //홈
+            NavigationDestination(
+              icon: Icon(Icons.directions_bus_outlined),
+              selectedIcon: Icon(Icons.directions_bus),
+              label: '홈',
             ),
-          ),
-          child: NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: (i) => setState(() => _index = i),
-            elevation: 0,
-            destinations: [
-              //홈
-              NavigationDestination(
-                icon: Icon(Icons.directions_bus_outlined),
-                selectedIcon: Icon(Icons.directions_bus),
-                label: '홈',
+            //운행 기록
+            NavigationDestination(
+              icon: Icon(Icons.bookmark_border),
+              selectedIcon: Icon(Icons.bookmark),
+              label: '운행 기록',
+            ),
+            //학생 출결 확인
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: '출결 확인',
+            ),
+            //알림
+            NavigationDestination(
+              icon: const UnreadNotificationBadge(
+                icon: Icons.notifications_outlined,
               ),
-              //운행 기록
-              NavigationDestination(
-                icon: Icon(Icons.bookmark_border),
-                selectedIcon: Icon(Icons.bookmark),
-                label: '운행 기록',
+              selectedIcon: const UnreadNotificationBadge(
+                icon: Icons.notifications,
               ),
-              //학생 출결 확인
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: '출결 확인',
-              ),
-              //알림
-              NavigationDestination(
-                icon: const UnreadNotificationBadge(
-                  icon: Icons.notifications_outlined,
-                ),
-                selectedIcon: const UnreadNotificationBadge(
-                  icon: Icons.notifications,
-                ),
-                label: '알림',
-              ),
-              //설정
-              NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: '설정',
-              ),
-            ],
-          ),
+              label: '알림',
+            ),
+            //설정
+            NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings),
+              label: '설정',
+            ),
+          ],
         ),
       ),
     );
@@ -269,7 +260,7 @@ class DriverAppInfoScreen extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.directions_bus_rounded,
-                    color: AppTheme.accent,
+                    color: AppTheme.primary,
                     size: 40,
                   ),
                   const SizedBox(height: 12),
@@ -385,6 +376,20 @@ class _AccountInfoRow extends StatelessWidget {
 
 class DriverSettingsScreen extends StatelessWidget {
   const DriverSettingsScreen({super.key});
+
+  Future<void> _logout(BuildContext context) async {
+    final shouldLogout = await showLogoutConfirmationDialog(
+      context,
+      message: '로그아웃하시겠습니까?',
+    );
+    if (!shouldLogout || !context.mounted) return;
+    await Session.clear();
+    if (!context.mounted) return;
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
 
   String _accountRoleLabel() {
     final code = Session.accountRole?.toUpperCase();
@@ -551,6 +556,14 @@ class DriverSettingsScreen extends StatelessWidget {
                 );
               },
             ),
+          ),
+          const Divider(height: 28),
+          SettingsMenuTile(
+            icon: Icons.logout,
+            title: '로그아웃',
+            color: AppTheme.danger,
+            showChevron: false,
+            onTap: () => _logout(context),
           ),
         ],
       ),

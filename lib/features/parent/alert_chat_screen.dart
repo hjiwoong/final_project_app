@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/errors/app_error_message.dart';
 import '../../data/api/api_repository.dart';
+import '../../theme/app_colors.dart';
 
 class AlertChatScreen extends StatefulWidget {
   const AlertChatScreen({
@@ -309,7 +310,7 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
     return Scaffold(
       appBar: AppBar(
         scrolledUnderElevation: 0,
-        title: const Text('챗봇'),
+        title: const Text('AI 채팅'),
         actions: [
           IconButton(
             tooltip: '새 채팅',
@@ -451,26 +452,41 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
           if ((_suggestions.isNotEmpty || _messages.isNotEmpty) && !_loading)
             SizedBox(
               height: 40,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: _suggestions.isNotEmpty
-                    ? _suggestions.length
-                    : _defaultSuggestions.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final suggestions = _suggestions.isNotEmpty
-                      ? _suggestions
-                      : _defaultSuggestions;
-                  return ActionChip(
-                    visualDensity: VisualDensity.compact,
-                    labelStyle: const TextStyle(fontSize: 13),
-                    label: Text(suggestions[index]),
-                    onPressed: _loading
-                        ? null
-                        : () => _sendMessage(suggestions[index]),
-                  );
-                },
+              child: ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: [
+                    AppColors.surface,
+                    AppColors.surface,
+                    AppColors.surface.withValues(alpha: 0),
+                  ],
+                  stops: [
+                    0,
+                    bounds.width <= 24 ? 0 : (bounds.width - 24) / bounds.width,
+                    1,
+                  ],
+                ).createShader(bounds),
+                blendMode: BlendMode.dstIn,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _suggestions.isNotEmpty
+                      ? _suggestions.length
+                      : _defaultSuggestions.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final suggestions = _suggestions.isNotEmpty
+                        ? _suggestions
+                        : _defaultSuggestions;
+                    return ActionChip(
+                      visualDensity: VisualDensity.compact,
+                      labelStyle: const TextStyle(fontSize: 13),
+                      label: Text(suggestions[index]),
+                      onPressed: _loading
+                          ? null
+                          : () => _sendMessage(suggestions[index]),
+                    );
+                  },
+                ),
               ),
             ),
           SafeArea(
@@ -481,14 +497,9 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
                 duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerLow,
-                  border: Border.all(
-                    color: _inputFocusNode.hasFocus
-                        ? colorScheme.primary
-                        : colorScheme.outlineVariant,
-                    width: _inputFocusNode.hasFocus ? 1.5 : 1,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
+                  color: AppColors.surface,
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 child: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _controller,
@@ -505,23 +516,33 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Expanded(
-                              child: TextField(
-                                controller: _controller,
-                                focusNode: _inputFocusNode,
-                                minLines: 1,
-                                maxLines: 4,
-                                maxLength: 500,
-                                textInputAction: TextInputAction.send,
-                                onSubmitted: (_) => _sendMessage(),
-                                decoration: const InputDecoration(
-                                  hintText: '무엇이든 물어보세요',
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  counterText: '',
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    vertical: 10,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                child: TextField(
+                                  controller: _controller,
+                                  focusNode: _inputFocusNode,
+                                  minLines: 1,
+                                  maxLines: 4,
+                                  maxLength: 500,
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                  buildCounter:
+                                      (
+                                        context, {
+                                        required currentLength,
+                                        required isFocused,
+                                        maxLength,
+                                      }) => null,
+                                  textInputAction: TextInputAction.send,
+                                  onSubmitted: (_) => _sendMessage(),
+                                  decoration: const InputDecoration.collapsed(
+                                    hintText: '무엇이든 물어보세요',
+                                    hintStyle: TextStyle(
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -563,8 +584,8 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: characterCount >= 490
-                                      ? colorScheme.error
-                                      : colorScheme.onSurfaceVariant,
+                                      ? AppColors.danger
+                                      : AppColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -614,8 +635,10 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
     final colorScheme = Theme.of(context).colorScheme;
-    final displayText = isUser || !message.formatParagraphs
+    final displayText = isUser
         ? message.text
+        : !message.formatParagraphs
+        ? '안녕하세요! 통학버스 안전 안내 AI예요.\n경고 알림의 뜻, 결석 신청, 자녀 연결 방법 등을 물어보세요.'
         : message.text.replaceAll(RegExp(r'(?<=[.!?。！？])[ \t]+(?=\S)'), '\n\n');
     final time = TimeOfDay.fromDateTime(message.createdAt);
     final timeLabel =
@@ -654,21 +677,19 @@ class _MessageBubble extends StatelessWidget {
   }
 
   Widget _buildBubble(BuildContext context, bool isUser, String displayText) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.sizeOf(context).width * (isUser ? 0.74 : 0.68),
+        maxWidth: MediaQuery.sizeOf(context).width * 0.75,
       ),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isUser
-            ? colorScheme.primaryContainer
-            : colorScheme.surfaceContainer,
+        color: isUser ? AppColors.primary : AppColors.surface,
+        border: isUser ? null : Border.all(color: AppColors.border),
         borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(18),
-          topRight: const Radius.circular(18),
-          bottomLeft: Radius.circular(isUser ? 18 : 4),
-          bottomRight: Radius.circular(isUser ? 4 : 18),
+          topLeft: Radius.circular(isUser ? 16 : 4),
+          topRight: Radius.circular(isUser ? 4 : 16),
+          bottomLeft: const Radius.circular(16),
+          bottomRight: const Radius.circular(16),
         ),
       ),
       child: Column(
@@ -677,7 +698,7 @@ class _MessageBubble extends StatelessWidget {
           SelectableText(
             displayText,
             textAlign: TextAlign.left,
-            style: const TextStyle(height: 1.5),
+            style: const TextStyle(color: AppColors.textPrimary, height: 1.5),
           ),
           if (message.sources.isNotEmpty || message.sourceDate != null) ...[
             const SizedBox(height: 8),
@@ -685,9 +706,7 @@ class _MessageBubble extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.only(top: 8),
               decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: colorScheme.outlineVariant),
-                ),
+                border: Border(top: BorderSide(color: AppColors.border)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,10 +716,12 @@ class _MessageBubble extends StatelessWidget {
                       tilePadding: EdgeInsets.zero,
                       childrenPadding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
+                      iconColor: AppColors.textSecondary,
+                      collapsedIconColor: AppColors.textSecondary,
                       title: Text(
                         '참고 자료 (${message.sources.length})',
                         style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
+                          color: AppColors.textSecondary,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -711,7 +732,7 @@ class _MessageBubble extends StatelessWidget {
                               '${message.sourceDate?.label}: '
                               '${message.sourceDate?.value}',
                               style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
+                                color: AppColors.textSecondary,
                                 fontSize: 11,
                               ),
                             ),
@@ -724,14 +745,17 @@ class _MessageBubble extends StatelessWidget {
                               children: [
                                 Text(
                                   source['title'] as String? ?? '안전 안내 자료',
-                                  style: const TextStyle(fontSize: 12),
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 12,
+                                  ),
                                 ),
                                 if (source['source'] is String &&
                                     (source['source'] as String).isNotEmpty)
                                   Text(
                                     source['source'] as String,
                                     style: TextStyle(
-                                      color: colorScheme.onSurfaceVariant,
+                                      color: AppColors.textSecondary,
                                       fontSize: 11,
                                     ),
                                   ),
@@ -745,7 +769,7 @@ class _MessageBubble extends StatelessWidget {
                       '${message.sourceDate?.label}: '
                       '${message.sourceDate?.value}',
                       style: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
+                        color: AppColors.textSecondary,
                         fontSize: 11,
                       ),
                     ),

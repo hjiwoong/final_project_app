@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/app_colors.dart';
+
 import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
 import '../../data/api/api_repository.dart';
@@ -203,6 +205,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           title: Text(child.name),
                           subtitle: Text(child.className ?? '결석 여부'),
                           value: _apiAbsent[child.id] ?? false,
+                          activeThumbColor: Colors.white,
+                          activeTrackColor: AppColors.accent,
                           onChanged: (value) =>
                               setState(() => _apiAbsent[child.id] = value),
                         ),
@@ -356,7 +360,8 @@ class ParentAccountInfoScreen extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AccountRemovalScreen()),
             ),
-          ),        ],
+          ),
+        ],
       ),
     );
   }

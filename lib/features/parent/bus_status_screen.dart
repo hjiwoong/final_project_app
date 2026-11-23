@@ -6,6 +6,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import '../../core/maps/naver_map_status.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
+import '../../theme/app_colors.dart';
 import 'bus_trip_simulation.dart';
 import 'child_location_screen.dart';
 
@@ -78,9 +79,8 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
       final busName = bus['bus_name']?.toString() ?? '버스';
       final riders = children
           .where(
-            (child) => busId != null
-                ? child.busId == busId
-                : child.busName == busName,
+            (child) =>
+                busId != null ? child.busId == busId : child.busName == busName,
           )
           .toList();
 
@@ -129,7 +129,7 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
     final colors = Theme.of(context).colorScheme;
     return switch (stage) {
       _TripStage.notStarted => colors.surfaceContainerHighest,
-      _TripStage.running => colors.primaryContainer,
+      _TripStage.running => AppColors.info,
       _TripStage.finished => colors.tertiaryContainer,
     };
   }
@@ -170,6 +170,9 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
             subtitle: Text('차량번호: ${bus.plateNo}'),
             trailing: Chip(
               label: Text(_stageText(bus.stage)),
+              labelStyle: isRunning
+                  ? const TextStyle(color: AppColors.textPrimary)
+                  : null,
               backgroundColor: _stageColor(context, bus.stage),
             ),
           ),
@@ -233,7 +236,9 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
                 trailing: Text(
                   child.isAbsent ? '오늘 결석' : '탑승 예정',
                   style: TextStyle(
-                    color: child.isAbsent ? colors.error : colors.primary,
+                    color: child.isAbsent
+                        ? AppColors.accent
+                        : AppColors.primaryDark,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -245,13 +250,13 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
     );
   }
 
-  Widget _messageCard({required IconData icon, required String text, Widget? action}) {
+  Widget _messageCard({
+    required IconData icon,
+    required String text,
+    Widget? action,
+  }) {
     return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(text),
-        trailing: action,
-      ),
+      child: ListTile(leading: Icon(icon), title: Text(text), trailing: action),
     );
   }
 
@@ -407,7 +412,10 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
                 Text(
                   '※ 차량 위치와 도착 예정 시간은 테스트 운행(시뮬레이션) 데이터입니다. '
                   '아래 운행 상태는 서버의 실제 운행 정보입니다.',
-                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             );
@@ -422,7 +430,8 @@ class _BusStatusScreenState extends State<BusStatusScreen> {
     final colors = Theme.of(context).colorScheme;
     final children = <Widget>[_sectionTitle('운행 상태')];
 
-    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+    if (snapshot.connectionState == ConnectionState.waiting &&
+        !snapshot.hasData) {
       children.add(
         const Padding(
           padding: EdgeInsets.all(24),
@@ -553,7 +562,7 @@ class _TestRunMapState extends State<_TestRunMap> {
       id: 'test_bus',
       position: BusTripSimulation.busPosition(widget.progress),
       caption: const NOverlayCaption(text: '버스 (테스트 운행)'),
-      iconTintColor: Colors.blue,
+      iconTintColor: AppColors.primaryDark,
     );
     _busMarker = bus;
 
@@ -561,7 +570,7 @@ class _TestRunMapState extends State<_TestRunMap> {
       NPolylineOverlay(
         id: 'test_route',
         coords: route,
-        color: Colors.blue,
+        color: AppColors.primaryDark,
         width: 5,
       ),
       NMarker(
@@ -582,7 +591,7 @@ class _TestRunMapState extends State<_TestRunMap> {
             child.location!.longitude!,
           ),
           caption: NOverlayCaption(text: '${child.name} 탑승 위치'),
-          iconTintColor: Colors.green,
+          iconTintColor: AppColors.success,
         ),
       bus,
     });
@@ -633,7 +642,10 @@ class _TestRunMapState extends State<_TestRunMap> {
               Expanded(
                 child: Text(
                   '등록된 자녀 탑승 위치가 없습니다.',
-                  style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13),
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                 ),
               ),
               TextButton(

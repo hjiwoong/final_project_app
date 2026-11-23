@@ -11,8 +11,8 @@ class ThemeModeSettingsTile extends StatelessWidget {
 
   static const _labels = {
     ThemeMode.system: '시스템 설정 따르기',
-    ThemeMode.light: '밝게',
-    ThemeMode.dark: '어둡게',
+    ThemeMode.light: '라이트',
+    ThemeMode.dark: '다크',
   };
 
   static const _summaryLabels = {
@@ -52,13 +52,27 @@ class ThemeModeSettingsTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              for (final mode in ThemeMode.values)
-                _ThemeModeOption(
-                  label: _labels[mode]!,
-                  icon: _icons[mode]!,
-                  selected: controller.themeMode == mode,
-                  onTap: () => Navigator.of(sheetContext).pop(mode),
+              RadioGroup<ThemeMode>(
+                groupValue: controller.themeMode,
+                onChanged: (selectedMode) {
+                  if (selectedMode != null) {
+                    Navigator.of(sheetContext).pop(selectedMode);
+                  }
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final mode in ThemeMode.values)
+                      RadioListTile<ThemeMode>(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                        ),
+                        title: Text(_labels[mode]!),
+                        value: mode,
+                      ),
+                  ],
                 ),
+              ),
               const SizedBox(height: 4),
             ],
           ),
@@ -109,80 +123,13 @@ class ThemeModeSettingsTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.more_vert_rounded),
+                const Icon(Icons.chevron_right_rounded),
               ],
             ),
             onTap: () => _selectThemeMode(context),
           ),
         );
       },
-    );
-  }
-}
-
-class _ThemeModeOption extends StatelessWidget {
-  const _ThemeModeOption({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final foregroundColor = selected
-        ? colorScheme.primary
-        : colorScheme.onSurface;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Material(
-        color: selected
-            ? colorScheme.primary.withValues(alpha: 0.08)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Semantics(
-            inMutuallyExclusiveGroup: true,
-            selected: selected,
-            button: true,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              child: Row(
-                children: [
-                  Icon(icon, size: 22, color: foregroundColor),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        color: foregroundColor,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  if (selected)
-                    Icon(
-                      Icons.check_circle_rounded,
-                      size: 20,
-                      color: colorScheme.primary,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

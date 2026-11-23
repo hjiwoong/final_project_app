@@ -5,6 +5,7 @@ import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/user_role.dart';
+import '../../theme/app_colors.dart';
 import 'account_removal_screen.dart';
 
 import '../../core/notifications/in_app_notification_banner.dart';
@@ -211,7 +212,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                         '비밀번호 재설정',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: AppColors.primaryDark,
                           decoration: TextDecoration.underline,
                           decorationThickness: 1,
                           fontWeight: FontWeight.w500,
@@ -226,7 +227,6 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                 height: 52,
                 child: FilledButton(
                   onPressed: _canLogin ? _login : null,
-                  style: FilledButton.styleFrom(shape: const StadiumBorder()),
                   child: _loading
                       ? SizedBox(
                           width: 20,
@@ -277,19 +277,20 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
       height: 1.2,
     ),
     errorMaxLines: 2,
-    enabledBorder: UnderlineInputBorder(
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
     ),
-    focusedBorder: UnderlineInputBorder(
-      borderSide: BorderSide(
-        color: Theme.of(context).colorScheme.primary,
-        width: 1.5,
-      ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: AppColors.primaryDark, width: 1.5),
     ),
-    errorBorder: UnderlineInputBorder(
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide(color: Theme.of(context).colorScheme.error),
     ),
-    focusedErrorBorder: UnderlineInputBorder(
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide(
         color: Theme.of(context).colorScheme.error,
         width: 1.5,

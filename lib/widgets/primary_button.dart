@@ -36,7 +36,9 @@ class PrimaryButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: color,
           foregroundColor: resolvedForegroundColor,
-          shape: const StadiumBorder(),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         onPressed: loading ? null : onPressed,
         child: loading

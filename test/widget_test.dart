@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:final_project_app/features/auth/splash_screen.dart';
 import 'package:final_project_app/features/auth/signup_screen.dart';
 import 'package:final_project_app/main.dart';
 
 void main() {
   testWidgets('BusSafetyApp smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(const BusSafetyApp());
+    expect(find.byType(SplashScreen), findsOneWidget);
+    expect(find.text('안전한 통학의 시작'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 1499));
+    expect(find.byType(SplashScreen), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
+    expect(find.byType(SplashScreen), findsNothing);
     expect(find.text('안전한 통학의 시작'), findsOneWidget);
     expect(find.text('Google로 로그인'), findsNothing);
 

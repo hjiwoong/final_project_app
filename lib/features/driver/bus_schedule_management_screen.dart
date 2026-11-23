@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/auth/session.dart';
-import '../../core/theme/app_theme.dart';
+import '../../theme/app_colors.dart';
 import '../../data/api/api_repository.dart';
 import '../auth/login_screen.dart';
 import 'bus_schedule_detail_screen.dart';
@@ -213,7 +213,9 @@ class _BusScheduleManagementScreenState
           Expanded(
             child: _isLoadingBuses
                 ? const Center(
-                    child: CircularProgressIndicator(color: AppTheme.accent),
+                    child: CircularProgressIndicator(
+                      color: AppColors.primaryDark,
+                    ),
                   )
                 : _busLoadError != null
                 ? Center(
