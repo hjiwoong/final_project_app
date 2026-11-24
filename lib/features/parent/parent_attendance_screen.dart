@@ -11,6 +11,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../../core/errors/app_error_message.dart';
 import '../../core/notifications/in_app_notification_banner.dart';
+import '../../core/sync/attendance_sync.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_attendance.dart';
 import '../../data/models/child_student.dart';
@@ -318,6 +319,7 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
         }
       }
 
+      AttendanceSync.notifyChanged(); // 홈 등 다른 화면도 바로 반영
       if (mounted && files.isNotEmpty) {
         setState(() => _newFiles.clear());
       }

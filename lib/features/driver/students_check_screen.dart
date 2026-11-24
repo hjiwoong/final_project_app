@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../core/errors/app_error_message.dart';
+import '../../core/sync/attendance_sync.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
 
@@ -19,6 +21,8 @@ class _StudentsCheckScreenState extends State<StudentsCheckScreen> {
   late DateTime _selectedDate;
   late DateTime _displayedMonth;
   late Future<Map<DateTime, List<_BusAbsences>>> _monthlyAbsences;
+  Timer? _autoRefresh;
+  bool _silentLoading = false;
 
   @override
   void initState() {
@@ -26,6 +30,35 @@ class _StudentsCheckScreenState extends State<StudentsCheckScreen> {
     _selectedDate = _dateOnly(DateTime.now());
     _displayedMonth = _monthOnly(_selectedDate);
     _monthlyAbsences = _loadMonth(_selectedDate);
+    // 학부모가 결석을 바꾸면: 푸시를 받는 즉시 + 푸시가 없어도 30초마다 조용히 다시 불러온다
+    AttendanceSync.changes.addListener(_silentReload);
+    _autoRefresh = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _silentReload(),
+    );
+  }
+
+  @override
+  void dispose() {
+    AttendanceSync.changes.removeListener(_silentReload);
+    _autoRefresh?.cancel();
+    super.dispose();
+  }
+
+  /// 화면을 비우지 않고 보이는 달의 결석 목록만 바꿔 끼운다 (실패하면 기존 화면 유지)
+  Future<void> _silentReload() async {
+    if (_silentLoading || !mounted) return;
+    _silentLoading = true;
+    final month = _displayedMonth;
+    try {
+      final data = await _loadMonth(month);
+      if (!mounted || month != _displayedMonth) return;
+      setState(() => _monthlyAbsences = Future.value(data));
+    } catch (_) {
+      // 다음 주기에 다시 시도
+    } finally {
+      _silentLoading = false;
+    }
   }
 
   DateTime _dateOnly(DateTime date) =>

@@ -117,6 +117,8 @@ flutter_launcher_icons:
   # 배경 없이 버스만 (투명 배경)
   adaptive_icon_background: "assets/icon/app_icon_background.png"
   adaptive_icon_foreground: assets/icon/app_icon_foreground.png
+  # 전경 이미지에 이미 여백을 넣어 두었으니 추가 여백(기본 16%) 없이 → 버스가 더 크게 보임
+  adaptive_icon_foreground_inset: 0
   remove_alpha_ios: true
   web:
     generate: true

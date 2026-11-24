@@ -18,6 +18,7 @@ import '../../widgets/trip_exit_sheet.dart';
 import 'boarding_capture_screen.dart';
 
 import '../../core/notifications/in_app_notification_banner.dart';
+import '../../core/sync/attendance_sync.dart';
 
 /// ② 탑승 지도: 네이버 지도 + 정류장 마커 + 학부모 출결 반영 UI (스크린샷 스타일)
 class BoardingMapScreen extends StatefulWidget {
@@ -57,6 +58,8 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
   String? _loadError;
   String? _mapError;
   Timer? _mapLoadTimer;
+  Timer? _absenceTimer;
+  bool _absenceLoading = false;
   double _collapsedSheetSize = 0.12;
   double _expandedSheetSize = 0.3;
   List<Map<String, dynamic>> _stops = [];
@@ -70,10 +73,18 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     _currentStopIndex = widget.initialStopIndex;
     _sheetController.addListener(_updateSheetState);
     _loadStops();
+    // 운행 중 학부모가 결석을 바꾸면: 푸시를 받는 즉시 + 20초마다 결석 여부만 다시 확인
+    AttendanceSync.changes.addListener(_refreshAbsences);
+    _absenceTimer = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _refreshAbsences(),
+    );
   }
 
   @override
   void dispose() {
+    AttendanceSync.changes.removeListener(_refreshAbsences);
+    _absenceTimer?.cancel();
     _mapLoadTimer?.cancel();
     _mapController = null;
     _sheetController
@@ -153,6 +164,51 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
         _loadError = '탑승 지도 정보를 불러오지 못했습니다. 서버 연결과 위치 설정을 확인해 주세요.';
         _loadingStops = false;
       });
+    }
+  }
+
+  /// 정류장 순서·지도는 그대로 두고 학생별 결석 여부만 새로 반영한다
+  Future<void> _refreshAbsences() async {
+    if (_absenceLoading || _loadingStops || _stops.isEmpty || !mounted) return;
+    _absenceLoading = true;
+    try {
+      final students = await ApiRepository.instance.getTripBoardingMapStudents(
+        int.parse(widget.tripId),
+      );
+      if (!mounted) return;
+      final absentById = {for (final s in students) s.id: s.isAbsent};
+      final changedNames = <String>[];
+      final colors = Theme.of(context).colorScheme;
+      for (final stop in _stops) {
+        final id = stop['studentId'];
+        if (id is! int || !absentById.containsKey(id)) continue;
+        final absent = absentById[id]!;
+        if (stop['isAbsent'] == absent) continue;
+        stop['isAbsent'] = absent;
+        stop['status'] = absent ? '결석 · 건너뜀' : '승차 대기';
+        stop['statusColor'] = absent ? colors.onSurfaceVariant : colors.tertiary;
+        changedNames.add(
+          '${(stop['student'] as String).split(' · ').first} '
+          '${absent ? '결석' : '결석 취소'}',
+        );
+      }
+      if (changedNames.isEmpty) return;
+      setState(() {
+        _currentStopIndex = _nextAvailableStopIndex(_currentStopIndex);
+      });
+      for (final (index, marker) in _stopMarkers.indexed) {
+        if (!mounted) return;
+        marker.setIcon(
+          await _markerIcon(context, _stopMarkerStopIndices[index]),
+        );
+      }
+      InAppNotificationBanner.showMessage(
+        '출결이 바뀌었어요: ${changedNames.join(', ')}',
+      );
+    } catch (error) {
+      debugPrint('탑승 지도 결석 정보 새로고침 실패: $error');
+    } finally {
+      _absenceLoading = false;
     }
   }
 

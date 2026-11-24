@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/auth/session.dart';
 import '../../core/errors/app_error_message.dart';
 import '../../core/notifications/in_app_notification_banner.dart';
+import '../../core/sync/attendance_sync.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_link_request.dart';
 import '../../data/models/child_student.dart';
@@ -73,6 +74,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AttendanceSync.changes.addListener(_onAttendanceChanged);
     _startLoads();
     _scheduleMidnightRefresh();
   }
@@ -185,6 +187,11 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     });
   }
 
+  // 어느 화면에서든 결석을 바꾸면 홈의 자녀 카드·오늘 승하차를 바로 다시 불러온다
+  void _onAttendanceChanged() {
+    if (mounted && !_loggingOut) _reloadChildren();
+  }
+
   void _scheduleMidnightRefresh() {
     _midnightRefresh?.cancel();
     final now = DateTime.now();
@@ -220,6 +227,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    AttendanceSync.changes.removeListener(_onAttendanceChanged);
     _midnightRefresh?.cancel();
     _chatCurve.dispose();
     _chatAnim.dispose();
@@ -397,8 +405,11 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
           date: date,
         ),
       );
+      AttendanceSync.notifyChanged(); // → 홈 다시 불러오기
       if (!mounted) return;
-      _reloadChildren();
+      InAppNotificationBanner.showMessage(
+        child.isAbsent ? '오늘 결석 신청을 취소했어요.' : '오늘 결석을 신청했어요.',
+      );
     } catch (error) {
       if (mounted && !_loggingOut) {
         InAppNotificationBanner.showMessage(
@@ -708,11 +719,11 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
           date: date,
         ),
       );
+      AttendanceSync.notifyChanged();
       if (!mounted) return;
       InAppNotificationBanner.showMessage(
         alreadyAbsent ? '$label 결석 신청을 취소했어요.' : '$label 결석을 신청했어요.',
       );
-      if (date == today) _reloadChildren();
     } catch (error) {
       if (mounted && !_loggingOut) {
         InAppNotificationBanner.showMessage(

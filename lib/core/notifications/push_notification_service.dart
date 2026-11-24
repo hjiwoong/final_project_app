@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
 import 'in_app_notification_banner.dart';
+import '../sync/attendance_sync.dart';
 
 final pushMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -93,6 +94,9 @@ class PushNotificationService {
   }
 
   void _showIncomingNotification(RemoteMessage message) {
+    if (AttendanceSync.isAttendanceMessage(message.data)) {
+      AttendanceSync.notifyChanged();
+    }
     final title =
         message.notification?.title ??
         _readMessageValue(message.data, ['title', 'notification_title']) ??
