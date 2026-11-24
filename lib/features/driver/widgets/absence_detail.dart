@@ -6,6 +6,7 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../../core/errors/app_error_message.dart';
 import '../../../core/notifications/in_app_notification_banner.dart';
+import '../../../core/sync/attendance_sync.dart';
 import '../../../data/api/api_repository.dart';
 
 /// 결석 사유 첨부 파일 하나
@@ -149,6 +150,79 @@ class _AbsenceDetailSheetState extends State<_AbsenceDetailSheet> {
       .getAdminAttendanceDetail(widget.attendanceId);
 
   static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+  bool _processing = false;
+
+  void _reload() => setState(() {
+    _detail = ApiRepository.instance.getAdminAttendanceDetail(
+      widget.attendanceId,
+    );
+  });
+
+  /// 결석 신청 확인 (학부모에게 '결석 확인됨' 알림)
+  Future<void> _confirm() async {
+    if (_processing) return;
+    setState(() => _processing = true);
+    try {
+      await ApiRepository.instance.confirmAttendance(widget.attendanceId);
+      AttendanceSync.notifyChanged();
+      InAppNotificationBanner.showMessage('결석을 확인했어요. 학부모에게 알림이 가요.');
+      if (mounted) _reload();
+    } catch (error) {
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(error, fallback: '결석을 확인하지 못했습니다.'),
+      );
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  /// 결석 신청 반려 (사유 입력 → 학부모에게 '결석 반려' 알림)
+  Future<void> _reject() async {
+    if (_processing) return;
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('결석 신청 반려'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 200,
+          decoration: const InputDecoration(
+            hintText: '예) 증빙 서류가 필요해요',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) Navigator.pop(context, text);
+            },
+            child: const Text('반려'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (reason == null || !mounted) return;
+    setState(() => _processing = true);
+    try {
+      await ApiRepository.instance.rejectAttendance(widget.attendanceId, reason);
+      AttendanceSync.notifyChanged();
+      InAppNotificationBanner.showMessage('결석 신청을 반려했어요. 학부모에게 알림이 가요.');
+      if (mounted) _reload();
+    } catch (error) {
+      InAppNotificationBanner.showMessage(
+        AppErrorMessage.from(error, fallback: '결석 신청을 반려하지 못했습니다.'),
+      );
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
 
   String _date(Object? raw) {
     final date = DateTime.tryParse(raw?.toString() ?? '');
@@ -201,11 +275,7 @@ class _AbsenceDetailSheetState extends State<_AbsenceDetailSheet> {
                     textAlign: TextAlign.center,
                   ),
                   TextButton(
-                    onPressed: () => setState(() {
-                      _detail = ApiRepository.instance.getAdminAttendanceDetail(
-                        widget.attendanceId,
-                      );
-                    }),
+                    onPressed: _reload,
                     child: const Text('다시 시도'),
                   ),
                 ],
@@ -227,6 +297,13 @@ class _AbsenceDetailSheetState extends State<_AbsenceDetailSheet> {
             ? Map<String, dynamic>.from(d['bus'] as Map)
             : const <String, dynamic>{};
         final absent = d['is_absent'] == true;
+        final status = d['status'] as String?;
+        final statusLabel = switch (status) {
+          'CONFIRMED' => '확인됨',
+          'REJECTED' => '반려됨',
+          'REQUESTED' => '확인 대기',
+          _ => null,
+        };
         final files = AbsenceFile.listFrom(d['files']);
         final reasonLabel = d['reason_label'] as String?;
         final memo = (d['reason_memo'] as String?)?.trim();
@@ -249,7 +326,13 @@ class _AbsenceDetailSheetState extends State<_AbsenceDetailSheet> {
                     ),
                   ),
                   Chip(
-                    label: Text(absent ? '결석' : '취소됨'),
+                    label: Text(
+                      !absent
+                          ? '취소됨'
+                          : statusLabel == null
+                          ? '결석'
+                          : '결석 · $statusLabel',
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                 ],
@@ -296,6 +379,31 @@ class _AbsenceDetailSheetState extends State<_AbsenceDetailSheet> {
                   const Text('첨부한 파일이 없어요.')
                 else
                   AbsenceFileChips(files: files),
+                if (status == 'REJECTED' && d['reject_reason'] != null) ...[
+                  const SizedBox(height: 12),
+                  _row(context, '반려 사유', d['reject_reason'].toString()),
+                ],
+                if (status == 'REQUESTED') ...[
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _processing ? null : _reject,
+                          child: const Text('반려'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: FilledButton(
+                          onPressed: _processing ? null : _confirm,
+                          child: const Text('결석 확인'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ],
           ),

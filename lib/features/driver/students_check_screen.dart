@@ -358,7 +358,19 @@ class _StudentsCheckScreenState extends State<StudentsCheckScreen> {
                           ].join('\n'),
                         ),
                         isThreeLine: bus.details[i].reasonText != null,
-                        trailing: const Chip(label: Text('결석')),
+                        trailing: Chip(
+                          label: Text(bus.details[i].statusLabel),
+                        ),
+                        // 눌러서 사유·첨부 보고 확인/반려
+                        onTap: bus.details[i].attendanceId == null
+                            ? null
+                            : () async {
+                                await showAbsenceDetailSheet(
+                                  context,
+                                  attendanceId: bus.details[i].attendanceId!,
+                                );
+                                _silentReload();
+                              },
                       ),
                       if (bus.details[i].files.isNotEmpty)
                         Padding(
@@ -503,15 +515,31 @@ class _BusAbsences {
 }
 
 class _AbsenceDetail {
-  const _AbsenceDetail({this.reasonText, this.files = const []});
+  const _AbsenceDetail({
+    this.reasonText,
+    this.files = const [],
+    this.attendanceId,
+    this.status,
+  });
 
   final String? reasonText;
   final List<_AbsenceFile> files;
+  final int? attendanceId;
+  final String? status;
+
+  String get statusLabel => switch (status) {
+    'CONFIRMED' => '확인됨',
+    'REJECTED' => '반려',
+    'REQUESTED' => '확인 대기',
+    _ => '결석',
+  };
 
   factory _AbsenceDetail.fromJson(Map<String, dynamic> json) {
     final files = json['files'];
     final reason = json['reason_text'] as String?;
     return _AbsenceDetail(
+      attendanceId: json['attendance_id'] as int?,
+      status: json['status'] as String?,
       reasonText: reason == null || reason.trim().isEmpty ? null : reason,
       files: files is List
           ? [

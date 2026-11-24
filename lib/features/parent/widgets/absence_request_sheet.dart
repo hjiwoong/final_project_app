@@ -23,8 +23,9 @@ const absenceReasonTypes = <String, String>{
   'OTHER': '기타',
 };
 
-const _maxFiles = 5;
-const _maxFileBytes = 10 * 1024 * 1024;
+// 서버(routers/attendance_file.py) 규칙: 3개까지, 5MB 이하, JPG·PNG·PDF
+const _maxFiles = 3;
+const _maxFileBytes = 5 * 1024 * 1024;
 
 /// 홈의 '결석 신청'·날짜 버튼에서 여는 시트: 사유 고르기, 메모, 사진·파일 첨부
 Future<AbsenceRequest?> showAbsenceRequestSheet(
@@ -68,10 +69,8 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
     super.dispose();
   }
 
-  bool _allowed(String name) => RegExp(
-    r'\.(jpe?g|png|gif|webp|heic|pdf)$',
-    caseSensitive: false,
-  ).hasMatch(name);
+  bool _allowed(String name) =>
+      RegExp(r'\.(jpe?g|png|pdf)$', caseSensitive: false).hasMatch(name);
 
   Future<void> _addFiles(List<XFile> picked) async {
     final errors = <String>[];
@@ -81,11 +80,11 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
         break;
       }
       if (!_allowed(file.name)) {
-        errors.add('${file.name}: 사진이나 PDF만 첨부할 수 있어요');
+        errors.add('${file.name}: JPG·PNG 사진이나 PDF만 첨부할 수 있어요');
         continue;
       }
       if (await File(file.path).length() > _maxFileBytes) {
-        errors.add('${file.name}: 10MB 이하만 첨부할 수 있어요');
+        errors.add('${file.name}: 5MB 이하만 첨부할 수 있어요');
         continue;
       }
       _files.add(file);
@@ -95,16 +94,28 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
     }
   }
 
-  Future<void> _takePhoto() async {
+  // 사진은 긴 변 1600px JPEG 로 줄여서 가져온다 → 5MB 제한·HEIC 걱정 없음
+  Future<void> _pickPhoto(ImageSource source) async {
     try {
       final photo = await ImagePicker().pickImage(
-        source: ImageSource.camera,
+        source: source,
         maxWidth: 1600,
         imageQuality: 85,
       );
-      if (photo != null) await _addFiles([photo]);
+      if (photo == null) return;
+      final name = photo.name.toLowerCase();
+      final asJpeg = name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png')
+          ? photo
+          : XFile(photo.path, name: '${photo.name.split('.').first}.jpg');
+      await _addFiles([asJpeg]);
     } catch (_) {
-      if (mounted) setState(() => _fileError = '카메라를 열지 못했어요');
+      if (mounted) {
+        setState(
+          () => _fileError = source == ImageSource.camera
+              ? '카메라를 열지 못했어요'
+              : '사진을 고르지 못했어요',
+        );
+      }
     }
   }
 
@@ -113,7 +124,7 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
         type: FileType.custom,
-        allowedExtensions: const ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'pdf'],
+        allowedExtensions: const ['pdf'],
       );
       if (result == null) return;
       await _addFiles([
@@ -232,19 +243,24 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
               ),
               IconButton(
                 tooltip: '사진 찍기',
-                onPressed: _takePhoto,
+                onPressed: () => _pickPhoto(ImageSource.camera),
                 icon: const Icon(Icons.photo_camera_outlined),
               ),
               IconButton(
-                tooltip: '파일 선택',
+                tooltip: '앨범에서 사진',
+                onPressed: () => _pickPhoto(ImageSource.gallery),
+                icon: const Icon(Icons.photo_library_outlined),
+              ),
+              IconButton(
+                tooltip: 'PDF 파일',
                 onPressed: _pickFiles,
-                icon: const Icon(Icons.attach_file_rounded),
+                icon: const Icon(Icons.picture_as_pdf_outlined),
               ),
             ],
           ),
           if (_files.isEmpty)
             const Text(
-              '사진이나 PDF를 5개까지 붙일 수 있어요 (10MB 이하)',
+              '사진이나 PDF를 3개까지 붙일 수 있어요 (5MB 이하)',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
             )
           else

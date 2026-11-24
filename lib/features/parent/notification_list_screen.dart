@@ -43,6 +43,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
           _NotificationFilter.all,
           _NotificationFilter.urgent,
           _NotificationFilter.trip,
+          _NotificationFilter.attendance,
         ]
       : const [
           _NotificationFilter.all,

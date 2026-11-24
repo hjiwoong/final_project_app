@@ -332,7 +332,13 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
 
   (String, Color, Color) _status(ChildStudent child) {
     if (child.isAbsent) {
-      return ('결석', AppColors.danger.withValues(alpha: 0.1), AppColors.danger);
+      final label = switch (child.absenceStatus) {
+        'CONFIRMED' => '결석 · 확인됨',
+        'REJECTED' => '결석 · 반려',
+        'REQUESTED' => '결석 · 확인 대기',
+        _ => '결석',
+      };
+      return (label, AppColors.danger.withValues(alpha: 0.1), AppColors.danger);
     }
     if (child.alightingConfirmedAt != null) {
       return (
@@ -389,6 +395,19 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     final hour = time.hour.toString().padLeft(2, '0');
     final minute = time.minute.toString().padLeft(2, '0');
     return '$hour:$minute 출발 예정';
+  }
+
+  /// 서버가 409 로 알려 주는 이유(예: '결석 신청 마감 시간이 지났습니다')는 그대로 보여 준다
+  String _attendanceError(Object error) {
+    if (error is DioException && error.response?.statusCode == 409) {
+      final data = error.response?.data;
+      final detail = data is Map ? data['detail'] : null;
+      if (detail is String && detail.trim().isNotEmpty) return detail;
+    }
+    return AppErrorMessage.from(
+      error,
+      fallback: '결석 정보를 저장하지 못했습니다. 다시 시도해 주세요.',
+    );
   }
 
   static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
@@ -453,12 +472,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
       );
     } catch (error) {
       if (mounted && !_loggingOut) {
-        InAppNotificationBanner.showMessage(
-          AppErrorMessage.from(
-            error,
-            fallback: '결석 정보를 저장하지 못했습니다. 다시 시도해 주세요.',
-          ),
-        );
+        InAppNotificationBanner.showMessage(_attendanceError(error));
       }
     } finally {
       if (mounted) setState(() => _saving.remove(child.id));
@@ -475,7 +489,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
       builder: (context) => AlertDialog(
         title: const Text('결석을 취소할까요?'),
         content: Text(
-          '${child.name} 학생의 $label 결석 신청을 취소합니다.\n적어 둔 사유와 첨부 파일도 함께 지워져요.',
+          '${child.name} 학생의 $label 결석 신청을 취소합니다.',
         ),
         actions: [
           TextButton(
@@ -504,12 +518,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
       InAppNotificationBanner.showMessage('$label 결석 신청을 취소했어요.');
     } catch (error) {
       if (mounted && !_loggingOut) {
-        InAppNotificationBanner.showMessage(
-          AppErrorMessage.from(
-            error,
-            fallback: '결석 정보를 저장하지 못했습니다. 다시 시도해 주세요.',
-          ),
-        );
+        InAppNotificationBanner.showMessage(_attendanceError(error));
       }
     } finally {
       if (mounted) setState(() => _saving.remove(child.id));
