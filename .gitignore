@@ -23,3 +23,5 @@ workspace.xml
 .idea/workspace.xml
 flutter_build_log.txt
 *.bak
+
+*.patch
