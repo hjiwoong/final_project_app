@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/errors/app_error_message.dart';
@@ -13,11 +14,19 @@ class AlertChatScreen extends StatefulWidget {
     this.alertId,
     this.alertContext,
     this.initialResponse,
+    this.onCollapse,
+    this.focusRequest,
   });
 
   final int? alertId;
   final Map<String, String>? alertContext;
   final Map<String, dynamic>? initialResponse;
+
+  /// 홈 화면 안에 펼쳐서 쓸 때: 오른쪽 위 '작게 보기' 버튼을 누르면 부른다 (null 이면 일반 화면)
+  final VoidCallback? onCollapse;
+
+  /// 홈 화면에서 입력칸을 눌러 펼칠 때마다 값이 바뀌고, 그때 입력창에 커서를 둔다
+  final ValueListenable<int>? focusRequest;
 
   @override
   State<AlertChatScreen> createState() => _AlertChatScreenState();
@@ -42,6 +51,10 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
   void initState() {
     super.initState();
     _inputFocusNode.addListener(_handleInputFocusChange);
+    widget.focusRequest?.addListener(_focusInput);
+    if (widget.focusRequest != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _focusInput());
+    }
     _activeAlertId = widget.alertId;
     _activeAlertContext = widget.alertContext;
     final initial = widget.initialResponse;
@@ -53,6 +66,7 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
           text: answer,
           sources: _readSources(initial?['sources']),
           sourceDate: _readSourceDate(initial),
+          mode: initial?['mode'] as String?,
         ),
       );
       _suggestions = _readSuggestions(initial?['suggestions']);
@@ -64,6 +78,7 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
 
   @override
   void dispose() {
+    widget.focusRequest?.removeListener(_focusInput);
     _activeCancelToken?.cancel();
     _controller.dispose();
     _inputFocusNode
@@ -71,6 +86,10 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
       ..dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _focusInput() {
+    if (mounted) _inputFocusNode.requestFocus();
   }
 
   void _handleInputFocusChange() {
@@ -210,6 +229,7 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
               text: response['reply'] as String? ?? '안내를 준비하지 못했습니다.',
               sources: _readSources(response['sources']),
               sourceDate: _readSourceDate(response),
+              mode: response['mode'] as String?,
             ),
           );
           _suggestions = _readSuggestions(response['suggestions']);
@@ -310,13 +330,27 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
     return Scaffold(
       appBar: AppBar(
         scrolledUnderElevation: 0,
+        automaticallyImplyLeading: widget.onCollapse == null,
         title: const Text('AI 채팅'),
         actions: [
           IconButton(
-            tooltip: '새 채팅',
+            tooltip: widget.onCollapse == null ? '새 채팅' : '채팅 내역 초기화',
             onPressed: _loading ? null : _startNewChat,
-            icon: const Icon(Icons.drive_file_rename_outline),
+            icon: Icon(
+              widget.onCollapse == null
+                  ? Icons.drive_file_rename_outline
+                  : Icons.restart_alt_rounded,
+            ),
           ),
+          if (widget.onCollapse case final collapse?)
+            IconButton(
+              tooltip: '작게 보기',
+              onPressed: () {
+                FocusScope.of(context).unfocus();
+                collapse();
+              },
+              icon: const Icon(Icons.close_fullscreen_rounded),
+            ),
         ],
       ),
       body: Column(
@@ -349,7 +383,10 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '챗봇을 긴급 용도로 사용하지 마세요.',
+                    widget.onCollapse == null
+                        ? '챗봇을 긴급 용도로 사용하지 마세요.'
+                        : '챗봇을 긴급 용도로 사용하지 마세요.\n'
+                              '홈 화면을 새로고침하면 대화 내용이 초기화돼요.',
                     style: TextStyle(
                       color: colorScheme.onSecondaryContainer,
                       fontSize: 13,
@@ -603,7 +640,7 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
   }
 
   List<String> get _defaultSuggestions => _activeAlertId == null
-      ? const ['경고 알림은 어떻게 확인하나요?', '자녀 연결은 어떻게 하나요?']
+      ? const ['우리 아이 오늘 하차했나요?', '내일 결석하려면 어떻게 해요?', '미하차 알림을 받으면 뭘 해야 하나요?']
       : const ['지금 무엇을 확인해야 하나요?', '이 알림은 어떤 상황인가요?'];
 }
 
@@ -615,6 +652,7 @@ class _ChatMessage {
     this.sourceDate,
     this.formatParagraphs = true,
     this.isNotice = false,
+    this.mode,
   }) : createdAt = DateTime.now();
 
   final String role;
@@ -624,6 +662,10 @@ class _ChatMessage {
   final bool formatParagraphs;
   final bool isNotice;
   final DateTime createdAt;
+
+  /// 서버 답변 방식: real(AI) · mock / mock-fallback(AI 연결 실패 → 문서 발췌)
+  final String? mode;
+  bool get isFallback => mode == 'mock' || mode == 'mock-fallback';
 }
 
 class _MessageBubble extends StatelessWidget {
@@ -638,7 +680,7 @@ class _MessageBubble extends StatelessWidget {
     final displayText = isUser
         ? message.text
         : !message.formatParagraphs
-        ? '안녕하세요! 통학버스 안전 안내 AI예요.\n경고 알림의 뜻, 결석 신청, 자녀 연결 방법 등을 물어보세요.'
+        ? message.text
         : message.text.replaceAll(RegExp(r'(?<=[.!?。！？])[ \t]+(?=\S)'), '\n\n');
     final time = TimeOfDay.fromDateTime(message.createdAt);
     final timeLabel =
@@ -700,6 +742,13 @@ class _MessageBubble extends StatelessWidget {
             textAlign: TextAlign.left,
             style: const TextStyle(color: AppColors.textPrimary, height: 1.5),
           ),
+          if (!isUser && message.isFallback) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'AI 연결이 안 돼서 안내 문서로 대신 답했어요',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            ),
+          ],
           if (message.sources.isNotEmpty || message.sourceDate != null) ...[
             const SizedBox(height: 8),
             Container(

@@ -13,10 +13,10 @@ import '../../data/models/child_student.dart';
 import '../../theme/app_colors.dart';
 import '../auth/child_link_request_screen.dart';
 import '../auth/login_screen.dart';
+import 'alert_chat_screen.dart';
 import 'bus_status_screen.dart';
+import 'bus_trip_simulation.dart';
 import 'child_link_request_status_screen.dart';
-import 'missed_dropoff_alert_screen.dart';
-import 'notification_settings_screen.dart';
 import 'notification_list_screen.dart';
 import 'parent_attendance_screen.dart';
 import 'parent_trip_screens.dart';
@@ -37,7 +37,7 @@ class ParentHomeScreen extends StatefulWidget {
 }
 
 class _ParentHomeScreenState extends State<ParentHomeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   late DateTime _loadedDate;
   late Future<List<ChildStudent>> _children;
   late Future<List<Map<String, dynamic>>> _buses;
@@ -48,6 +48,26 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   Timer? _midnightRefresh;
   bool _loggingOut = false;
   int _unreadGeneration = 0;
+
+  // ---------- 홈 안의 AI 채팅 ----------
+  // 입력칸을 누르면 채팅 화면이 홈 위로 펼쳐지고, '작게 보기'로 다시 접힌다.
+  // 접어도 대화는 남아 있고, 홈을 당겨서 새로고침하면 초기화된다.
+  late final AnimationController _chatAnim = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+  );
+  late final CurvedAnimation _chatCurve = CurvedAnimation(
+    parent: _chatAnim,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+  final _chatBarKey = GlobalKey();
+  final _stackKey = GlobalKey();
+  final _chatFocus = ValueNotifier<int>(0);
+  Key _chatKey = UniqueKey();
+  bool _chatMounted = false; // 한 번이라도 열었으면 true (대화 유지)
+  bool _chatOpen = false;
+  Alignment _chatOrigin = Alignment.center;
 
   @override
   void initState() {
@@ -121,8 +141,21 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     _settled(_unread);
   }
 
-  Future<void> _refresh() async {
-    setState(_startLoads);
+  // resetChat: 홈을 당겨서 새로고침할 때만 true (탭 이동·자정 갱신 때는 대화 유지)
+  Future<void> _refresh({bool resetChat = false}) async {
+    final hadChat = _chatMounted;
+    setState(() {
+      _startLoads();
+      if (resetChat) {
+        _chatMounted = false;
+        _chatOpen = false;
+        _chatKey = UniqueKey();
+        _chatAnim.value = 0;
+      }
+    });
+    if (resetChat && hadChat) {
+      InAppNotificationBanner.showMessage('새로고침해서 AI 채팅 내용이 초기화됐어요.');
+    }
     await Future.wait<void>([
       _settled(_children),
       _settled(_buses),
@@ -169,6 +202,12 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   void didUpdateWidget(ParentHomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.active && widget.active) _refresh();
+    // 다른 탭으로 가면 펼친 채팅은 접어 둔다 (대화 내용은 유지)
+    if (oldWidget.active && !widget.active && _chatOpen) {
+      _chatOpen = false;
+      _chatAnim.value = 0;
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
   }
 
   @override
@@ -182,6 +221,9 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _midnightRefresh?.cancel();
+    _chatCurve.dispose();
+    _chatAnim.dispose();
+    _chatFocus.dispose();
     super.dispose();
   }
 
@@ -263,6 +305,16 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   (String, Color, Color) _status(ChildStudent child) {
     if (child.isAbsent) {
       return ('결석', AppColors.danger.withValues(alpha: 0.1), AppColors.danger);
+    }
+    if (child.alightingConfirmedAt != null) {
+      return (
+        '하차 완료',
+        AppColors.success.withValues(alpha: 0.12),
+        AppColors.success,
+      );
+    }
+    if (child.boardingConfirmedAt != null) {
+      return ('탑승 중', AppColors.primary, AppColors.textPrimary);
     }
     return switch (child.busStatus) {
       'IN_PROGRESS' => ('운행 중', AppColors.primary, AppColors.textPrimary),
@@ -463,67 +515,40 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                 ],
               ),
             ],
-            if (running) ...[
+            if (_mainChildButton(
+                  child,
+                  bus,
+                  running: running,
+                  tripId: tripId,
+                  busLoading: busLoading,
+                  canChangeAttendance: canChangeAttendance,
+                )
+                case final main?) ...[
               const SizedBox(height: 12),
-              Tooltip(
-                message: tripId == null && !busLoading
-                    ? '운행 정보를 불러오지 못했습니다.'
-                    : '',
-                child: SizedBox(
-                  height: 48,
-                  child: FilledButton(
-                    style: _childButtonStyle(AppColors.primary),
-                    onPressed: tripId == null
-                        ? null
-                        : () => _open(BusStatusScreen(tripId: tripId)),
-                    child: const Text('실시간 위치 보기'),
-                  ),
-                ),
+              Row(
+                children: [
+                  Expanded(child: main),
+                  if (child.busStatus != 'NOT_ASSIGNED') ...[
+                    const SizedBox(width: 8),
+                    _absenceDateButton(child),
+                  ],
+                ],
               ),
-              if (tripId == null && !busLoading)
-                TextButton(
-                  onPressed: () => setState(() {
-                    _buses = ApiRepository.instance.getParentBusStatus(
-                      debugLogResponse: true,
-                    );
-                    _settled(_buses);
-                    _children = _guard(
-                      ApiRepository.instance.getChildren(
-                        date: _loadedDate,
-                        debugLogResponse: true,
-                      ),
-                    );
-                  }),
-                  child: const Text('운행 정보를 불러오지 못했어요 · 다시 시도'),
-                ),
-            ] else if (canChangeAttendance) ...[
+            ] else if (child.busStatus != 'NOT_ASSIGNED') ...[
               const SizedBox(height: 12),
               SizedBox(
                 height: 52,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: child.isAbsent
-                        ? AppColors.surface
-                        : AppColors.primary,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.border, width: 1.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
-                      side: child.isAbsent
-                          ? const BorderSide(
-                              color: AppColors.primaryDark,
-                              width: 1.5,
-                            )
-                          : BorderSide.none,
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  onPressed: _saving.contains(child.id)
-                      ? null
-                      : () => _setAttendance(child),
-                  child: Text(child.isAbsent ? '결석 취소' : '오늘 결석 신청'),
+                  onPressed: () => _pickAbsenceDate(child),
+                  icon: const Icon(Icons.edit_calendar_rounded, size: 20),
+                  label: const Text('다른 날 결석 미리 신청'),
                 ),
               ),
             ],
@@ -531,6 +556,175 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         ),
       ),
     );
+  }
+
+  /// 자녀 카드의 큰 버튼: 운행 중이면 '실시간 위치 보기', 아니면 '오늘 결석 신청/취소'
+  Widget? _mainChildButton(
+    ChildStudent child,
+    Map<String, dynamic>? bus, {
+    required bool running,
+    required int? tripId,
+    required bool busLoading,
+    required bool canChangeAttendance,
+  }) {
+    if (running) {
+      if (tripId == null && !busLoading) {
+        return SizedBox(
+          height: 52,
+          child: TextButton(
+            onPressed: () => setState(() {
+              _buses = ApiRepository.instance.getParentBusStatus(
+                debugLogResponse: true,
+              );
+              _settled(_buses);
+              _children = _guard(
+                ApiRepository.instance.getChildren(
+                  date: _loadedDate,
+                  debugLogResponse: true,
+                ),
+              );
+            }),
+            child: const Text('운행 정보를 불러오지 못했어요 · 다시 시도'),
+          ),
+        );
+      }
+      return SizedBox(
+        height: 52,
+        child: FilledButton(
+          style: _childButtonStyle(AppColors.primary),
+          onPressed: tripId == null
+              ? null
+              : () => _open(BusStatusScreen(tripId: tripId)),
+          child: const Text('실시간 위치 보기'),
+        ),
+      );
+    }
+    if (!canChangeAttendance) return null;
+    return SizedBox(
+      height: 52,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: child.isAbsent ? AppColors.surface : AppColors.primary,
+          foregroundColor: AppColors.textPrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: child.isAbsent
+                ? const BorderSide(color: AppColors.primaryDark, width: 1.5)
+                : BorderSide.none,
+          ),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+        onPressed: _saving.contains(child.id) ? null : () => _setAttendance(child),
+        child: Text(child.isAbsent ? '결석 취소' : '오늘 결석 신청'),
+      ),
+    );
+  }
+
+  /// 결석 버튼 옆 작은 정사각형 버튼: 날짜를 골라 미리 결석 신청(이미 결석이면 취소)
+  Widget _absenceDateButton(ChildStudent child) => Tooltip(
+    message: '날짜 골라 결석 신청',
+    child: SizedBox(
+      width: 52,
+      height: 52,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          foregroundColor: AppColors.primaryDark,
+          side: const BorderSide(color: AppColors.border, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        onPressed: _saving.contains(child.id)
+            ? null
+            : () => _pickAbsenceDate(child),
+        child: const Icon(Icons.edit_calendar_rounded, size: 22),
+      ),
+    ),
+  );
+
+  Future<void> _pickAbsenceDate(ChildStudent child) async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: today.add(const Duration(days: 1)),
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 90)),
+      helpText: '결석할 날짜 선택',
+      cancelText: '취소',
+      confirmText: '선택',
+    );
+    if (picked == null || !mounted) return;
+    final date = DateUtils.dateOnly(picked);
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final label = '${date.month}월 ${date.day}일(${weekdays[date.weekday - 1]})';
+
+    setState(() => _saving.add(child.id));
+    bool alreadyAbsent;
+    try {
+      alreadyAbsent = await _guard(
+        ApiRepository.instance.getChildAttendance(child, date: date),
+      );
+    } catch (error) {
+      if (mounted) setState(() => _saving.remove(child.id));
+      if (mounted && !_loggingOut) {
+        InAppNotificationBanner.showMessage(
+          AppErrorMessage.from(error, fallback: '결석 정보를 불러오지 못했습니다.'),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _saving.remove(child.id));
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(alreadyAbsent ? '결석을 취소할까요?' : '결석을 신청할까요?'),
+        content: Text(
+          alreadyAbsent
+              ? '${child.name} 학생은 $label 결석으로 신청되어 있어요.\n결석 신청을 취소합니다.'
+              : '${child.name} 학생의 $label 결석을 신청합니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('아니요'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(alreadyAbsent ? '결석 취소' : '결석 신청'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || _saving.contains(child.id)) return;
+    setState(() => _saving.add(child.id));
+    try {
+      await _guard(
+        ApiRepository.instance.setChildAttendance(
+          child,
+          isAbsent: !alreadyAbsent,
+          date: date,
+        ),
+      );
+      if (!mounted) return;
+      InAppNotificationBanner.showMessage(
+        alreadyAbsent ? '$label 결석 신청을 취소했어요.' : '$label 결석을 신청했어요.',
+      );
+      if (date == today) _reloadChildren();
+    } catch (error) {
+      if (mounted && !_loggingOut) {
+        InAppNotificationBanner.showMessage(
+          AppErrorMessage.from(
+            error,
+            fallback: '결석 정보를 저장하지 못했습니다. 다시 시도해 주세요.',
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving.remove(child.id));
+    }
   }
 
   ButtonStyle _childButtonStyle(Color background) => FilledButton.styleFrom(
@@ -705,71 +899,465 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     },
   );
 
-  Widget _quickMenu() {
-    final items = <(String, IconData, Widget)>[
-      ('버스 위치', Icons.directions_bus_outlined, const BusStatusScreen()),
-      ('승하차 기록', Icons.fact_check_outlined, const ParentTripAttendanceScreen()),
-      ('안전 알림', Icons.warning_amber_rounded, const MissedDropoffAlertScreen()),
-      (
-        '알림 설정',
-        Icons.notifications_outlined,
-        const NotificationSettingsScreen(),
-      ),
-    ];
-    final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
-    final tileHeight =
-        96.0 + (scaledLabelSize > 14 ? (scaledLabelSize - 14) * 3 : 0);
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        mainAxisExtent: tileHeight,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return Card(
-          margin: EdgeInsets.zero,
-          color: AppColors.surface,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: AppColors.border),
+  Widget _sectionTitle(String text, {Widget? trailing}) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => _open(item.$3),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+        ),
+        ?trailing,
+      ],
+    ),
+  );
+
+  // ---------- 버스 실시간 위치 (가로로 긴 띠) ----------
+  // 서버에 버스 GPS 가 없어서 BusStatusScreen 과 같은 테스트 운행(BusTripSimulation) 값을 보여 준다.
+  static const _stops = ['출발', '정류장 1', '정류장 2', '유치원'];
+
+  Widget _busStrip() => FutureBuilder<List<Map<String, dynamic>>>(
+    future: _buses,
+    builder: (context, snapshot) {
+      int? tripId;
+      for (final bus in snapshot.data ?? const <Map<String, dynamic>>[]) {
+        if (bus['status'] == 'IN_PROGRESS' && bus['trip_id'] is int) {
+          tripId = bus['trip_id'] as int;
+          break;
+        }
+      }
+      return AnimatedBuilder(
+        animation: Listenable.merge([
+          BusTripSimulation.status,
+          BusTripSimulation.progress,
+        ]),
+        builder: (context, _) {
+          final status = BusTripSimulation.status.value;
+          final progress = BusTripSimulation.progress.value.clamp(0.0, 1.0);
+          final running = status == BusTripStatus.running;
+          return Material(
+            color: AppColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: AppColors.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _open(BusStatusScreen(tripId: tripId)),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: running
+                                ? AppColors.success.withValues(alpha: 0.12)
+                                : AppColors.border,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            BusTripSimulation.statusText(status),
+                            style: TextStyle(
+                              color: running
+                                  ? AppColors.success
+                                  : AppColors.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            running
+                                ? '유치원까지 ${BusTripSimulation.etaText(status)}'
+                                : BusTripSimulation.etaText(status),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          '지도 보기',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 26,
+                      child: LayoutBuilder(
+                        builder: (context, box) {
+                          const inset = 8.0;
+                          final width = box.maxWidth - inset * 2;
+                          final busX = inset + width * progress;
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Positioned(
+                                left: inset,
+                                right: inset,
+                                top: 12,
+                                child: Container(
+                                  height: 3,
+                                  color: AppColors.border,
+                                ),
+                              ),
+                              Positioned(
+                                left: inset,
+                                top: 12,
+                                child: Container(
+                                  width: width * progress,
+                                  height: 3,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              for (var i = 0; i < _stops.length; i++)
+                                Positioned(
+                                  left: inset +
+                                      width * i / (_stops.length - 1) -
+                                      5,
+                                  top: 8.5,
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: progress >=
+                                              i / (_stops.length - 1)
+                                          ? AppColors.primaryDark
+                                          : AppColors.surface,
+                                      border: Border.all(
+                                        color: AppColors.primaryDark,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              Positioned(
+                                left: busX - 13,
+                                top: 0,
+                                child: Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.directions_bus_rounded,
+                                    size: 16,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        for (final stop in _stops)
+                          Text(
+                            stop,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+
+  // ---------- AI 채팅 입력칸 (누르면 채팅 화면으로 펼쳐짐) ----------
+  Widget _chatBar() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Material(
+        key: _chatBarKey,
+        color: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: AppColors.primaryDark, width: 1.2),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: _openChat,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
+            child: Row(
               children: [
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 18,
+                  color: AppColors.primaryDark,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _chatMounted
+                        ? '이어서 물어보기'
+                        : 'AI에게 물어보기 · 예) 우리 아이 오늘 내렸어요?',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
                   ),
-                  child: Icon(item.$2, color: AppColors.primaryDark, size: 22),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  item.$1,
-                  style: const TextStyle(
+                  child: const Icon(
+                    Icons.arrow_upward_rounded,
+                    size: 20,
                     color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
+      if (_chatMounted)
+        const Padding(
+          padding: EdgeInsets.only(top: 6, left: 6),
+          child: Text(
+            '대화 내용이 남아 있어요 · 홈을 새로고침하면 초기화돼요',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+          ),
+        ),
+    ],
+  );
+
+  void _openChat() {
+    final stackBox = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+    final barBox = _chatBarKey.currentContext?.findRenderObject() as RenderBox?;
+    if (stackBox != null && barBox != null && stackBox.size.height > 0) {
+      final center = barBox.localToGlobal(
+        barBox.size.center(Offset.zero),
+        ancestor: stackBox,
+      );
+      _chatOrigin = Alignment(
+        0,
+        (center.dy / stackBox.size.height * 2 - 1).clamp(-1.0, 1.0),
+      );
+    }
+    setState(() {
+      _chatMounted = true;
+      _chatOpen = true;
+    });
+    _chatAnim.forward();
+    _chatFocus.value++;
+  }
+
+  Future<void> _collapseChat() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _chatOpen = false);
+    await _chatAnim.reverse();
+    if (mounted) setState(() {});
+  }
+
+  Widget _chatPanel() {
+    final curve = _chatCurve;
+    final visible = _chatOpen || !_chatAnim.isDismissed;
+    return Positioned.fill(
+      child: Offstage(
+        offstage: !visible,
+        child: TickerMode(
+          enabled: visible,
+          child: FadeTransition(
+            opacity: curve,
+            child: ScaleTransition(
+              alignment: _chatOrigin,
+              scale: Tween(begin: 0.6, end: 1.0).animate(curve),
+              child: Material(
+                color: AppColors.surface,
+                child: AlertChatScreen(
+                  key: _chatKey,
+                  onCollapse: _collapseChat,
+                  focusRequest: _chatFocus,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
+
+  // ---------- 오늘 승하차 기록 ----------
+  String _hm(DateTime? time) {
+    if (time == null) return '--:--';
+    final t = time.toLocal();
+    return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _timeChip(String label, DateTime? time, IconData icon) {
+    final done = time != null;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: done
+              ? AppColors.success.withValues(alpha: 0.10)
+              : AppColors.background,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: done
+                ? AppColors.success.withValues(alpha: 0.35)
+                : AppColors.border,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: done ? AppColors.success : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              _hm(time),
+              style: TextStyle(
+                color: done ? AppColors.textPrimary : AppColors.textSecondary,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _recordsSection() => FutureBuilder<List<ChildStudent>>(
+    future: _children,
+    builder: (context, snapshot) {
+      final children = snapshot.data;
+      if (children == null || children.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionTitle(
+            '오늘 승하차',
+            trailing: TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+                visualDensity: VisualDensity.compact,
+              ),
+              onPressed: () => _open(const ParentTripAttendanceScreen()),
+              child: const Text('기록 전체보기 ›'),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0) const Divider(height: 20, color: AppColors.border),
+                  Text(
+                    children[i].name,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (children[i].isAbsent)
+                    const Text(
+                      '오늘은 결석이에요',
+                      style: TextStyle(color: AppColors.danger, fontSize: 13),
+                    )
+                  else
+                    Row(
+                      children: [
+                        _timeChip(
+                          '승차',
+                          children[i].boardingConfirmedAt,
+                          Icons.login_rounded,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        _timeChip(
+                          '하차',
+                          children[i].alightingConfirmedAt,
+                          Icons.logout_rounded,
+                        ),
+                      ],
+                    ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      );
+    },
+  );
 
   Widget _header() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -804,47 +1392,47 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: AppColors.background,
-    body: SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _refresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_chatOpen,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop && _chatOpen) _collapseChat();
+    },
+    child: Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Stack(
+          key: _stackKey,
           children: [
-            _header(),
-            const SizedBox(height: 16),
-            _alertSection(),
-            const Text(
-              '오늘의 자녀',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            RefreshIndicator(
+              onRefresh: () => _refresh(resetChat: true),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                children: [
+                  _header(),
+                  const SizedBox(height: 16),
+                  _alertSection(),
+                  _sectionTitle('내 자녀'),
+                  _childrenSection(),
+                  const SizedBox(height: 8),
+                  _sectionTitle('버스 실시간 위치'),
+                  _busStrip(),
+                  const SizedBox(height: 16),
+                  _recordsSection(),
+                  const SizedBox(height: 16),
+                  _chatBar(),
+                  const SizedBox(height: 16),
+                  _requestSection(),
+                  FutureBuilder<int>(
+                    future: _unread,
+                    builder: (context, snapshot) => snapshot.hasError
+                        ? _error('읽지 않은 알림', () => setState(_loadUnread))
+                        : const SizedBox.shrink(),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            _childrenSection(),
-            const SizedBox(height: 12),
-            const Text(
-              '빠른 메뉴',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            _quickMenu(),
-            const SizedBox(height: 16),
-            _requestSection(),
-            FutureBuilder<int>(
-              future: _unread,
-              builder: (context, snapshot) => snapshot.hasError
-                  ? _error('읽지 않은 알림', () => setState(_loadUnread))
-                  : const SizedBox.shrink(),
-            ),
+            if (_chatMounted) _chatPanel(),
           ],
         ),
       ),

@@ -5,13 +5,12 @@ import '../../widgets/app_bottom_navigation_bar.dart';
 import '../auth/login_screen.dart';
 import '../auth/parent_terms_gate.dart';
 import 'notification_list_screen.dart';
-import 'parent_attendance_screen.dart';
 import 'parent_home_screen.dart';
 import 'parent_settings_screen.dart';
-import 'alert_chat_screen.dart';
 import 'unread_notification_badge.dart';
 
-// 학부모 하단 탭: 홈 · 출결 관리 · AI 채팅 · 알림 · 설정
+// 학부모 하단 탭: 홈 · 알림 · 설정
+// (출결 관리 · AI 채팅은 홈의 빠른 메뉴에서 연다)
 class ParentShell extends StatefulWidget {
   const ParentShell({super.key});
 
@@ -45,12 +44,10 @@ class _ParentShellState extends State<ParentShell> {
         active: _index == 0,
         onOpenUrgentAlerts: () => setState(() {
           _urgentSelectionRequest++;
-          _visitedTabs.add(3);
-          _index = 3;
+          _visitedTabs.add(1);
+          _index = 1;
         }),
       ),
-      ParentAttendanceScreen(active: _index == 1),
-      const AlertChatScreen(),
       NotificationListScreen(urgentSelectionRequest: _urgentSelectionRequest),
       const ParentSettingsScreen(),
     ];
@@ -76,17 +73,6 @@ class _ParentShellState extends State<ParentShell> {
             icon: Icon(Icons.home_outlined),
             selectedIcon: const Icon(Icons.home_rounded),
             label: '홈',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.event_available_outlined),
-            selectedIcon: const Icon(Icons.event_available),
-            label: '출결 관리',
-          ),
-          //AI 채팅
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined),
-            selectedIcon: const Icon(Icons.auto_awesome),
-            label: 'AI 채팅',
           ),
           // 알림
           NavigationDestination(
