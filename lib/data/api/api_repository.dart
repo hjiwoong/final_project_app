@@ -607,6 +607,14 @@ class ApiRepository implements SignupGateway, TermsGateway {
     );
   }
 
+  // 기사: 탑승 지도에서 '승차 완료' → 학생 승차 시각 기록 (POST /trips/{tripId}/students/{studentId}/boarded)
+  Future<void> markStudentBoarded({
+    required int tripId,
+    required int studentId,
+  }) async {
+    await _dio.post('/trips/$tripId/students/$studentId/boarded');
+  }
+
   Future<List<Map<String, dynamic>>> getMyBuses() async {
     final response = await _dio.get('/me/buses');
     return List<Map<String, dynamic>>.from(

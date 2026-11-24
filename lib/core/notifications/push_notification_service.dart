@@ -94,7 +94,9 @@ class PushNotificationService {
   }
 
   void _showIncomingNotification(RemoteMessage message) {
-    if (AttendanceSync.isAttendanceMessage(message.data)) {
+    // 결석 알림(관리자) · 운행 시작/종료 알림(학부모) → 보고 있는 화면을 바로 새로고침
+    if (AttendanceSync.isAttendanceMessage(message.data) ||
+        message.data['type'] == 'trip_notification') {
       AttendanceSync.notifyChanged();
     }
     final title =

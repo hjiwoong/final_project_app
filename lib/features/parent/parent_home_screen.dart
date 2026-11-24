@@ -22,6 +22,7 @@ import 'notification_list_screen.dart';
 import 'parent_attendance_screen.dart';
 import 'parent_trip_screens.dart';
 import 'unread_notification_store.dart';
+import 'widgets/absence_request_sheet.dart';
 
 class ParentHomeScreen extends StatefulWidget {
   const ParentHomeScreen({
@@ -47,6 +48,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   late Future<List<ChildLinkRequest>> _requests;
   final Set<int> _saving = {};
   Timer? _midnightRefresh;
+  Timer? _autoRefresh;
   bool _loggingOut = false;
   int _unreadGeneration = 0;
 
@@ -76,6 +78,12 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     WidgetsBinding.instance.addObserver(this);
     AttendanceSync.changes.addListener(_onAttendanceChanged);
     _startLoads();
+    // 기사가 '승차 완료'·운행 종료를 하면 승하차 시간이 바뀌므로 홈을 보고 있는 동안 30초마다 조용히 갱신
+    _autoRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && widget.active && !_loggingOut && !_chatOpen) {
+        _silentRefresh();
+      }
+    });
     _scheduleMidnightRefresh();
   }
 
@@ -187,9 +195,20 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     });
   }
 
-  // 어느 화면에서든 결석을 바꾸면 홈의 자녀 카드·오늘 승하차를 바로 다시 불러온다
+  // 어느 화면에서든 결석을 바꾸거나 운행 알림이 오면 홈의 자녀 카드·오늘 승하차를 바로 다시 불러온다
   void _onAttendanceChanged() {
-    if (mounted && !_loggingOut) _reloadChildren();
+    if (mounted && !_loggingOut) _silentRefresh();
+  }
+
+  /// 화면을 비우지 않고 자녀·버스 상태만 다시 불러온다 (이전 내용은 새 값이 올 때까지 그대로)
+  void _silentRefresh() {
+    final api = ApiRepository.instance;
+    setState(() {
+      _loadedDate = DateUtils.dateOnly(DateTime.now());
+      _children = _guard(api.getChildren(date: _loadedDate));
+      _buses = api.getParentBusStatus();
+      _settled(_buses);
+    });
   }
 
   void _scheduleMidnightRefresh() {
@@ -229,6 +248,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     AttendanceSync.changes.removeListener(_onAttendanceChanged);
     _midnightRefresh?.cancel();
+    _autoRefresh?.cancel();
     _chatCurve.dispose();
     _chatAnim.dispose();
     _chatFocus.dispose();
@@ -371,45 +391,117 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     return '$hour:$minute 출발 예정';
   }
 
+  static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+
+  String _dateLabel(DateTime date) =>
+      '${date.month}월 ${date.day}일(${_weekdays[date.weekday - 1]})';
+
+  /// 오늘 결석 신청(사유·첨부 시트) / 이미 결석이면 취소 확인
   Future<void> _setAttendance(ChildStudent child) async {
     if (_saving.contains(child.id)) return;
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (child.isAbsent) {
+      await _cancelAbsence(child, today, '오늘');
+    } else {
+      await _requestAbsence(child, today, '오늘');
+    }
+  }
+
+  /// 사유·첨부를 받는 시트를 띄우고 결석 신청 → 첨부 업로드
+  Future<void> _requestAbsence(
+    ChildStudent child,
+    DateTime date,
+    String label,
+  ) async {
+    final request = await showAbsenceRequestSheet(
+      context,
+      childName: child.name,
+      dateLabel: label,
+    );
+    if (request == null || !mounted || _saving.contains(child.id)) return;
+    setState(() => _saving.add(child.id));
+    try {
+      final attendanceId = await _guard(
+        ApiRepository.instance.saveChildAttendance(
+          child: child,
+          date: date,
+          isAbsent: true,
+          reasonType: request.reasonType,
+          reasonMemo: request.memo,
+        ),
+      );
+      var failed = 0;
+      for (final file in request.files) {
+        try {
+          await _guard(
+            ApiRepository.instance.uploadChildAttendanceFile(
+              attendanceId: attendanceId,
+              file: file,
+            ),
+          );
+        } catch (error) {
+          failed++;
+          debugPrint('결석 첨부 업로드 실패: $error');
+        }
+      }
+      AttendanceSync.notifyChanged(); // → 홈 다시 불러오기
+      if (!mounted) return;
+      InAppNotificationBanner.showMessage(
+        failed == 0
+            ? '$label 결석을 신청했어요.'
+            : '$label 결석은 신청했지만 첨부 $failed개를 올리지 못했어요. 설정 > 출석·결석 관리에서 다시 첨부해 주세요.',
+      );
+    } catch (error) {
+      if (mounted && !_loggingOut) {
+        InAppNotificationBanner.showMessage(
+          AppErrorMessage.from(
+            error,
+            fallback: '결석 정보를 저장하지 못했습니다. 다시 시도해 주세요.',
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving.remove(child.id));
+    }
+  }
+
+  Future<void> _cancelAbsence(
+    ChildStudent child,
+    DateTime date,
+    String label,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(child.isAbsent ? '결석을 취소할까요?' : '오늘 결석을 신청할까요?'),
+        title: const Text('결석을 취소할까요?'),
         content: Text(
-          child.isAbsent
-              ? '${child.name} 학생의 오늘 결석 신청을 취소합니다.'
-              : '${child.name} 학생의 오늘 결석을 신청합니다.',
+          '${child.name} 학생의 $label 결석 신청을 취소합니다.\n적어 둔 사유와 첨부 파일도 함께 지워져요.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+            child: const Text('아니요'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('확인'),
+            child: const Text('결석 취소'),
           ),
         ],
       ),
     );
     if (confirmed != true || !mounted || _saving.contains(child.id)) return;
-    final date = DateUtils.dateOnly(DateTime.now());
     setState(() => _saving.add(child.id));
     try {
       await _guard(
         ApiRepository.instance.setChildAttendance(
           child,
-          isAbsent: !child.isAbsent,
+          isAbsent: false,
           date: date,
         ),
       );
-      AttendanceSync.notifyChanged(); // → 홈 다시 불러오기
+      AttendanceSync.notifyChanged();
       if (!mounted) return;
-      InAppNotificationBanner.showMessage(
-        child.isAbsent ? '오늘 결석 신청을 취소했어요.' : '오늘 결석을 신청했어요.',
-      );
+      InAppNotificationBanner.showMessage('$label 결석 신청을 취소했어요.');
     } catch (error) {
       if (mounted && !_loggingOut) {
         InAppNotificationBanner.showMessage(
@@ -442,16 +534,22 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
             child.busStatus != 'CLOSED' &&
             child.busStatus != 'NOT_ASSIGNED');
     final status = _status(child);
+    final info = [
+      if (child.className != null) child.className!,
+      child.busName ?? bus?['bus_name']?.toString() ?? '버스 미배정',
+      ?departureTime,
+    ].join(' · ');
+    // 자녀가 많아도 한 화면에 보이도록 작게: 이름·상태 한 줄, 반·버스·시간 한 줄, 버튼 한 줄
     return Card(
       color: AppColors.surface,
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppColors.border),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -460,16 +558,18 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                 Expanded(
                   child: Text(
                     child.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  height: 28,
+                  height: 24,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
                     color: status.$2,
@@ -491,41 +591,16 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
-              [
-                if (child.className != null) child.className!,
-                child.busName ?? bus?['bus_name']?.toString() ?? '버스 미배정',
-              ].join(' · '),
+              info,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 13,
+                fontSize: 12,
               ),
             ),
-            if (departureTime != null) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.access_time,
-                    size: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      departureTime,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
             if (_mainChildButton(
                   child,
                   bus,
@@ -535,7 +610,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                   canChangeAttendance: canChangeAttendance,
                 )
                 case final main?) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(child: main),
@@ -546,9 +621,9 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                 ],
               ),
             ] else if (child.busStatus != 'NOT_ASSIGNED') ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               SizedBox(
-                height: 52,
+                height: 44,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
@@ -581,7 +656,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     if (running) {
       if (tripId == null && !busLoading) {
         return SizedBox(
-          height: 52,
+          height: 44,
           child: TextButton(
             onPressed: () => setState(() {
               _buses = ApiRepository.instance.getParentBusStatus(
@@ -600,7 +675,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         );
       }
       return SizedBox(
-        height: 52,
+        height: 44,
         child: FilledButton(
           style: _childButtonStyle(AppColors.primary),
           onPressed: tripId == null
@@ -612,18 +687,18 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     }
     if (!canChangeAttendance) return null;
     return SizedBox(
-      height: 52,
+      height: 44,
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: child.isAbsent ? AppColors.surface : AppColors.primary,
           foregroundColor: AppColors.textPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             side: child.isAbsent
                 ? const BorderSide(color: AppColors.primaryDark, width: 1.5)
                 : BorderSide.none,
           ),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         onPressed: _saving.contains(child.id) ? null : () => _setAttendance(child),
         child: Text(child.isAbsent ? '결석 취소' : '오늘 결석 신청'),
@@ -635,21 +710,21 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   Widget _absenceDateButton(ChildStudent child) => Tooltip(
     message: '날짜 골라 결석 신청',
     child: SizedBox(
-      width: 52,
-      height: 52,
+      width: 44,
+      height: 44,
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
           padding: EdgeInsets.zero,
           foregroundColor: AppColors.primaryDark,
           side: const BorderSide(color: AppColors.border, width: 1.5),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
         onPressed: _saving.contains(child.id)
             ? null
             : () => _pickAbsenceDate(child),
-        child: const Icon(Icons.edit_calendar_rounded, size: 22),
+        child: const Icon(Icons.edit_calendar_rounded, size: 20),
       ),
     ),
   );
@@ -667,8 +742,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     );
     if (picked == null || !mounted) return;
     final date = DateUtils.dateOnly(picked);
-    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-    final label = '${date.month}월 ${date.day}일(${weekdays[date.weekday - 1]})';
+    final label = date == today ? '오늘' : _dateLabel(date);
 
     setState(() => _saving.add(child.id));
     bool alreadyAbsent;
@@ -687,61 +761,17 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     }
     if (!mounted) return;
     setState(() => _saving.remove(child.id));
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(alreadyAbsent ? '결석을 취소할까요?' : '결석을 신청할까요?'),
-        content: Text(
-          alreadyAbsent
-              ? '${child.name} 학생은 $label 결석으로 신청되어 있어요.\n결석 신청을 취소합니다.'
-              : '${child.name} 학생의 $label 결석을 신청합니다.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('아니요'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(alreadyAbsent ? '결석 취소' : '결석 신청'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted || _saving.contains(child.id)) return;
-    setState(() => _saving.add(child.id));
-    try {
-      await _guard(
-        ApiRepository.instance.setChildAttendance(
-          child,
-          isAbsent: !alreadyAbsent,
-          date: date,
-        ),
-      );
-      AttendanceSync.notifyChanged();
-      if (!mounted) return;
-      InAppNotificationBanner.showMessage(
-        alreadyAbsent ? '$label 결석 신청을 취소했어요.' : '$label 결석을 신청했어요.',
-      );
-    } catch (error) {
-      if (mounted && !_loggingOut) {
-        InAppNotificationBanner.showMessage(
-          AppErrorMessage.from(
-            error,
-            fallback: '결석 정보를 저장하지 못했습니다. 다시 시도해 주세요.',
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving.remove(child.id));
+    if (alreadyAbsent) {
+      await _cancelAbsence(child, date, label);
+    } else {
+      await _requestAbsence(child, date, label);
     }
   }
 
   ButtonStyle _childButtonStyle(Color background) => FilledButton.styleFrom(
     backgroundColor: background,
     foregroundColor: AppColors.textPrimary,
-    minimumSize: const Size(0, 48),
+    minimumSize: const Size(0, 44),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     textStyle: const TextStyle(fontWeight: FontWeight.bold),
   );
@@ -1249,12 +1279,13 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     final done = time != null;
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: done
               ? AppColors.success.withValues(alpha: 0.10)
               : AppColors.background,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: done
                 ? AppColors.success.withValues(alpha: 0.35)
@@ -1265,15 +1296,15 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 15,
               color: done ? AppColors.success : AppColors.textSecondary,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             Text(
               label,
               style: const TextStyle(
                 color: AppColors.textSecondary,
-                fontSize: 12,
+                fontSize: 11,
               ),
             ),
             const Spacer(),
@@ -1281,7 +1312,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
               _hm(time),
               style: TextStyle(
                 color: done ? AppColors.textPrimary : AppColors.textSecondary,
-                fontSize: 15,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -1313,7 +1344,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
@@ -1323,44 +1354,57 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (var i = 0; i < children.length; i++) ...[
-                  if (i > 0) const Divider(height: 20, color: AppColors.border),
-                  Text(
-                    children[i].name,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (children[i].isAbsent)
-                    const Text(
-                      '오늘은 결석이에요',
-                      style: TextStyle(color: AppColors.danger, fontSize: 13),
-                    )
-                  else
-                    Row(
+                  if (i > 0) const Divider(height: 1, color: AppColors.border),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
                       children: [
-                        _timeChip(
-                          '승차',
-                          children[i].boardingConfirmedAt,
-                          Icons.login_rounded,
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 6),
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 16,
-                            color: AppColors.textSecondary,
+                        SizedBox(
+                          width: 64,
+                          child: Text(
+                            children[i].name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        _timeChip(
-                          '하차',
-                          children[i].alightingConfirmedAt,
-                          Icons.logout_rounded,
-                        ),
+                        if (children[i].isAbsent)
+                          const Expanded(
+                            child: Text(
+                              '오늘은 결석이에요',
+                              style: TextStyle(
+                                color: AppColors.danger,
+                                fontSize: 13,
+                              ),
+                            ),
+                          )
+                        else ...[
+                          _timeChip(
+                            '승차',
+                            children[i].boardingConfirmedAt,
+                            Icons.login_rounded,
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4),
+                            child: Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          _timeChip(
+                            '하차',
+                            children[i].alightingConfirmedAt,
+                            Icons.logout_rounded,
+                          ),
+                        ],
                       ],
                     ),
+                  ),
                 ],
               ],
             ),

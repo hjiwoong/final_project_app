@@ -332,8 +332,30 @@ class _BoardingMapScreenState extends State<BoardingMapScreen> {
     }
   }
 
+  /// 승차 시각을 서버에 기록 → 학부모 앱 '오늘 승하차'에 바로 나온다 (실패해도 운행은 계속)
+  Future<void> _recordBoarding(int studentId) async {
+    try {
+      await ApiRepository.instance.markStudentBoarded(
+        tripId: int.parse(widget.tripId),
+        studentId: studentId,
+      );
+    } catch (error) {
+      debugPrint('승차 시각 기록 실패: $error');
+      if (mounted) {
+        InAppNotificationBanner.showMessage(
+          AppErrorMessage.from(error, fallback: '승차 시간을 저장하지 못했어요.'),
+        );
+      }
+    }
+  }
+
   Future<void> _nextStop() async {
     if (_currentStopIndex < _stops.length - 1) {
+      final stop = _stops[_currentStopIndex];
+      final studentId = stop['studentId'];
+      if (studentId is int && stop['isAbsent'] != true) {
+        unawaited(_recordBoarding(studentId));
+      }
       setState(() {
         _currentStopIndex = _nextAvailableStopIndex(_currentStopIndex + 1);
       });
