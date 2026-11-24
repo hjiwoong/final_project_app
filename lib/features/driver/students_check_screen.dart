@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../core/errors/app_error_message.dart';
 import '../../data/api/api_repository.dart';
@@ -47,6 +51,12 @@ class _StudentsCheckScreenState extends State<StudentsCheckScreen> {
               students: [
                 for (final student in bus['students'] as List)
                   ChildStudent.fromJson(
+                    Map<String, dynamic>.from(student as Map),
+                  ),
+              ],
+              details: [
+                for (final student in bus['students'] as List)
+                  _AbsenceDetail.fromJson(
                     Map<String, dynamic>.from(student as Map),
                   ),
               ],
@@ -301,23 +311,118 @@ class _StudentsCheckScreenState extends State<StudentsCheckScreen> {
                       ],
                     ),
                     const Divider(height: 20),
-                    for (final student in bus.students)
+                    for (var i = 0; i < bus.students.length; i++) ...[
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(
                           Icons.person_off_outlined,
                           color: colors.error,
                         ),
-                        title: Text(student.name),
-                        subtitle: Text(student.className ?? '학급 정보 없음'),
+                        title: Text(bus.students[i].name),
+                        subtitle: Text(
+                          [
+                            bus.students[i].className ?? '학급 정보 없음',
+                            if (bus.details[i].reasonText case final reason?)
+                              '사유: $reason',
+                          ].join('\n'),
+                        ),
+                        isThreeLine: bus.details[i].reasonText != null,
                         trailing: const Chip(label: Text('결석')),
                       ),
+                      if (bus.details[i].files.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 40, bottom: 8),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final file in bus.details[i].files)
+                                ActionChip(
+                                  avatar: Icon(
+                                    file.isPdf
+                                        ? Icons.picture_as_pdf_outlined
+                                        : Icons.image_outlined,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    file.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  onPressed: () => _openFile(file),
+                                ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ],
                 ),
               ),
             ),
       ],
     );
+  }
+
+  /// 결석 사유 첨부 파일 보기 (이미지·PDF)
+  Future<void> _openFile(_AbsenceFile file) async {
+    File? cached;
+    try {
+      final bytes = await ApiRepository.instance.getAdminAttendanceFile(
+        file.id,
+      );
+      final dir = await getTemporaryDirectory();
+      final safeName = file.name.replaceAll(RegExp(r'[^\w.\-]'), '_');
+      cached = File(
+        '${dir.path}${Platform.pathSeparator}absence_${file.id}_$safeName',
+      );
+      await cached.writeAsBytes(bytes, flush: true);
+      if (!mounted) return;
+      final shown = cached;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => Dialog(
+          child: SizedBox(
+            width: 520,
+            height: 600,
+            child: Column(
+              children: [
+                ListTile(
+                  title: Text(
+                    file.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+                Expanded(
+                  child: file.isImage
+                      ? InteractiveViewer(
+                          child: Image.file(shown, fit: BoxFit.contain),
+                        )
+                      : file.isPdf
+                      ? SfPdfViewer.file(shown)
+                      : const Center(child: Text('미리볼 수 없는 파일 형식입니다.')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppErrorMessage.from(error, fallback: '첨부 파일을 열지 못했습니다.'),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (cached != null && await cached.exists()) await cached.delete();
+    }
   }
 
   Widget _buildCalendarContent(
@@ -402,9 +507,61 @@ class _BusAbsences {
     required this.name,
     required this.plateNumber,
     required this.students,
+    this.details = const [],
   });
 
   final String name;
   final String? plateNumber;
   final List<ChildStudent> students;
+
+  /// students 와 같은 순서의 결석 사유·첨부 파일
+  final List<_AbsenceDetail> details;
+}
+
+class _AbsenceDetail {
+  const _AbsenceDetail({this.reasonText, this.files = const []});
+
+  final String? reasonText;
+  final List<_AbsenceFile> files;
+
+  factory _AbsenceDetail.fromJson(Map<String, dynamic> json) {
+    final files = json['files'];
+    final reason = json['reason_text'] as String?;
+    return _AbsenceDetail(
+      reasonText: reason == null || reason.trim().isEmpty ? null : reason,
+      files: files is List
+          ? [
+              for (final file in files)
+                _AbsenceFile.fromJson(Map<String, dynamic>.from(file as Map)),
+            ]
+          : const [],
+    );
+  }
+}
+
+class _AbsenceFile {
+  const _AbsenceFile({
+    required this.id,
+    required this.name,
+    this.contentType,
+  });
+
+  final int id;
+  final String name;
+  final String? contentType;
+
+  bool get isPdf =>
+      contentType == 'application/pdf' || name.toLowerCase().endsWith('.pdf');
+  bool get isImage =>
+      contentType?.startsWith('image/') == true ||
+      RegExp(r'\.(png|jpe?g|gif|webp)$', caseSensitive: false).hasMatch(name);
+
+  factory _AbsenceFile.fromJson(Map<String, dynamic> json) {
+    final id = json['file_id'] ?? json['id'];
+    return _AbsenceFile(
+      id: id is int ? id : int.parse(id.toString()),
+      name: json['file_name'] as String? ?? '첨부 파일',
+      contentType: json['content_type'] as String?,
+    );
+  }
 }

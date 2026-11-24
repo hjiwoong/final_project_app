@@ -167,11 +167,13 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     final icon = switch (item.category) {
       'URGENT' => Icons.error_rounded,
       'CHECK' => Icons.warning_amber_rounded,
+      'ATTENDANCE' => Icons.event_busy_rounded,
       _ => Icons.notifications_none,
     };
     final color = switch (item.category) {
       'URGENT' => AppColors.danger,
       'CHECK' => AppColors.accent,
+      'ATTENDANCE' => AppColors.primaryDark,
       _ => AppColors.textSecondary,
     };
     return Padding(

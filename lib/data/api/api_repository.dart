@@ -806,6 +806,19 @@ class ApiRepository implements SignupGateway, TermsGateway {
     return Uint8List.fromList(bytes);
   }
 
+  // 관리자: 결석 사유 첨부 파일 (GET /web/buses/attendance/files/{fileId})
+  Future<Uint8List> getAdminAttendanceFile(int fileId) async {
+    final response = await _dio.get<List<int>>(
+      '/web/buses/attendance/files/$fileId',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    final bytes = response.data;
+    if (bytes == null || bytes.isEmpty) {
+      throw StateError('첨부 파일을 불러오지 못했습니다.');
+    }
+    return Uint8List.fromList(bytes);
+  }
+
   String _attendanceDateKey(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'

@@ -114,7 +114,8 @@ flutter_launcher_icons:
   image_path: "assets/icon/app_icon.png"
   android: true
   ios: true
-  adaptive_icon_background: "#BFE0FF"
+  # 배경 없이 버스만 (투명 배경)
+  adaptive_icon_background: "assets/icon/app_icon_background.png"
   adaptive_icon_foreground: assets/icon/app_icon_foreground.png
   remove_alpha_ios: true
   web:
