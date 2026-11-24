@@ -11,6 +11,9 @@ class NotificationItem {
   final int? tripId;
   final int? alertId;
 
+  /// 결석 신청·취소 알림이면 해당 결석 기록 (관리자: 눌러서 사유·첨부 보기)
+  final int? attendanceId;
+
   NotificationItem({
     required this.id,
     required this.title,
@@ -23,6 +26,7 @@ class NotificationItem {
     this.eventType,
     this.tripId,
     this.alertId,
+    this.attendanceId,
   });
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
@@ -39,6 +43,7 @@ class NotificationItem {
       eventType: json['event_type'] as String?,
       tripId: json['trip_id'] as int?,
       alertId: json['alert_id'] as int?,
+      attendanceId: json['attendance_id'] as int?,
     );
   }
 }

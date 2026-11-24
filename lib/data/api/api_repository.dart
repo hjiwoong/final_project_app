@@ -827,6 +827,12 @@ class ApiRepository implements SignupGateway, TermsGateway {
     return Uint8List.fromList(bytes);
   }
 
+  // 관리자: 결석 알림 상세 — 학생·날짜·사유·첨부 (GET /web/buses/attendance/{attendanceId})
+  Future<Map<String, dynamic>> getAdminAttendanceDetail(int attendanceId) async {
+    final response = await _dio.get('/web/buses/attendance/$attendanceId');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   String _attendanceDateKey(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'

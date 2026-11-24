@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../core/errors/app_error_message.dart';
 import '../../core/sync/attendance_sync.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/child_student.dart';
+import 'widgets/absence_detail.dart';
 
 class StudentsCheckScreen extends StatefulWidget {
   const StudentsCheckScreen({super.key});
@@ -395,82 +393,54 @@ class _StudentsCheckScreenState extends State<StudentsCheckScreen> {
     );
   }
 
-  /// 결석 사유 첨부 파일 보기 (이미지·PDF)
-  Future<void> _openFile(_AbsenceFile file) async {
-    File? cached;
-    try {
-      final bytes = await ApiRepository.instance.getAdminAttendanceFile(
-        file.id,
-      );
-      final dir = await getTemporaryDirectory();
-      final safeName = file.name.replaceAll(RegExp(r'[^\w.\-]'), '_');
-      cached = File(
-        '${dir.path}${Platform.pathSeparator}absence_${file.id}_$safeName',
-      );
-      await cached.writeAsBytes(bytes, flush: true);
-      if (!mounted) return;
-      final shown = cached;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => Dialog(
-          child: SizedBox(
-            width: 520,
-            height: 600,
-            child: Column(
-              children: [
-                ListTile(
-                  title: Text(
-                    file.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ),
-                Expanded(
-                  child: file.isImage
-                      ? InteractiveViewer(
-                          child: Image.file(shown, fit: BoxFit.contain),
-                        )
-                      : file.isPdf
-                      ? SfPdfViewer.file(shown)
-                      : const Center(child: Text('미리볼 수 없는 파일 형식입니다.')),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppErrorMessage.from(error, fallback: '첨부 파일을 열지 못했습니다.'),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (cached != null && await cached.exists()) await cached.delete();
-    }
-  }
+  /// 결석 사유 첨부 파일 보기 (이미지·PDF) — 알림 상세와 같은 뷰어
+  Future<void> _openFile(_AbsenceFile file) => openAbsenceFile(
+    context,
+    AbsenceFile(id: file.id, name: file.name, contentType: file.contentType),
+  );
 
   Widget _buildCalendarContent(
-    Map<DateTime, List<_BusAbsences>> absencesByDate,
-  ) {
+    Map<DateTime, List<_BusAbsences>> absencesByDate, {
+    bool loading = false,
+    Object? error,
+  }) {
+    final colors = Theme.of(context).colorScheme;
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
         _buildMonthHeader(),
         const SizedBox(height: 8),
+        // 달력은 결석 목록을 불러오는 중이거나 실패해도 항상 보여 준다
         _buildMonthGrid(absencesByDate),
-        _buildAttendanceDetails(
-          absencesByDate[_selectedDate] ?? const <_BusAbsences>[],
-        ),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.only(top: 16),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (error != null)
+          Card(
+            margin: const EdgeInsets.only(top: 16),
+            color: colors.errorContainer,
+            child: ListTile(
+              leading: Icon(Icons.error_outline, color: colors.onErrorContainer),
+              title: Text(
+                AppErrorMessage.from(
+                  error,
+                  fallback: '결석 정보를 불러오지 못했습니다.',
+                ),
+                style: TextStyle(color: colors.onErrorContainer),
+              ),
+              trailing: TextButton(
+                onPressed: () => _changeMonth(0),
+                child: const Text('다시 시도'),
+              ),
+            ),
+          )
+        else
+          _buildAttendanceDetails(
+            absencesByDate[_selectedDate] ?? const <_BusAbsences>[],
+          ),
       ],
     );
   }
@@ -479,7 +449,7 @@ class _StudentsCheckScreenState extends State<StudentsCheckScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('출결 기록'),
+        title: const Text('출결 확인'),
         actions: [
           IconButton(
             tooltip: '날짜로 이동',
@@ -494,41 +464,22 @@ class _StudentsCheckScreenState extends State<StudentsCheckScreen> {
           setState(() {
             _monthlyAbsences = future;
           });
-          await future;
+          try {
+            await future;
+          } catch (_) {
+            // 오류는 달력 아래 카드로 보여 준다
+          }
         },
         child: FutureBuilder<Map<DateTime, List<_BusAbsences>>>(
           key: ValueKey('${_displayedMonth.year}-${_displayedMonth.month}'),
           future: _monthlyAbsences,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError || !snapshot.hasData) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _buildMonthHeader(),
-                  const SizedBox(height: 32),
-                  Text(
-                    AppErrorMessage.from(
-                      snapshot.error ?? StateError('출결 기록이 없습니다.'),
-                      fallback: '학생 출결 정보를 불러오지 못했습니다.',
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  Center(
-                    child: TextButton(
-                      onPressed: () => _changeMonth(0),
-                      child: const Text('다시 시도'),
-                    ),
-                  ),
-                ],
-              );
-            }
-            return _buildCalendarContent(snapshot.data!);
-          },
+          builder: (context, snapshot) => _buildCalendarContent(
+            snapshot.data ?? const {},
+            loading:
+                snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData,
+            error: snapshot.hasData ? null : snapshot.error,
+          ),
         ),
       ),
     );

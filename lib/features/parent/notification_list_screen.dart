@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/auth/session.dart';
 import '../../core/notifications/in_app_notification_banner.dart';
+import '../../data/models/user_role.dart';
+import '../driver/widgets/absence_detail.dart';
 import '../../data/api/api_repository.dart';
 import '../../data/models/notification_item.dart';
 import '../../theme/app_colors.dart';
@@ -9,7 +12,7 @@ import 'alert_detail_screen.dart';
 import 'notification_settings_screen.dart';
 import 'unread_notification_store.dart';
 
-enum _NotificationFilter { all, urgent, check }
+enum _NotificationFilter { all, urgent, check, attendance, trip }
 
 class NotificationListScreen extends StatefulWidget {
   const NotificationListScreen({
@@ -34,13 +37,37 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   late final PageController _pageController;
   int _requestId = 0;
 
+  // 학부모는 '확인 필요' 경고를 받지 않으므로(관리자 전용) 대신 '운행' 알림 탭, 관리자는 '결석' 탭
+  late final List<_NotificationFilter> _filters = Session.role == UserRole.parent
+      ? const [
+          _NotificationFilter.all,
+          _NotificationFilter.urgent,
+          _NotificationFilter.trip,
+        ]
+      : const [
+          _NotificationFilter.all,
+          _NotificationFilter.urgent,
+          _NotificationFilter.check,
+          _NotificationFilter.attendance,
+        ];
+
+  static const _filterLabels = {
+    _NotificationFilter.all: '전체',
+    _NotificationFilter.urgent: '긴급',
+    _NotificationFilter.check: '확인 필요',
+    _NotificationFilter.attendance: '결석',
+    _NotificationFilter.trip: '운행',
+  };
+
   @override
   void initState() {
     super.initState();
     if (widget.urgentSelectionRequest > 0) {
       _selectedFilter = _NotificationFilter.urgent;
     }
-    _pageController = PageController(initialPage: _selectedFilter.index);
+    _pageController = PageController(
+      initialPage: _filters.indexOf(_selectedFilter),
+    );
     _fetchNotifications();
   }
 
@@ -50,7 +77,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     if (widget.urgentSelectionRequest != oldWidget.urgentSelectionRequest) {
       _selectFilter(_NotificationFilter.urgent);
       if (_pageController.hasClients) {
-        _pageController.jumpToPage(_NotificationFilter.urgent.index);
+        _pageController.jumpToPage(_filters.indexOf(_NotificationFilter.urgent));
       }
     }
   }
@@ -67,6 +94,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       _NotificationFilter.all => null,
       _NotificationFilter.urgent => 'URGENT',
       _NotificationFilter.check => 'CHECK',
+      _NotificationFilter.attendance => 'ATTENDANCE',
+      _NotificationFilter.trip => 'TRIP',
     };
     setState(() {
       _loading = showLoading;
@@ -133,6 +162,20 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
           builder: (_) => AlertDetailScreen(alertId: notification.alertId),
         ),
       );
+    } else if (notification.category == 'ATTENDANCE' &&
+        Session.role != UserRole.parent) {
+      if (notification.attendanceId != null) {
+        // 학부모가 적은 사유·첨부 파일 확인
+        await showAbsenceDetailSheet(
+          context,
+          attendanceId: notification.attendanceId!,
+        );
+      } else {
+        // 이 기능 전에 온 알림은 결석 기록과 연결돼 있지 않다
+        InAppNotificationBanner.showMessage(
+          '이전에 온 알림이라 사유를 바로 열 수 없어요. 출결 확인 탭에서 날짜를 눌러 확인해 주세요.',
+        );
+      }
     }
   }
 
@@ -380,7 +423,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       ),
       onSelected: (_) {
         _selectFilter(filter);
-        _pageController.jumpToPage(filter.index);
+        _pageController.jumpToPage(_filters.indexOf(filter));
       },
     );
   }
@@ -420,11 +463,10 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
-                _buildFilterChip(_NotificationFilter.all, '전체'),
-                const SizedBox(width: 8),
-                _buildFilterChip(_NotificationFilter.urgent, '긴급'),
-                const SizedBox(width: 8),
-                _buildFilterChip(_NotificationFilter.check, '확인 필요'),
+                for (final (i, filter) in _filters.indexed) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  _buildFilterChip(filter, _filterLabels[filter]!),
+                ],
               ],
             ),
           ),
@@ -432,8 +474,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
             child: PageView(
               controller: _pageController,
               onPageChanged: (index) =>
-                  _selectFilter(_NotificationFilter.values[index]),
-              children: _NotificationFilter.values
+                  _selectFilter(_filters[index]),
+              children: _filters
                   .map(
                     (filter) => filter == _selectedFilter
                         ? _buildNotificationPage()

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 
 import 'in_app_notification_banner.dart';
 import '../sync/attendance_sync.dart';
+import '../../data/api/api_repository.dart';
+import '../../features/parent/unread_notification_store.dart';
 
 final pushMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -93,12 +95,24 @@ class PushNotificationService {
     }
   }
 
+  Future<void> _refreshUnreadBadge() async {
+    try {
+      UnreadNotificationStore.setCount(
+        await ApiRepository.instance.getNotificationUnreadCount(),
+      );
+    } catch (error) {
+      debugPrint('읽지 않은 알림 수 갱신 실패: $error');
+    }
+  }
+
   void _showIncomingNotification(RemoteMessage message) {
     // 결석 알림(관리자) · 운행 시작/종료 알림(학부모) → 보고 있는 화면을 바로 새로고침
     if (AttendanceSync.isAttendanceMessage(message.data) ||
         message.data['type'] == 'trip_notification') {
       AttendanceSync.notifyChanged();
     }
+    // 하단 알림 탭 배지도 바로 갱신
+    unawaited(_refreshUnreadBadge());
     final title =
         message.notification?.title ??
         _readMessageValue(message.data, ['title', 'notification_title']) ??

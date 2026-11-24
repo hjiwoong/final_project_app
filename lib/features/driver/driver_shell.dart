@@ -29,6 +29,13 @@ class DriverShell extends StatefulWidget {
 class _DriverShellState extends State<DriverShell> {
   int _index = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // 앱을 켜자마자 알림 탭 배지에 읽지 않은 알림 수를 표시 (이전엔 알림 탭을 열어야 보였다)
+    _refreshUnreadCount();
+  }
+
   Future<void> _refreshUnreadCount() async {
     try {
       final count = await ApiRepository.instance.getNotificationUnreadCount();

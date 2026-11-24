@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/errors/app_error_message.dart';
+import '../../core/sync/attendance_sync.dart';
 import '../../core/auth/session.dart';
 import '../../core/auth/trip_progress_storage.dart';
 import '../../core/theme/app_theme.dart';
@@ -25,6 +26,9 @@ class BusTripItem {
   final String busName;
   final String routeName;
   final int studentCount;
+
+  /// 오늘 결석 신청한 학생 수 (studentCount 는 결석을 뺀 탑승 예정 인원)
+  final int absentToday;
   final int? scheduleId;
   final DateTime? scheduledAt;
   final DateTime? startedAt;
@@ -35,6 +39,7 @@ class BusTripItem {
     required this.busName,
     required this.routeName,
     required this.studentCount,
+    this.absentToday = 0,
     this.scheduleId,
     this.scheduledAt,
     this.startedAt,
@@ -75,10 +80,19 @@ class _TripStartScreenState extends State<TripStartScreen> {
       if (mounted && _activeTrip?.startedAt != null) setState(() {});
     });
     _fetchTodayTrips();
+    // 학부모가 결석을 바꾸면 '탑승 예정' 인원을 바로 다시 계산
+    AttendanceSync.changes.addListener(_onAttendanceChanged);
+  }
+
+  void _onAttendanceChanged() {
+    if (mounted && !_isStartingTrip && !_isLoadingTrips) {
+      _fetchTodayTrips(showLoading: false);
+    }
   }
 
   @override
   void dispose() {
+    AttendanceSync.changes.removeListener(_onAttendanceChanged);
     _elapsedTimer?.cancel();
     super.dispose();
   }
@@ -112,7 +126,9 @@ class _TripStartScreenState extends State<TripStartScreen> {
           busNumber: b['plate_no'] ?? '',
           busName: b['name'] ?? '',
           routeName: '학교 → 종점',
-          studentCount: b['student_count'] ?? 0,
+          // 서버가 오늘 결석을 뺀 인원(expected_today)을 주면 그 값을 쓴다
+          studentCount: b['expected_today'] ?? b['student_count'] ?? 0,
+          absentToday: b['absent_today'] as int? ?? 0,
           scheduleId: schedule?['id'] as int?,
           scheduledAt: parseScheduledAt(schedule?['scheduled_at']),
         );
@@ -318,7 +334,8 @@ class _TripStartScreenState extends State<TripStartScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '${selectedTrip.busNumber} · 탑승 예정 학생 ${selectedTrip.studentCount}명',
+                '${selectedTrip.busNumber} · 탑승 예정 학생 ${selectedTrip.studentCount}명'
+                '${selectedTrip.absentToday > 0 ? ' (오늘 결석 ${selectedTrip.absentToday}명 제외)' : ''}',
                 style: TextStyle(
                   fontSize: 13,
                   color: colorScheme.onSurfaceVariant,
