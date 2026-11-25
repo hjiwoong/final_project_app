@@ -315,8 +315,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                             page.items.first['title'] as String,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: context.appColors.textSecondary,
                             ),
                           ),
                         ),
@@ -348,17 +348,17 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
       );
     }
     if (child.boardingConfirmedAt != null) {
-      return ('탑승 중', AppColors.primary, AppColors.textPrimary);
+      return ('탑승 중', AppColors.primary, AppColors.onPrimary);
     }
     return switch (child.busStatus) {
-      'IN_PROGRESS' => ('운행 중', AppColors.primary, AppColors.textPrimary),
+      'IN_PROGRESS' => ('운행 중', AppColors.primary, AppColors.onPrimary),
       'CLOSED' => (
         '운행 종료',
         AppColors.success.withValues(alpha: 0.12),
         AppColors.success,
       ),
-      'NOT_ASSIGNED' => ('배정 없음', AppColors.border, AppColors.textSecondary),
-      _ => ('운행 전', AppColors.info, AppColors.textPrimary),
+      'NOT_ASSIGNED' => ('배정 없음', context.appColors.border, context.appColors.textSecondary),
+      _ => ('운행 전', context.appColors.info, context.appColors.textPrimary),
     };
   }
 
@@ -550,12 +550,12 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     ].join(' · ');
     // 자녀가 많아도 한 화면에 보이도록 작게: 이름·상태 한 줄, 반·버스·시간 한 줄, 버튼 한 줄
     return Card(
-      color: AppColors.surface,
+      color: context.appColors.surface,
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: context.appColors.border),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -569,8 +569,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                     child.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: context.appColors.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
@@ -605,8 +605,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
               info,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.appColors.textSecondary,
                 fontSize: 12,
               ),
             ),
@@ -635,8 +635,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                 height: 44,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary,
-                    side: const BorderSide(color: AppColors.border, width: 1.5),
+                    foregroundColor: context.appColors.textPrimary,
+                    side: BorderSide(color: context.appColors.border, width: 1.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -699,8 +699,10 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
       height: 44,
       child: FilledButton(
         style: FilledButton.styleFrom(
-          backgroundColor: child.isAbsent ? AppColors.surface : AppColors.primary,
-          foregroundColor: AppColors.textPrimary,
+          backgroundColor: child.isAbsent ? context.appColors.surface : AppColors.primary,
+          foregroundColor: child.isAbsent
+              ? context.appColors.textPrimary
+              : AppColors.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
             side: child.isAbsent
@@ -725,7 +727,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         style: OutlinedButton.styleFrom(
           padding: EdgeInsets.zero,
           foregroundColor: AppColors.primaryDark,
-          side: const BorderSide(color: AppColors.border, width: 1.5),
+          side: BorderSide(color: context.appColors.border, width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -779,19 +781,19 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
 
   ButtonStyle _childButtonStyle(Color background) => FilledButton.styleFrom(
     backgroundColor: background,
-    foregroundColor: AppColors.textPrimary,
+    foregroundColor: AppColors.onPrimary,
     minimumSize: const Size(0, 44),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     textStyle: const TextStyle(fontWeight: FontWeight.bold),
   );
 
   Widget _loadingCard() => Card(
-    color: AppColors.surface,
+    color: context.appColors.surface,
     elevation: 0,
     margin: const EdgeInsets.only(bottom: 12),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(20),
-      side: const BorderSide(color: AppColors.border),
+      side: BorderSide(color: context.appColors.border),
     ),
     child: Padding(
       padding: const EdgeInsets.all(16),
@@ -812,7 +814,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     width: width,
     height: height,
     decoration: BoxDecoration(
-      color: AppColors.border,
+      color: context.appColors.border,
       borderRadius: BorderRadius.circular(8),
     ),
   );
@@ -830,22 +832,22 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   }
 
   Widget _emptyChildren() => Card(
-    color: AppColors.surface,
+    color: context.appColors.surface,
     elevation: 0,
     margin: EdgeInsets.zero,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(20),
-      side: const BorderSide(color: AppColors.border),
+      side: BorderSide(color: context.appColors.border),
     ),
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             '자녀를 연결해 주세요',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.appColors.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -878,9 +880,9 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
               if (childrenSnapshot.hasError)
                 Column(
                   children: [
-                    const Text(
+                    Text(
                       '정보를 불러오지 못했어요',
-                      style: TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(color: context.appColors.textPrimary),
                     ),
                     TextButton(
                       onPressed: _reloadChildren,
@@ -956,8 +958,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.appColors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -992,10 +994,10 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
           final progress = BusTripSimulation.progress.value.clamp(0.0, 1.0);
           final running = status == BusTripStatus.running;
           return Material(
-            color: AppColors.surface,
+            color: context.appColors.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: const BorderSide(color: AppColors.border),
+              side: BorderSide(color: context.appColors.border),
             ),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
@@ -1015,7 +1017,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                           decoration: BoxDecoration(
                             color: running
                                 ? AppColors.success.withValues(alpha: 0.12)
-                                : AppColors.border,
+                                : context.appColors.border,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
@@ -1023,7 +1025,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                             style: TextStyle(
                               color: running
                                   ? AppColors.success
-                                  : AppColors.textSecondary,
+                                  : context.appColors.textSecondary,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1037,24 +1039,24 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                                 : BusTripSimulation.etaText(status),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
+                            style: TextStyle(
+                              color: context.appColors.textPrimary,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        const Text(
+                        Text(
                           '지도 보기',
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: context.appColors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
-                        const Icon(
+                        Icon(
                           Icons.chevron_right,
                           size: 18,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ],
                     ),
@@ -1075,7 +1077,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                                 top: 12,
                                 child: Container(
                                   height: 3,
-                                  color: AppColors.border,
+                                  color: context.appColors.border,
                                 ),
                               ),
                               Positioned(
@@ -1101,7 +1103,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                                       color: progress >=
                                               i / (_stops.length - 1)
                                           ? AppColors.primaryDark
-                                          : AppColors.surface,
+                                          : context.appColors.surface,
                                       border: Border.all(
                                         color: AppColors.primaryDark,
                                         width: 2,
@@ -1119,10 +1121,10 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                                     color: AppColors.primary,
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.directions_bus_rounded,
                                     size: 16,
-                                    color: AppColors.textPrimary,
+                                    color: AppColors.onPrimary,
                                   ),
                                 ),
                               ),
@@ -1138,8 +1140,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                         for (final stop in _stops)
                           Text(
                             stop,
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: context.appColors.textSecondary,
                               fontSize: 11,
                             ),
                           ),
@@ -1161,7 +1163,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     children: [
       Material(
         key: _chatBarKey,
-        color: AppColors.surface,
+        color: context.appColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
           side: const BorderSide(color: AppColors.primaryDark, width: 1.2),
@@ -1186,8 +1188,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                         : 'AI에게 물어보기 · 예) 우리 아이 오늘 내렸어요?',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: context.appColors.textSecondary,
                       fontSize: 14,
                     ),
                   ),
@@ -1199,10 +1201,10 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.arrow_upward_rounded,
                     size: 20,
-                    color: AppColors.textPrimary,
+                    color: AppColors.onPrimary,
                   ),
                 ),
               ],
@@ -1211,11 +1213,11 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         ),
       ),
       if (_chatMounted)
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 6, left: 6),
           child: Text(
             '대화 내용이 남아 있어요 · 홈을 새로고침하면 초기화돼요',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+            style: TextStyle(color: context.appColors.textSecondary, fontSize: 11),
           ),
         ),
     ],
@@ -1263,7 +1265,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
               alignment: _chatOrigin,
               scale: Tween(begin: 0.6, end: 1.0).animate(curve),
               child: Material(
-                color: AppColors.surface,
+                color: context.appColors.surface,
                 child: AlertChatScreen(
                   key: _chatKey,
                   onCollapse: _collapseChat,
@@ -1293,12 +1295,12 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         decoration: BoxDecoration(
           color: done
               ? AppColors.success.withValues(alpha: 0.10)
-              : AppColors.background,
+              : context.appColors.background,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: done
                 ? AppColors.success.withValues(alpha: 0.35)
-                : AppColors.border,
+                : context.appColors.border,
           ),
         ),
         child: Row(
@@ -1306,13 +1308,13 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
             Icon(
               icon,
               size: 15,
-              color: done ? AppColors.success : AppColors.textSecondary,
+              color: done ? AppColors.success : context.appColors.textSecondary,
             ),
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.appColors.textSecondary,
                 fontSize: 11,
               ),
             ),
@@ -1320,7 +1322,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
             Text(
               _hm(time),
               style: TextStyle(
-                color: done ? AppColors.textPrimary : AppColors.textSecondary,
+                color: done ? context.appColors.textPrimary : context.appColors.textSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),
@@ -1345,7 +1347,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
             '오늘 승하차',
             trailing: TextButton(
               style: TextButton.styleFrom(
-                foregroundColor: AppColors.textSecondary,
+                foregroundColor: context.appColors.textSecondary,
                 visualDensity: VisualDensity.compact,
               ),
               onPressed: () => _open(const ParentTripAttendanceScreen()),
@@ -1355,15 +1357,15 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.appColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.appColors.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (var i = 0; i < children.length; i++) ...[
-                  if (i > 0) const Divider(height: 1, color: AppColors.border),
+                  if (i > 0) Divider(height: 1, color: context.appColors.border),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
@@ -1374,8 +1376,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                             children[i].name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
+                            style: TextStyle(
+                              color: context.appColors.textPrimary,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1397,12 +1399,12 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
                             children[i].boardingConfirmedAt,
                             Icons.login_rounded,
                           ),
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.symmetric(horizontal: 4),
                             child: Icon(
                               Icons.arrow_forward_rounded,
                               size: 14,
-                              color: AppColors.textSecondary,
+                              color: context.appColors.textSecondary,
                             ),
                           ),
                           _timeChip(
@@ -1435,11 +1437,11 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
             semanticsLabel: '통학이 버스',
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
               '통학이',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: context.appColors.textPrimary,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -1448,9 +1450,9 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
         ],
       ),
       const SizedBox(height: 8),
-      const Text(
+      Text(
         '오늘도 안전하게 다녀와요',
-        style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+        style: TextStyle(color: context.appColors.textSecondary, fontSize: 14),
       ),
     ],
   );
@@ -1462,7 +1464,7 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
       if (!didPop && _chatOpen) _collapseChat();
     },
     child: Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.appColors.background,
       body: SafeArea(
         child: Stack(
           key: _stackKey,

@@ -218,14 +218,14 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       'URGENT' => AppColors.danger,
       'CHECK' => AppColors.accent,
       'ATTENDANCE' => AppColors.primaryDark,
-      _ => AppColors.textSecondary,
+      _ => context.appColors.textSecondary,
     };
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Material(
         color: urgent
             ? AppColors.danger.withValues(alpha: 0.08)
-            : AppColors.surface,
+            : context.appColors.surface,
         borderRadius: BorderRadius.circular(12),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -251,7 +251,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: AppColors.textPrimary,
+                                  color: context.appColors.textPrimary,
                                   fontWeight: item.isRead
                                       ? FontWeight.normal
                                       : FontWeight.bold,
@@ -263,16 +263,16 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                   item.body,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
+                                  style: TextStyle(
+                                    color: context.appColors.textSecondary,
                                   ),
                                 ),
                               ],
                               const SizedBox(height: 6),
                               Text(
                                 _timeLabel(item.sentAt, now),
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: context.appColors.textSecondary,
                                   fontSize: 12,
                                 ),
                               ),
@@ -309,23 +309,23 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.appColors.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const CircleAvatar(radius: 12, backgroundColor: AppColors.border),
+            CircleAvatar(radius: 12, backgroundColor: context.appColors.border),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(width: 140, height: 12, color: AppColors.border),
+                  Container(width: 140, height: 12, color: context.appColors.border),
                   const SizedBox(height: 12),
-                  Container(height: 10, color: AppColors.border),
+                  Container(height: 10, color: context.appColors.border),
                   const SizedBox(height: 8),
-                  Container(width: 100, height: 10, color: AppColors.border),
+                  Container(width: 100, height: 10, color: context.appColors.border),
                 ],
               ),
             ),
@@ -354,8 +354,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
             child: Text(
               _dateLabel(item.sentAt, now),
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.appColors.textSecondary,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -380,8 +380,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                       children: [
                         Text(
                           _error ?? '새 알림이 없어요',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: context.appColors.textSecondary,
                           ),
                         ),
                         if (_error != null) ...[
@@ -389,8 +389,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                           OutlinedButton(
                             onPressed: _fetchNotifications,
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textPrimary,
-                              side: const BorderSide(color: AppColors.border),
+                              foregroundColor: context.appColors.textPrimary,
+                              side: BorderSide(color: context.appColors.border),
                             ),
                             child: const Text('다시 시도'),
                           ),
@@ -414,12 +414,12 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
       label: Text(label),
       selected: selected,
       showCheckmark: false,
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.surface,
       selectedColor: AppColors.primary,
-      side: const BorderSide(color: AppColors.border),
+      side: BorderSide(color: context.appColors.border),
       shape: const StadiumBorder(),
       labelStyle: TextStyle(
-        color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+        color: selected ? AppColors.onPrimary : context.appColors.textSecondary,
         fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
       ),
       onSelected: (_) {
@@ -432,10 +432,10 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.appColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: context.appColors.background,
+        foregroundColor: context.appColors.textPrimary,
         title: const Text('알림'),
         actions: [
           if (widget.showSettingsButton)

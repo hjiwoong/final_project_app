@@ -39,7 +39,10 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
   DateTime _focusedDay = DateUtils.dateOnly(DateTime.now());
   bool _childrenLoading = true;
   bool _attendanceLoading = false;
-  bool _calendarLoading = false;
+  // 달별로 불러오는 중/실패 상태를 따로 둔다. 달을 빠르게 넘겨도 이전 달 응답이
+  // 지금 보고 있는 달의 로딩 표시를 끄거나 오류를 띄우지 않게 하려는 것.
+  final Set<String> _loadingMonths = {};
+  String? _calendarErrorMonth;
   bool _saving = false;
   String? _childrenError;
   String? _calendarError;
@@ -109,6 +112,9 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
         _newFiles.clear();
         _childrenLoading = false;
         _attendanceByMonth.clear();
+        _loadingMonths.clear();
+        _calendarError = null;
+        _calendarErrorMonth = null;
       });
       if (_selectedChild != null) {
         await Future.wait([_loadMonth(_focusedDay), _loadAttendance()]);
@@ -145,6 +151,8 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
       _newFiles.clear();
       _attendanceByMonth.clear();
       _calendarError = null;
+      _calendarErrorMonth = null;
+      _loadingMonths.clear();
     });
     await Future.wait([_loadMonth(_focusedDay), _loadAttendance()]);
   }
@@ -174,14 +182,23 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
     if (child == null) return;
     final key = _monthKey(month);
     if (!retry && _attendanceByMonth.containsKey(key)) {
-      if (mounted) setState(() => _calendarError = null);
+      if (mounted && _calendarErrorMonth == key) {
+        setState(() {
+          _calendarError = null;
+          _calendarErrorMonth = null;
+        });
+      }
       return;
     }
+    if (_loadingMonths.contains(key)) return;
 
     if (mounted) {
       setState(() {
-        _calendarLoading = true;
-        _calendarError = null;
+        _loadingMonths.add(key);
+        if (_calendarErrorMonth == key) {
+          _calendarError = null;
+          _calendarErrorMonth = null;
+        }
       });
     }
 
@@ -196,14 +213,14 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
       if (!mounted || child.id != _selectedChild?.id) return;
       setState(() {
         _attendanceByMonth[key] = records;
-        _calendarLoading = false;
-        _calendarError = null;
+        _loadingMonths.remove(key);
       });
     } catch (error) {
       if (!mounted || child.id != _selectedChild?.id) return;
       setState(() {
-        _calendarLoading = false;
+        _loadingMonths.remove(key);
         _calendarError = '출결 기록을 불러오지 못했어요.';
+        _calendarErrorMonth = key;
       });
     }
   }
@@ -475,7 +492,7 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
       await showDialog<void>(
         context: context,
         builder: (context) => Dialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: context.appColors.surface,
           child: SizedBox(
             width: 520,
             height: 600,
@@ -486,13 +503,13 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                     attachment.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(color: context.appColors.textPrimary),
                   ),
                   trailing: IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.close,
-                      color: AppColors.textSecondary,
+                      color: context.appColors.textSecondary,
                     ),
                   ),
                 ),
@@ -503,10 +520,10 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                         )
                       : _isPdf(attachment)
                       ? SfPdfViewer.file(cachedFile!)
-                      : const Center(
+                      : Center(
                           child: Text(
                             '이 파일 형식은 앱에서 미리볼 수 없습니다.',
-                            style: TextStyle(color: AppColors.textSecondary),
+                            style: TextStyle(color: context.appColors.textSecondary),
                           ),
                         ),
                 ),
@@ -540,17 +557,17 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
       file.name.toLowerCase().endsWith('.pdf');
 
   Color _statusColor(String? status) => switch (status) {
-    'REQUESTED' => AppColors.textPrimary,
+    'REQUESTED' => context.appColors.textPrimary,
     'CONFIRMED' => AppColors.success,
     'REJECTED' => AppColors.danger,
-    _ => AppColors.textSecondary,
+    _ => context.appColors.textSecondary,
   };
 
   Color _statusBackground(String? status) => switch (status) {
-    'REQUESTED' => AppColors.info,
+    'REQUESTED' => context.appColors.info,
     'CONFIRMED' => AppColors.success.withValues(alpha: 0.12),
     'REJECTED' => AppColors.danger.withValues(alpha: 0.10),
-    _ => AppColors.border,
+    _ => context.appColors.border,
   };
 
   String _statusLabel(String? status) => switch (status) {
@@ -579,69 +596,48 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
   );
 
   Widget _buildCalendar() {
-    if (_calendarError != null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Column(
-          children: [
-            const Text(
-              '출결 기록을 불러오지 못했어요.',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            TextButton(
-              onPressed: _calendarLoading
-                  ? null
-                  : () => _loadMonth(_focusedDay, retry: true),
-              child: const Text('다시 시도'),
-            ),
-          ],
-        ),
-      );
-    }
-    if (_calendarLoading &&
-        !_attendanceByMonth.containsKey(_monthKey(_focusedDay))) {
-      return const SizedBox(
-        height: 260,
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.primaryDark),
-        ),
-      );
-    }
+    final focusedKey = _monthKey(_focusedDay);
+    final monthLoading = _loadingMonths.contains(focusedKey);
+    final monthError = _calendarErrorMonth == focusedKey
+        ? _calendarError
+        : null;
 
     final records = _attendanceByMonth[_monthKey(_focusedDay)] ?? const [];
     final recordsByDate = <String, ChildAttendance>{
       for (final record in records) _dateKey(record.date): record,
     };
 
-    return TableCalendar<ChildAttendance>(
+    final calendar = TableCalendar<ChildAttendance>(
       firstDay: DateTime(2020),
       lastDay: DateTime(2100, 12, 31),
       focusedDay: _focusedDay,
       startingDayOfWeek: StartingDayOfWeek.monday,
       calendarFormat: CalendarFormat.month,
-      headerStyle: const HeaderStyle(
+      // 달마다 4~6주로 줄 수가 달라 아래 내용이 오르내리지 않게 항상 6줄로 그린다.
+      sixWeekMonthsEnforced: true,
+      headerStyle: HeaderStyle(
         titleCentered: true,
         formatButtonVisible: false,
         titleTextStyle: TextStyle(
-          color: AppColors.textPrimary,
+          color: context.appColors.textPrimary,
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
-        leftChevronIcon: Icon(Icons.chevron_left, color: AppColors.textPrimary),
+        leftChevronIcon: Icon(Icons.chevron_left, color: context.appColors.textPrimary),
         rightChevronIcon: Icon(
           Icons.chevron_right,
-          color: AppColors.textPrimary,
+          color: context.appColors.textPrimary,
         ),
       ),
-      daysOfWeekStyle: const DaysOfWeekStyle(
-        weekdayStyle: TextStyle(color: AppColors.textSecondary),
-        weekendStyle: TextStyle(color: AppColors.textSecondary),
+      daysOfWeekStyle: DaysOfWeekStyle(
+        weekdayStyle: TextStyle(color: context.appColors.textSecondary),
+        weekendStyle: TextStyle(color: context.appColors.textSecondary),
       ),
       calendarStyle: CalendarStyle(
-        defaultTextStyle: const TextStyle(color: AppColors.textPrimary),
-        weekendTextStyle: const TextStyle(color: AppColors.textPrimary),
+        defaultTextStyle: TextStyle(color: context.appColors.textPrimary),
+        weekendTextStyle: TextStyle(color: context.appColors.textPrimary),
         outsideTextStyle: TextStyle(
-          color: AppColors.textSecondary.withValues(alpha: 0.55),
+          color: context.appColors.textSecondary.withValues(alpha: 0.55),
         ),
         todayDecoration: BoxDecoration(
           color: AppColors.primary.withValues(alpha: 0.35),
@@ -668,8 +664,8 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
       calendarBuilders: CalendarBuilders<ChildAttendance>(
         headerTitleBuilder: (context, date) => Text(
           '${date.year}년 ${date.month}월',
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: context.appColors.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -677,7 +673,7 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
         dowBuilder: (context, day) => Center(
           child: Text(
             const ['월', '화', '수', '목', '금', '토', '일'][day.weekday - 1],
-            style: const TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: context.appColors.textSecondary),
           ),
         ),
         markerBuilder: (context, date, events) {
@@ -703,16 +699,49 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
         },
       ),
     );
+
+    // 예전에는 처음 보는 달을 불러오는 동안 달력 자체를 로딩 표시로 바꿔서
+    // 화면이 줄었다 늘어나고 넘기던 달력이 새로 만들어졌다.
+    // 이제 달력은 그대로 두고 위에 얇은 진행 막대·오류 줄만 보여 준다.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 3,
+          child: monthLoading
+              ? const LinearProgressIndicator(color: AppColors.primaryDark)
+              : null,
+        ),
+        if (monthError != null)
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  monthError,
+                  style: TextStyle(color: context.appColors.textSecondary),
+                ),
+              ),
+              TextButton(
+                onPressed: monthLoading
+                    ? null
+                    : () => _loadMonth(_focusedDay, retry: true),
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        calendar,
+      ],
+    );
   }
 
   Widget _buildDeadlineNotice() {
     final deadline = _attendance?.deadlineAt;
     if (deadline == null) return const SizedBox.shrink();
     final color = !_attendance!.editable
-        ? AppColors.textSecondary
+        ? context.appColors.textSecondary
         : DateTime.now().isAfter(deadline.subtract(const Duration(minutes: 30)))
         ? AppColors.accent
-        : AppColors.textSecondary;
+        : context.appColors.textSecondary;
     final text = !_attendance!.editable
         ? '변경 마감됨'
         : '${deadline.hour.toString().padLeft(2, '0')}:'
@@ -741,10 +770,10 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
             ? (value) => setState(() => _reasonType = value ? entry.key : null)
             : null,
         selectedColor: AppColors.primary.withValues(alpha: 0.35),
-        backgroundColor: AppColors.surface,
-        checkmarkColor: AppColors.textPrimary,
-        side: const BorderSide(color: AppColors.border),
-        labelStyle: const TextStyle(color: AppColors.textPrimary),
+        backgroundColor: context.appColors.surface,
+        checkmarkColor: context.appColors.textPrimary,
+        side: BorderSide(color: context.appColors.border),
+        labelStyle: TextStyle(color: context.appColors.textPrimary),
       );
     }).toList(),
   );
@@ -753,9 +782,9 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
     return OutlinedButton.icon(
       onPressed: _canEdit ? _pickAttachments : null,
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.textPrimary,
+        foregroundColor: context.appColors.textPrimary,
         side: BorderSide(
-          color: prominent ? AppColors.primaryDark : AppColors.border,
+          color: prominent ? AppColors.primaryDark : context.appColors.border,
           width: prominent ? 1.5 : 1,
         ),
         padding: EdgeInsets.symmetric(
@@ -778,40 +807,40 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
         for (final file in existing)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(
+            leading: Icon(
               Icons.insert_drive_file,
-              color: AppColors.textSecondary,
+              color: context.appColors.textSecondary,
             ),
             title: Text(
               file.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.textPrimary),
+              style: TextStyle(color: context.appColors.textPrimary),
             ),
-            trailing: const Icon(
+            trailing: Icon(
               Icons.open_in_new,
-              color: AppColors.textSecondary,
+              color: context.appColors.textSecondary,
             ),
             onTap: () => _openAttachment(file),
           ),
         for (var index = 0; index < _newFiles.length; index++)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(
+            leading: Icon(
               Icons.attach_file,
-              color: AppColors.textSecondary,
+              color: context.appColors.textSecondary,
             ),
             title: Text(
               _newFiles[index].name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppColors.textPrimary),
+              style: TextStyle(color: context.appColors.textPrimary),
             ),
             trailing: IconButton(
               onPressed: _canEdit
                   ? () => setState(() => _newFiles.removeAt(index))
                   : null,
-              icon: const Icon(Icons.close, color: AppColors.textSecondary),
+              icon: Icon(Icons.close, color: context.appColors.textSecondary),
             ),
           ),
       ],
@@ -821,9 +850,9 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
   Widget _buildPastDetails() {
     final attendance = _attendance;
     if (attendance == null) {
-      return const Text(
+      return Text(
         '이 날짜의 출결 기록이 없습니다.',
-        style: TextStyle(color: AppColors.textSecondary),
+        style: TextStyle(color: context.appColors.textSecondary),
       );
     }
     return Column(
@@ -832,19 +861,19 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
         if (attendance.isAbsent) ...[
           Text(
             '사유: ${_reasonTypes[attendance.reasonType] ?? '미입력'}',
-            style: const TextStyle(color: AppColors.textPrimary),
+            style: TextStyle(color: context.appColors.textPrimary),
           ),
           const SizedBox(height: 8),
           Text(
             '메모: ${attendance.reasonMemo?.isNotEmpty == true ? attendance.reasonMemo : '없음'}',
-            style: const TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: context.appColors.textSecondary),
           ),
           const SizedBox(height: 8),
           _buildAttachmentList(),
         ] else
-          const Text(
+          Text(
             '결석 신청 없음',
-            style: TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: context.appColors.textSecondary),
           ),
       ],
     );
@@ -860,8 +889,8 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
             Expanded(
               child: Text(
                 '${_selectedDate.year}년 ${_selectedDate.month}월 ${_selectedDate.day}일',
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: context.appColors.textPrimary,
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                 ),
@@ -903,9 +932,9 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                       ? (_) => setState(() => _isAbsent = false)
                       : null,
                   selectedColor: AppColors.primary.withValues(alpha: 0.35),
-                  backgroundColor: AppColors.surface,
-                  side: const BorderSide(color: AppColors.border),
-                  labelStyle: const TextStyle(color: AppColors.textPrimary),
+                  backgroundColor: context.appColors.surface,
+                  side: BorderSide(color: context.appColors.border),
+                  labelStyle: TextStyle(color: context.appColors.textPrimary),
                 ),
               ),
               const SizedBox(width: 10),
@@ -920,9 +949,9 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                         }
                       : null,
                   selectedColor: AppColors.primary.withValues(alpha: 0.35),
-                  backgroundColor: AppColors.surface,
-                  side: const BorderSide(color: AppColors.border),
-                  labelStyle: const TextStyle(color: AppColors.textPrimary),
+                  backgroundColor: context.appColors.surface,
+                  side: BorderSide(color: context.appColors.border),
+                  labelStyle: TextStyle(color: context.appColors.textPrimary),
                 ),
               ),
             ],
@@ -935,8 +964,8 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                 child: ActionChip(
                   label: const Text('지난번과 같은 사유'),
                   onPressed: _canEdit ? _reuseRecentReason : null,
-                  backgroundColor: AppColors.info,
-                  labelStyle: const TextStyle(color: AppColors.textPrimary),
+                  backgroundColor: context.appColors.info,
+                  labelStyle: TextStyle(color: context.appColors.textPrimary),
                   side: BorderSide.none,
                 ),
               ),
@@ -953,9 +982,9 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: '사유 메모',
-                labelStyle: const TextStyle(color: AppColors.textSecondary),
+                labelStyle: TextStyle(color: context.appColors.textSecondary),
                 enabledBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: context.appColors.border),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 focusedBorder: OutlineInputBorder(
@@ -972,7 +1001,7 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
             loading: _saving,
             onPressed: _canEdit && !_saving ? _save : null,
             color: AppColors.primary,
-            foregroundColor: AppColors.textPrimary,
+            foregroundColor: AppColors.onPrimary,
           ),
         ],
       ],
@@ -982,11 +1011,11 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.appColors.background,
       appBar: AppBar(
         title: const Text('출석·결석 관리'),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: context.appColors.background,
+        foregroundColor: context.appColors.textPrimary,
       ),
       body: SafeArea(
         top: false,
@@ -1001,7 +1030,7 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                   children: [
                     Text(
                       _childrenError!,
-                      style: const TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: context.appColors.textSecondary),
                     ),
                     TextButton(
                       onPressed: _loadChildren,
@@ -1011,10 +1040,10 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                 ),
               )
             : _children.isEmpty
-            ? const Center(
+            ? Center(
                 child: Text(
                   '연결된 자녀가 없습니다.',
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: context.appColors.textSecondary),
                 ),
               )
             : ListView(
@@ -1025,11 +1054,11 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: DropdownButtonFormField<int>(
                         initialValue: _selectedChild?.id,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: '자녀 선택',
-                          labelStyle: TextStyle(color: AppColors.textSecondary),
+                          labelStyle: TextStyle(color: context.appColors.textSecondary),
                           enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: AppColors.border),
+                            borderSide: BorderSide(color: context.appColors.border),
                           ),
                         ),
                         items: _children
@@ -1038,8 +1067,8 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                                 value: child.id,
                                 child: Text(
                                   child.name,
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
+                                  style: TextStyle(
+                                    color: context.appColors.textPrimary,
                                   ),
                                 ),
                               ),
@@ -1057,24 +1086,24 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
                         _selectedChild!.name,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.appColors.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                  const Text(
+                  Text(
                     '월간 출결',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
                   _buildCalendar(),
-                  const Divider(color: AppColors.border, height: 24),
+                  Divider(color: context.appColors.border, height: 24),
                   _buildSelectedDay(),
                 ],
               ),

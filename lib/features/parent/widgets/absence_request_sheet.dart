@@ -36,7 +36,7 @@ Future<AbsenceRequest?> showAbsenceRequestSheet(
   context: context,
   isScrollControlled: true,
   useSafeArea: true,
-  backgroundColor: AppColors.surface,
+  backgroundColor: context.appColors.surface,
   shape: const RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
   ),
@@ -164,7 +164,7 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.border,
+                color: context.appColors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -172,22 +172,22 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
           const SizedBox(height: 16),
           Text(
             '${widget.childName} · ${widget.dateLabel} 결석 신청',
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.appColors.textPrimary,
               fontSize: 17,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             '사유와 첨부는 선택이에요. 그대로 신청해도 돼요.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(color: context.appColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             '결석 사유',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: context.appColors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -202,6 +202,10 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
                   label: Text(entry.value),
                   selected: _reasonType == entry.key,
                   selectedColor: AppColors.primary,
+                  checkmarkColor: AppColors.onPrimary,
+                  labelStyle: _reasonType == entry.key
+                      ? const TextStyle(color: AppColors.onPrimary)
+                      : null,
                   onSelected: (selected) => setState(
                     () => _reasonType = selected ? entry.key : null,
                   ),
@@ -217,25 +221,25 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
             decoration: InputDecoration(
               hintText: '예) 열이 나서 병원에 가요',
               filled: true,
-              fillColor: AppColors.background,
+              fillColor: context.appColors.background,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.border),
+                borderSide: BorderSide(color: context.appColors.border),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.border),
+                borderSide: BorderSide(color: context.appColors.border),
               ),
             ),
           ),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   '첨부 (진단서·체험학습 신청서 등)',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
+                    color: context.appColors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -259,9 +263,9 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
             ],
           ),
           if (_files.isEmpty)
-            const Text(
+            Text(
               '사진이나 PDF를 3개까지 붙일 수 있어요 (5MB 이하)',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: TextStyle(color: context.appColors.textSecondary, fontSize: 12),
             )
           else
             Wrap(
@@ -300,8 +304,8 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      side: const BorderSide(color: AppColors.border),
+                      foregroundColor: context.appColors.textPrimary,
+                      side: BorderSide(color: context.appColors.border),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -319,7 +323,7 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
                     onPressed: _submit,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.textPrimary,
+                      foregroundColor: AppColors.onPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),

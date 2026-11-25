@@ -83,21 +83,25 @@ class _ParentTripAttendanceScreenState
     var focused = _date;
     final picked = await showModalBottomSheet<DateTime>(
       context: context,
-      backgroundColor: AppColors.surface,
+      // 기본 바텀시트는 화면 높이의 9/16까지만 커진다. 6주짜리 달(예: 2026년 8월)은
+      // 달력이 한 줄 더 길어져 아래가 잘리거나 overflow 경고가 떠서, 높이 제한을 풀고
+      // 그래도 작은 화면에서 넘치면 스크롤되게 한다.
+      isScrollControlled: true,
+      backgroundColor: context.appColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setSheet) => SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   '날짜를 고르면 그날 승하차 기록을 볼 수 있어요',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: context.appColors.textSecondary,
                     fontSize: 13,
                   ),
                 ),
@@ -108,6 +112,9 @@ class _ParentTripAttendanceScreenState
                   currentDay: today,
                   startingDayOfWeek: StartingDayOfWeek.monday,
                   calendarFormat: CalendarFormat.month,
+                  // 달마다 4~6주로 줄 수가 달라 시트 높이가 들쭉날쭉하지 않게 항상 6줄로 그린다.
+                  sixWeekMonthsEnforced: true,
+                  rowHeight: 46,
                   availableGestures: AvailableGestures.horizontalSwipe,
                   selectedDayPredicate: (day) => DateUtils.isSameDay(day, _date),
                   onDaySelected: (selected, _) =>
@@ -121,8 +128,8 @@ class _ParentTripAttendanceScreenState
                     headerTitleBuilder: (context, day) => Center(
                       child: Text(
                         '${day.year}년 ${day.month}월',
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.appColors.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -134,19 +141,35 @@ class _ParentTripAttendanceScreenState
                         style: TextStyle(
                           color: day.weekday == DateTime.sunday
                               ? AppColors.danger
-                              : AppColors.textSecondary,
+                              : context.appColors.textSecondary,
                           fontSize: 12,
                         ),
                       ),
                     ),
                   ),
                   calendarStyle: CalendarStyle(
+                    defaultTextStyle: TextStyle(
+                      color: context.appColors.textPrimary,
+                    ),
+                    weekendTextStyle: TextStyle(
+                      color: context.appColors.textPrimary,
+                    ),
+                    outsideTextStyle: TextStyle(
+                      color: context.appColors.textSecondary.withValues(
+                        alpha: 0.55,
+                      ),
+                    ),
+                    disabledTextStyle: TextStyle(
+                      color: context.appColors.textSecondary.withValues(
+                        alpha: 0.35,
+                      ),
+                    ),
                     todayDecoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.35),
                       shape: BoxShape.circle,
                     ),
-                    todayTextStyle: const TextStyle(
-                      color: AppColors.textPrimary,
+                    todayTextStyle: TextStyle(
+                      color: context.appColors.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                     selectedDecoration: const BoxDecoration(
@@ -154,7 +177,7 @@ class _ParentTripAttendanceScreenState
                       shape: BoxShape.circle,
                     ),
                     selectedTextStyle: const TextStyle(
-                      color: AppColors.textPrimary,
+                      color: AppColors.onPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -230,12 +253,12 @@ class _ParentTripAttendanceScreenState
         decoration: BoxDecoration(
           color: done
               ? AppColors.success.withValues(alpha: 0.10)
-              : AppColors.background,
+              : context.appColors.background,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: done
                 ? AppColors.success.withValues(alpha: 0.35)
-                : AppColors.border,
+                : context.appColors.border,
           ),
         ),
         child: Row(
@@ -243,13 +266,13 @@ class _ParentTripAttendanceScreenState
             Icon(
               icon,
               size: 16,
-              color: done ? AppColors.success : AppColors.textSecondary,
+              color: done ? AppColors.success : context.appColors.textSecondary,
             ),
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: context.appColors.textSecondary,
                 fontSize: 12,
               ),
             ),
@@ -257,7 +280,7 @@ class _ParentTripAttendanceScreenState
             Text(
               done ? _time(time) : '--:--',
               style: TextStyle(
-                color: done ? AppColors.textPrimary : AppColors.textSecondary,
+                color: done ? context.appColors.textPrimary : context.appColors.textSecondary,
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
               ),
@@ -281,11 +304,11 @@ class _ParentTripAttendanceScreenState
         child.tripId == null;
     return Card(
       elevation: 0,
-      color: AppColors.surface,
+      color: context.appColors.surface,
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: context.appColors.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -303,8 +326,8 @@ class _ParentTripAttendanceScreenState
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: context.appColors.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
@@ -333,20 +356,20 @@ class _ParentTripAttendanceScreenState
                 style: TextStyle(color: AppColors.danger, fontSize: 13),
               )
             else if (noTrip)
-              const Text(
+              Text(
                 '이 날은 운행 기록이 없어요',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(color: context.appColors.textSecondary, fontSize: 13),
               )
             else
               Row(
                 children: [
                   _timeBox('승차', child.boardingConfirmedAt, Icons.login_rounded),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 6),
                     child: Icon(
                       Icons.arrow_forward_rounded,
                       size: 16,
-                      color: AppColors.textSecondary,
+                      color: context.appColors.textSecondary,
                     ),
                   ),
                   _timeBox('하차', child.alightingConfirmedAt, Icons.logout_rounded),
@@ -393,8 +416,8 @@ class _ParentTripAttendanceScreenState
                       child: Text(
                         _dateTitle,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: context.appColors.textPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),

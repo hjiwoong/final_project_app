@@ -492,9 +492,9 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
               child: ShaderMask(
                 shaderCallback: (bounds) => LinearGradient(
                   colors: [
-                    AppColors.surface,
-                    AppColors.surface,
-                    AppColors.surface.withValues(alpha: 0),
+                    context.appColors.surface,
+                    context.appColors.surface,
+                    context.appColors.surface.withValues(alpha: 0),
                   ],
                   stops: [
                     0,
@@ -534,8 +534,8 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
                 duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border.all(color: AppColors.border),
+                  color: context.appColors.surface,
+                  border: Border.all(color: context.appColors.border),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: ValueListenableBuilder<TextEditingValue>(
@@ -563,8 +563,8 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
                                   minLines: 1,
                                   maxLines: 4,
                                   maxLength: 500,
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
+                                  style: TextStyle(
+                                    color: context.appColors.textPrimary,
                                   ),
                                   buildCounter:
                                       (
@@ -575,10 +575,10 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
                                       }) => null,
                                   textInputAction: TextInputAction.send,
                                   onSubmitted: (_) => _sendMessage(),
-                                  decoration: const InputDecoration.collapsed(
+                                  decoration: InputDecoration.collapsed(
                                     hintText: '무엇이든 물어보세요',
                                     hintStyle: TextStyle(
-                                      color: AppColors.textSecondary,
+                                      color: context.appColors.textSecondary,
                                     ),
                                   ),
                                 ),
@@ -622,7 +622,7 @@ class _AlertChatScreenState extends State<AlertChatScreen> {
                                   fontSize: 11,
                                   color: characterCount >= 490
                                       ? AppColors.danger
-                                      : AppColors.textSecondary,
+                                      : context.appColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -725,8 +725,8 @@ class _MessageBubble extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: isUser ? AppColors.primary : AppColors.surface,
-        border: isUser ? null : Border.all(color: AppColors.border),
+        color: isUser ? AppColors.primary : context.appColors.surface,
+        border: isUser ? null : Border.all(color: context.appColors.border),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(isUser ? 16 : 4),
           topRight: Radius.circular(isUser ? 4 : 16),
@@ -740,13 +740,16 @@ class _MessageBubble extends StatelessWidget {
           SelectableText(
             displayText,
             textAlign: TextAlign.left,
-            style: const TextStyle(color: AppColors.textPrimary, height: 1.5),
+            style: TextStyle(
+              color: isUser ? AppColors.onPrimary : context.appColors.textPrimary,
+              height: 1.5,
+            ),
           ),
           if (!isUser && message.isFallback) ...[
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'AI 연결이 안 돼서 안내 문서로 대신 답했어요',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+              style: TextStyle(color: context.appColors.textSecondary, fontSize: 11),
             ),
           ],
           if (message.sources.isNotEmpty || message.sourceDate != null) ...[
@@ -755,7 +758,7 @@ class _MessageBubble extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.only(top: 8),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.border)),
+                border: Border(top: BorderSide(color: context.appColors.border)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -765,12 +768,12 @@ class _MessageBubble extends StatelessWidget {
                       tilePadding: EdgeInsets.zero,
                       childrenPadding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
-                      iconColor: AppColors.textSecondary,
-                      collapsedIconColor: AppColors.textSecondary,
+                      iconColor: context.appColors.textSecondary,
+                      collapsedIconColor: context.appColors.textSecondary,
                       title: Text(
                         '참고 자료 (${message.sources.length})',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -781,7 +784,7 @@ class _MessageBubble extends StatelessWidget {
                               '${message.sourceDate?.label}: '
                               '${message.sourceDate?.value}',
                               style: TextStyle(
-                                color: AppColors.textSecondary,
+                                color: context.appColors.textSecondary,
                                 fontSize: 11,
                               ),
                             ),
@@ -794,8 +797,8 @@ class _MessageBubble extends StatelessWidget {
                               children: [
                                 Text(
                                   source['title'] as String? ?? '안전 안내 자료',
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
+                                  style: TextStyle(
+                                    color: context.appColors.textPrimary,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -804,7 +807,7 @@ class _MessageBubble extends StatelessWidget {
                                   Text(
                                     source['source'] as String,
                                     style: TextStyle(
-                                      color: AppColors.textSecondary,
+                                      color: context.appColors.textSecondary,
                                       fontSize: 11,
                                     ),
                                   ),
@@ -818,7 +821,7 @@ class _MessageBubble extends StatelessWidget {
                       '${message.sourceDate?.label}: '
                       '${message.sourceDate?.value}',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: context.appColors.textSecondary,
                         fontSize: 11,
                       ),
                     ),

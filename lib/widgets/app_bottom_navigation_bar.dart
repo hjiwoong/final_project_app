@@ -17,26 +17,26 @@ class AppBottomNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: context.appColors.border)),
       ),
       child: NavigationBarTheme(
         data: NavigationBarThemeData(
-          backgroundColor: AppColors.surface,
+          backgroundColor: context.appColors.surface,
           indicatorColor: AppColors.primary.withValues(alpha: 0),
           iconTheme: WidgetStateProperty.resolveWith(
             (states) => IconThemeData(
               color: states.contains(WidgetState.selected)
-                  ? AppColors.textPrimary
-                  : AppColors.textSecondary,
+                  ? AppColors.onPrimary
+                  : context.appColors.textSecondary,
               size: 22,
             ),
           ),
           labelTextStyle: WidgetStateProperty.resolveWith(
             (states) => TextStyle(
               color: states.contains(WidgetState.selected)
-                  ? AppColors.textPrimary
-                  : AppColors.textSecondary,
+                  ? context.appColors.textPrimary
+                  : context.appColors.textSecondary,
               fontSize: 12,
               fontWeight: states.contains(WidgetState.selected)
                   ? FontWeight.bold
