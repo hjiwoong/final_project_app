@@ -28,7 +28,7 @@ class AppErrorMessage {
           403 => '이 작업을 수행할 권한이 없습니다.',
           404 => '요청한 정보를 찾을 수 없습니다.',
           408 || 504 => '서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.',
-          409 => '정보가 변경되었습니다. 새로고침한 후 다시 시도해 주세요.',
+          409 => _serverDetail(error) ?? '정보가 변경되었습니다. 새로고침한 후 다시 시도해 주세요.',
           422 => '입력한 내용을 확인해 주세요.',
           429 => '요청이 많아 처리할 수 없습니다. 잠시 후 다시 시도해 주세요.',
           >= 500 => '서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.',
@@ -51,5 +51,12 @@ class AppErrorMessage {
     }
 
     return fallback;
+  }
+
+  /// 서버가 보낸 안내 문구 (예: '12월에는 이미 결석을 4번 신청해서…')
+  static String? _serverDetail(DioException error) {
+    final data = error.response?.data;
+    final detail = data is Map ? data['detail'] : null;
+    return detail is String && detail.trim().isNotEmpty ? detail.trim() : null;
   }
 }

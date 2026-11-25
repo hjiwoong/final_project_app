@@ -17,6 +17,7 @@ import '../../data/models/child_attendance.dart';
 import '../../data/models/child_student.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/primary_button.dart';
+import 'widgets/absence_limit.dart';
 
 class ParentAttendanceScreen extends StatefulWidget {
   const ParentAttendanceScreen({this.active = true, super.key});
@@ -305,6 +306,24 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
     }
   }
 
+  /// '결석' 선택: 이번 달 결석 한도(기본 4번)를 다 썼으면 안내 창만 띄운다
+  Future<void> _selectAbsent() async {
+    final child = _selectedChild;
+    if (child == null || _isAbsent) return;
+    final alreadyAbsent = _attendance?.isAbsent == true;   // 이미 결석인 날은 한도와 무관
+    if (!alreadyAbsent) {
+      final date = _selectedDate;
+      final (allowed, _) = await ensureAbsenceAllowed(
+        context,
+        studentId: child.id,
+        date: date,
+      );
+      if (!allowed || !mounted || child != _selectedChild || date != _selectedDate) return;
+    }
+    setState(() => _isAbsent = true);
+    _loadRecentReason();
+  }
+
   Future<void> _save() async {
     final child = _selectedChild;
     if (child == null || !_canEdit || _saving) return;
@@ -350,7 +369,15 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
       );
     } on DioException catch (error) {
       if (!mounted) return;
-      if (error.response?.statusCode == 409) {
+      final limitMessage = absenceLimitErrorMessage(error);
+      if (limitMessage != null) {
+        setState(() => _isAbsent = false);
+        await showAbsenceLimitDialog(
+          context,
+          date: _selectedDate,
+          message: limitMessage,
+        );
+      } else if (error.response?.statusCode == 409) {
         InAppNotificationBanner.showMessage(
           _attendanceErrorMessage(error, fallback: '변경 마감 시간이 지났어요'),
         );
@@ -906,10 +933,7 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                   label: const Text('결석'),
                   selected: _isAbsent,
                   onSelected: _canEdit
-                      ? (_) {
-                          setState(() => _isAbsent = true);
-                          _loadRecentReason();
-                        }
+                      ? (_) => _selectAbsent()
                       : null,
                   selectedColor: AppColors.primary.withValues(alpha: 0.35),
                   backgroundColor: context.appColors.surface,

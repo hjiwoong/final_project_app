@@ -22,6 +22,7 @@ import 'notification_list_screen.dart';
 import 'parent_attendance_screen.dart';
 import 'parent_trip_screens.dart';
 import 'unread_notification_store.dart';
+import 'widgets/absence_limit.dart';
 import 'widgets/absence_request_sheet.dart';
 
 class ParentHomeScreen extends StatefulWidget {
@@ -427,10 +428,20 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     DateTime date,
     String label,
   ) async {
+    // 한 달 결석 한도(기본 4번)를 다 썼으면 시트 대신 안내 창
+    final (allowed, limit) = await ensureAbsenceAllowed(
+      context,
+      studentId: child.id,
+      date: date,
+    );
+    if (!allowed || !mounted) return;
     final request = await showAbsenceRequestSheet(
       context,
       childName: child.name,
       dateLabel: label,
+      limitNote: limit == null
+          ? null
+          : '${date.month}월 결석 ${limit.remaining}번 남음 (한 달 최대 ${limit.limit}번)',
     );
     if (request == null || !mounted || _saving.contains(child.id)) return;
     setState(() => _saving.add(child.id));
@@ -466,7 +477,10 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
             : '$label 결석은 신청했지만 첨부 $failed개를 올리지 못했어요. 설정 > 출석·결석 관리에서 다시 첨부해 주세요.',
       );
     } catch (error) {
-      if (mounted && !_loggingOut) {
+      final limitMessage = absenceLimitErrorMessage(error);
+      if (limitMessage != null && mounted) {
+        await showAbsenceLimitDialog(context, date: date, message: limitMessage);
+      } else if (mounted && !_loggingOut) {
         InAppNotificationBanner.showMessage(_attendanceError(error));
       }
     } finally {

@@ -834,6 +834,18 @@ class ApiRepository implements SignupGateway, TermsGateway {
   }
 
   // 관리자: 결석 신청 확인 / 반려 (POST /web/attendances/{id}/confirm · /reject)
+  // 그 달 결석 한도 (GET /me/children/{id}/absence-limit?date=)
+  Future<Map<String, dynamic>> getAbsenceLimit(
+    int studentId,
+    DateTime date,
+  ) async {
+    final response = await _dio.get(
+      '/me/children/$studentId/absence-limit',
+      queryParameters: {'date': _attendanceDateKey(date)},
+    );
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   String _attendanceDateKey(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'

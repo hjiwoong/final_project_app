@@ -32,6 +32,7 @@ Future<AbsenceRequest?> showAbsenceRequestSheet(
   BuildContext context, {
   required String childName,
   required String dateLabel,
+  String? limitNote,
 }) => showModalBottomSheet<AbsenceRequest>(
   context: context,
   isScrollControlled: true,
@@ -41,17 +42,25 @@ Future<AbsenceRequest?> showAbsenceRequestSheet(
     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
   ),
   builder: (_) =>
-      _AbsenceRequestSheet(childName: childName, dateLabel: dateLabel),
+      _AbsenceRequestSheet(
+        childName: childName,
+        dateLabel: dateLabel,
+        limitNote: limitNote,
+      ),
 );
 
 class _AbsenceRequestSheet extends StatefulWidget {
   const _AbsenceRequestSheet({
     required this.childName,
     required this.dateLabel,
+    this.limitNote,
   });
 
   final String childName;
   final String dateLabel;
+
+  /// 예) 이번 달 결석 2번 남음 (한 달 최대 4번)
+  final String? limitNote;
 
   @override
   State<_AbsenceRequestSheet> createState() => _AbsenceRequestSheetState();
@@ -183,6 +192,17 @@ class _AbsenceRequestSheetState extends State<_AbsenceRequestSheet> {
             '사유와 첨부는 선택이에요. 그대로 신청해도 돼요.',
             style: TextStyle(color: context.appColors.textSecondary, fontSize: 13),
           ),
+          if (widget.limitNote != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              widget.limitNote!,
+              style: const TextStyle(
+                color: AppColors.primaryDark,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Text(
             '결석 사유',
