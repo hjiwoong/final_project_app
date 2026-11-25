@@ -47,7 +47,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
       final image = await ApiRepository.instance.pickImage(source: source);
       if (image == null) {
         if (!mounted) return;
-        InAppNotificationBanner.showMessage('사진 선택을 취소했습니다.');
+        InAppNotificationBanner.showMessage('촬영을 취소했습니다.');
         return;
       }
 
@@ -83,41 +83,9 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
     }
   }
 
+  // 촬영 버튼: 사진 앱 선택 없이 바로 카메라 (운행 중 실제 차량 사진만 쓰도록)
   Future<void> _choosePhoto() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => SafeArea(
-        child: Container(
-          margin: AppTheme.sheetMargin,
-          padding: const EdgeInsets.all(20),
-          decoration: AppTheme.sheetDecoration(context),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '사진 선택',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.camera_alt_outlined),
-                title: const Text('카메라로 촬영'),
-                onTap: () => Navigator.of(context).pop(ImageSource.camera),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('사진 앱에서 선택'),
-                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (source == null || !mounted) return;
-    await _captureFromSource(source);
+    await _captureFromSource(ImageSource.camera);
   }
 
   Future<void> _capture() async {
@@ -348,7 +316,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              '탑승객이 모두 보이도록 사진을 선택합니다.\n\n촬영 전 차량의 실내등을 켠 후 촬영을 진행해 주세요.\n카메라 또는 사진 앱에서 버스 내부 이미지를 가져와 분석합니다.\n\n권한을 거부한 경우 설정에서 변경할 수 있습니다.',
+                              '탑승객이 모두 보이도록 촬영합니다.\n\n촬영 전 차량의 실내등을 켠 후 촬영을 진행해 주세요.\n카메라로 찍은 버스 내부 사진을 분석합니다.\n\n권한을 거부한 경우 설정에서 변경할 수 있습니다.',
                               textAlign: TextAlign.left,
                               style: TextStyle(
                                 fontSize: 14,
@@ -516,7 +484,7 @@ class _BoardingCaptureScreenState extends State<BoardingCaptureScreen> {
                     ),
                     const SizedBox(height: 8),
                     PrimaryButton(
-                      label: '승차 사진 선택',
+                      label: '승차 사진 촬영',
                       loading: _loading,
                       onPressed: _capture,
                     ),

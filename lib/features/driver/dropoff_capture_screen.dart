@@ -4,7 +4,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/errors/app_error_message.dart';
 import '../../core/auth/session.dart';
 import '../../core/permissions/camera_permission_service.dart';
-import '../../core/theme/app_theme.dart';
 import '../../data/api/api_repository.dart';
 import '../../widgets/primary_button.dart';
 import 'judge_result_screen.dart';
@@ -37,7 +36,7 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
       final image = await ApiRepository.instance.pickImage(source: source);
       if (image == null) {
         if (!mounted) return;
-        InAppNotificationBanner.showMessage('사진 선택을 취소했습니다.');
+        InAppNotificationBanner.showMessage('촬영을 취소했습니다.');
         return;
       }
 
@@ -59,41 +58,9 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
     }
   }
 
+  // 촬영 버튼: 사진 앱 선택 없이 바로 카메라 (운행 중 실제 차량 사진만 쓰도록)
   Future<void> _choosePhoto() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => SafeArea(
-        child: Container(
-          margin: AppTheme.sheetMargin,
-          padding: const EdgeInsets.all(20),
-          decoration: AppTheme.sheetDecoration(context),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '사진 선택',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.camera_alt_outlined),
-                title: const Text('카메라로 촬영'),
-                onTap: () => Navigator.of(context).pop(ImageSource.camera),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('사진 앱에서 선택'),
-                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (source == null || !mounted) return;
-    await _captureFromSource(source);
+    await _captureFromSource(ImageSource.camera);
   }
 
   @override
@@ -135,7 +102,7 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
                       SizedBox(height: 12),
                       Text(
                         '모든 탑승객이 하차했는지 확인하기 위해 사진을 선택합니다.\n'
-                        '카메라 또는 사진 앱에서 버스 내부 이미지를 가져와 서버의 YOLO 모델로 분석합니다.',
+                        '카메라로 찍은 버스 내부 사진을 서버의 YOLO 모델로 분석합니다.',
                         style: TextStyle(
                           fontSize: 14,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -155,7 +122,7 @@ class _DropoffCaptureScreenState extends State<DropoffCaptureScreen> {
               ),
               const SizedBox(height: 8),
               PrimaryButton(
-                label: '종점 사진 선택',
+                label: '종점 사진 촬영',
                 loading: _loading,
                 onPressed: _choosePhoto,
               ),
