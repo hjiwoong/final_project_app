@@ -332,13 +332,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
 
   (String, Color, Color) _status(ChildStudent child) {
     if (child.isAbsent) {
-      final label = switch (child.absenceStatus) {
-        'CONFIRMED' => '결석 · 확인됨',
-        'REJECTED' => '결석 · 반려',
-        'REQUESTED' => '결석 · 확인 대기',
-        _ => '결석',
-      };
-      return (label, AppColors.danger.withValues(alpha: 0.1), AppColors.danger);
+      // 결석은 학부모가 등록하면 바로 반영된다 (관리자 확인·반려 단계 없음)
+      return ('결석', AppColors.danger.withValues(alpha: 0.1), AppColors.danger);
     }
     if (child.alightingConfirmedAt != null) {
       return (

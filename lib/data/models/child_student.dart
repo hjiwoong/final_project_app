@@ -14,7 +14,6 @@ class ChildStudent {
     this.tripId,
     this.boardingConfirmedAt,
     this.alightingConfirmedAt,
-    this.absenceStatus,
   });
 
   final int id;
@@ -29,9 +28,6 @@ class ChildStudent {
   final int? tripId;
   final DateTime? boardingConfirmedAt;
   final DateTime? alightingConfirmedAt;
-
-  /// 결석 신청 처리 상태: REQUESTED(확인 대기) · CONFIRMED(확인됨) · REJECTED(반려)
-  final String? absenceStatus;
 
   factory ChildStudent.fromJson(Map<String, dynamic> json) {
     final location = json['location'];
@@ -50,9 +46,6 @@ class ChildStudent {
       alightingConfirmedAt: DateTime.tryParse(
         json['alighting_confirmed_at']?.toString() ?? '',
       ),
-      absenceStatus: json['attendance'] is Map
-          ? (json['attendance'] as Map)['status'] as String?
-          : null,
       location: location is Map
           ? ChildLocation.fromJson(Map<String, dynamic>.from(location))
           : null,

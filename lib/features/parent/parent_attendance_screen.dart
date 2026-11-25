@@ -556,39 +556,19 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
       file.contentType == 'application/pdf' ||
       file.name.toLowerCase().endsWith('.pdf');
 
-  Color _statusColor(String? status) => switch (status) {
-    'REQUESTED' => context.appColors.textPrimary,
-    'CONFIRMED' => AppColors.success,
-    'REJECTED' => AppColors.danger,
-    _ => context.appColors.textSecondary,
-  };
-
-  Color _statusBackground(String? status) => switch (status) {
-    'REQUESTED' => context.appColors.info,
-    'CONFIRMED' => AppColors.success.withValues(alpha: 0.12),
-    'REJECTED' => AppColors.danger.withValues(alpha: 0.10),
-    _ => context.appColors.border,
-  };
-
-  String _statusLabel(String? status) => switch (status) {
-    'REQUESTED' => '확인 대기',
-    'CONFIRMED' => '확인됨',
-    'REJECTED' => '반려됨',
-    _ => '처리 상태 없음',
-  };
-
-  Widget _statusChip(String? status) => Container(
+  // 결석은 등록 즉시 반영되므로 처리 상태 대신 '결석' 표시만 한다
+  Widget _absentChip() => Container(
     constraints: const BoxConstraints(minHeight: 26),
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
-      color: _statusBackground(status),
+      color: AppColors.danger.withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(13),
     ),
     alignment: Alignment.center,
-    child: Text(
-      _statusLabel(status),
+    child: const Text(
+      '결석',
       style: TextStyle(
-        color: _statusColor(status),
+        color: AppColors.danger,
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
@@ -678,13 +658,7 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
         ),
         markerBuilder: (context, date, events) {
           if (events.isEmpty) return null;
-          final status = events.first.status;
-          final dotColor = switch (status) {
-            'REQUESTED' => AppColors.primaryDark,
-            'CONFIRMED' => AppColors.success,
-            'REJECTED' => AppColors.danger,
-            _ => AppColors.primaryDark,
-          };
+          const dotColor = AppColors.danger;
           return Positioned(
             bottom: 3,
             child: Container(
@@ -896,20 +870,9 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
                 ),
               ),
             ),
-            if (attendance?.isAbsent == true) _statusChip(attendance?.status),
+            if (attendance?.isAbsent == true) _absentChip(),
           ],
         ),
-        if (attendance?.status == 'REJECTED') ...[
-          const SizedBox(height: 6),
-          Text(
-            attendance?.rejectReason?.trim().isNotEmpty == true
-                ? attendance!.rejectReason!.trim()
-                : '관리자에게 문의해 주세요',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.danger, fontSize: 13),
-          ),
-        ],
         const SizedBox(height: 12),
         if (_attendanceLoading)
           const Center(

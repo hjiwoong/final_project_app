@@ -37,13 +37,13 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   late final PageController _pageController;
   int _requestId = 0;
 
-  // 학부모는 '확인 필요' 경고를 받지 않으므로(관리자 전용) 대신 '운행' 알림 탭, 관리자는 '결석' 탭
+  // 학부모: '확인 필요'(관리자 전용)·'결석'(확인·반려 알림이 없어짐) 대신 '운행' 탭
+  // 관리자: 학부모가 등록·취소한 결석 알림을 보는 '결석' 탭
   late final List<_NotificationFilter> _filters = Session.role == UserRole.parent
       ? const [
           _NotificationFilter.all,
           _NotificationFilter.urgent,
           _NotificationFilter.trip,
-          _NotificationFilter.attendance,
         ]
       : const [
           _NotificationFilter.all,

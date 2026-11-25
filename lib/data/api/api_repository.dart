@@ -834,17 +834,6 @@ class ApiRepository implements SignupGateway, TermsGateway {
   }
 
   // 관리자: 결석 신청 확인 / 반려 (POST /web/attendances/{id}/confirm · /reject)
-  Future<void> confirmAttendance(int attendanceId) async {
-    await _dio.post('/web/attendances/$attendanceId/confirm');
-  }
-
-  Future<void> rejectAttendance(int attendanceId, String reason) async {
-    await _dio.post(
-      '/web/attendances/$attendanceId/reject',
-      data: {'reason': reason},
-    );
-  }
-
   String _attendanceDateKey(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-'
       '${date.month.toString().padLeft(2, '0')}-'
