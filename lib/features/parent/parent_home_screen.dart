@@ -408,6 +408,21 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
 
   static const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
+  /// 토·일은 통학버스 운행이 없어 결석 신청을 받지 않는다 (서버도 422로 거절)
+  static const _weekendAbsenceMessage = '주말은 통학버스 운행이 없어 결석 신청을 할 수 없어요.';
+
+  static bool _isWeekend(DateTime date) =>
+      date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+
+  /// date 가 주말이면 다음 월요일, 평일이면 그대로
+  static DateTime _nextWeekday(DateTime date) {
+    var day = date;
+    while (_isWeekend(day)) {
+      day = day.add(const Duration(days: 1));
+    }
+    return day;
+  }
+
   String _dateLabel(DateTime date) =>
       '${date.month}월 ${date.day}일(${_weekdays[date.weekday - 1]})';
 
@@ -415,6 +430,10 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
   Future<void> _setAttendance(ChildStudent child) async {
     if (_saving.contains(child.id)) return;
     final today = DateUtils.dateOnly(DateTime.now());
+    if (!child.isAbsent && _isWeekend(today)) {
+      InAppNotificationBanner.showMessage(_weekendAbsenceMessage);
+      return;
+    }
     if (child.isAbsent) {
       await _cancelAbsence(child, today, '오늘');
     } else {
@@ -753,9 +772,11 @@ class _ParentHomeScreenState extends State<ParentHomeScreen>
     final today = DateUtils.dateOnly(DateTime.now());
     final picked = await showDatePicker(
       context: context,
-      initialDate: today.add(const Duration(days: 1)),
+      // 달력에서 토·일은 고를 수 없게 막는다 (처음 선택 날짜도 평일이어야 함)
+      initialDate: _nextWeekday(today.add(const Duration(days: 1))),
       firstDate: today,
       lastDate: today.add(const Duration(days: 90)),
+      selectableDayPredicate: (day) => !_isWeekend(day),
       helpText: '결석할 날짜 선택',
       cancelText: '취소',
       confirmText: '선택',

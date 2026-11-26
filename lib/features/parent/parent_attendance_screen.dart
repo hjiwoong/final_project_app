@@ -91,8 +91,17 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
     _selectedDate,
   ).isBefore(DateUtils.dateOnly(DateTime.now()));
 
+  /// 토·일은 통학버스 운행이 없어 결석 신청을 받지 않는다 (서버도 422로 거절)
+  bool get _isWeekendSelected =>
+      _selectedDate.weekday == DateTime.saturday ||
+      _selectedDate.weekday == DateTime.sunday;
+
   bool get _canEdit =>
-      !_isPastSelected && _attendance?.editable == true && !_attendanceLoading;
+      !_isPastSelected &&
+      // 주말은 새 결석 신청만 막고, 예전에 잡힌 주말 결석의 취소는 허용
+      (!_isWeekendSelected || _attendance?.isAbsent == true) &&
+      _attendance?.editable == true &&
+      !_attendanceLoading;
 
   Future<void> _loadChildren() async {
     if (mounted) {
@@ -602,6 +611,22 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
     ),
   );
 
+  Widget _buildWeekendNotice() => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    child: Row(
+      children: [
+        Icon(Icons.event_busy_rounded, color: context.appColors.textSecondary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            '주말은 통학버스 운행이 없어 결석 신청을 할 수 없어요.',
+            style: TextStyle(color: context.appColors.textSecondary),
+          ),
+        ),
+      ],
+    ),
+  );
+
   Widget _buildCalendar() {
     final focusedKey = _monthKey(_focusedDay);
     final monthLoading = _loadingMonths.contains(focusedKey);
@@ -642,7 +667,9 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
       ),
       calendarStyle: CalendarStyle(
         defaultTextStyle: TextStyle(color: context.appColors.textPrimary),
-        weekendTextStyle: TextStyle(color: context.appColors.textPrimary),
+        weekendTextStyle: TextStyle(
+          color: context.appColors.textSecondary.withValues(alpha: 0.55),
+        ),
         outsideTextStyle: TextStyle(
           color: context.appColors.textSecondary.withValues(alpha: 0.55),
         ),
@@ -910,6 +937,8 @@ class _ParentAttendanceScreenState extends State<ParentAttendanceScreen> {
           )
         else if (_isPastSelected)
           _buildPastDetails()
+        else if (_isWeekendSelected && attendance?.isAbsent != true)
+          _buildWeekendNotice()
         else if (attendance != null) ...[
           _buildDeadlineNotice(),
           Row(

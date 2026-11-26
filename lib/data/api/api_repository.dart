@@ -833,7 +833,6 @@ class ApiRepository implements SignupGateway, TermsGateway {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  // 관리자: 결석 신청 확인 / 반려 (POST /web/attendances/{id}/confirm · /reject)
   // 그 달 결석 한도 (GET /me/children/{id}/absence-limit?date=)
   Future<Map<String, dynamic>> getAbsenceLimit(
     int studentId,
